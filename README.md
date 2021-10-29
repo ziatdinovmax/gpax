@@ -1,2 +1,2 @@
 # gpax
-Gaussian processes in JAX
+A simple package for Gaussian processes based on NumPyro and JAX.
