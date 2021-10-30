@@ -1,0 +1,187 @@
+from functools import partial
+from typing import Callable, Dict, Optional, Tuple
+
+import jax
+import jax.numpy as jnp
+import jax.random as jra
+import numpyro
+import numpyro.distributions as dist
+from jax import jit
+from jax.interpreters import xla
+from numpyro.infer import MCMC, NUTS, init_to_median
+
+from .kernels import get_kernel
+
+numpyro.enable_x64()
+
+
+class ExactGP:
+    """
+    Gaussian process class
+
+    Args:
+        input_dim: number of input dimensions
+        kernel: type of kernel ('RBF', 'Matern', 'Periodic')
+        mean_fn: optional deterministic mean function (use 'mean_fn_priors' to turn it into probabilistic)
+        kernel_priors: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
+        mean_fn_priors: optional priors over mean function parameters
+    """
+
+    def __init__(self, input_dim: int, kernel: str,
+                 mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray]]] = None,
+                 kernel_priors: Optional[Callable[[None], Dict[str, jnp.ndarray]]] = None,
+                 mean_fn_priors: Optional[Callable[[None], Dict[str, jnp.ndarray]]] = None
+                 ) -> None:
+        xla._xla_callable.cache_clear()
+        self.input_dim = input_dim
+        self.kernel = kernel
+        self.mean_fn = mean_fn
+        self.kernel_priors = kernel_priors
+        self.mean_fn_priors = mean_fn_priors
+        self.X_train = None
+        self.y_train = None
+        self.mcmc = None
+
+    def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
+        """GP probabilistic model"""
+        # Initialize mean function at zeros
+        f_loc = jnp.zeros(X.shape[0])
+        # Sample kernel parameters and noise
+        if self.kernel_priors:
+            kernel_params = self.kernel_priors()
+        else:
+            kernel_params = self._sample_kernel_params()
+        # Sample noise
+        noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
+        # Add mean function (if any)
+        if self.mean_fn is not None:
+            args = [X]
+            if self.mean_fn_priors is not None:
+                args += [self.mean_fn_priors()]
+            f_loc += self.mean_fn(*args).squeeze()
+        # compute kernel
+        k = get_kernel(self.kernel)(
+            X, X,
+            kernel_params,
+            noise
+        )
+        # sample y according to the standard Gaussian process formula
+        numpyro.sample(
+            "y",
+            dist.MultivariateNormal(loc=f_loc, covariance_matrix=k),
+            obs=y,
+        )
+
+    def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
+            num_warmup: int = 2000, num_samples: int = 2000, num_chains: int = 1,
+            progress_bar: bool = True, print_summary: bool = True) -> None:
+        """
+        Run MCMC to infer the GP model parameters
+
+        Args:
+            rng_key: random number generator key
+            X: 2D 'feature vector' with :math:`n x num_features` dimensions
+            y: 1D 'target vector' with :math:`(n,)` dimensions
+            num_warmup: number of MCMC warmup states
+            num_samples: number of MCMC samples
+            num_chains: number of MCMC chains
+            progress_bar: show progress bar
+            print_summary: print summary at the end of sampling
+        """
+        X = X if X.ndim > 1 else X[:, None]
+        self.X_train = X
+        self.y_train = y
+
+        init_strategy = init_to_median(num_samples=10)
+        kernel = NUTS(self.model, init_strategy=init_strategy)
+        self.mcmc = MCMC(
+            kernel,
+            num_warmup=num_warmup,
+            num_samples=num_samples,
+            num_chains=num_chains,
+            progress_bar=progress_bar,
+            jit_model_args=False
+        )
+        self.mcmc.run(rng_key, X, y)
+        if print_summary:
+            self.mcmc.print_summary()
+
+    def get_samples(self, chain_dim: bool = False) -> Dict[str, jnp.ndarray]:
+        """Get posterior samples (after running the MCMC chains)"""
+        return self.mcmc.get_samples(group_by_chain=chain_dim)
+
+    @partial(jit, static_argnames='self')
+    def get_mvn_posterior(self,
+                          X_test: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                          ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Returns parameters (mean and cov) of multivariate normal posterior
+        for a single sample of GP hyperparameters
+        """
+        noise = params["noise"]
+        y_residual = self.y_train
+        if self.mean_fn is not None:
+            args = [self.X_train, params] if self.mean_fn_priors else [self.X_train]
+            y_residual -= self.mean_fn(*args).squeeze()
+        # compute kernel matrices for train and test data
+        k_pp = get_kernel(self.kernel)(X_test, X_test, params, noise)
+        k_pX = get_kernel(self.kernel)(X_test, self.X_train, params, jitter=0.0)
+        k_XX = get_kernel(self.kernel)(self.X_train, self.X_train, params, noise)
+        # compute the predictive covariance and mean
+        K_xx_inv = jnp.linalg.inv(k_XX)
+        cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
+        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
+        if self.mean_fn is not None:
+            args = [X_test, params] if self.mean_fn_priors else [X_test]
+            mean += self.mean_fn(*args).squeeze()
+        return mean, cov
+
+    def _predict(self, rng_key: jnp.ndarray, X_test: jnp.ndarray,
+                 params: Dict[str, jnp.ndarray], n: int
+                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """Prediction with a single sample of GP hyperparameters"""
+        X_test = X_test if X_test.ndim > 1 else X_test[:, None]
+        # Get the predictive mean and covariance
+        y_mean, K = self.get_mvn_posterior(X_test, params)
+        # draw samples from the posterior predictive for a given set of hyperparameters
+        y_sample = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
+        return y_mean, y_sample.squeeze()
+
+    def _sample_kernel_params(self) -> Dict[str, jnp.ndarray]:
+        """
+        Sample kernel parameters and noise
+        with weakly-informative log-normal priors
+        """
+        with numpyro.plate('k_param', self.input_dim):  # allows using ARD kernel for input_dim > 1
+            length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
+        scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
+        if self.kernel == 'Periodic':
+            period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
+        kernel_params = {
+            "k_length": length, "k_scale": scale,
+            "period": period if self.kernel == "Periodic" else None}
+        return kernel_params
+
+    def predict(self, rng_key: jnp.ndarray, X_test: jnp.ndarray,
+                samples: Optional[Dict[str, jnp.ndarray]] = None,
+                n: int = 1) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Make prediction at X_test points using sampled GP hyperparameters
+
+        Args:
+            rng_key: random number generator key
+            X_test: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
+            samples: optional posterior samples
+            n: number of samples from Multivariate Normal posterior for each MCMC sample with GP hyperaparameters
+
+        Returns:
+            Center of the mass of sampled means and all the sampled predictions
+        """
+        if samples is None:
+            samples = self.get_samples(chain_dim=False)
+        num_samples = samples["k_length"].shape[0]
+        vmap_args = (jra.split(rng_key, num_samples), samples)
+        predictive = jax.vmap(
+            lambda params: self._predict(params[0], X_test, params[1], n))
+        y_means, y_sampled = predictive(vmap_args)
+        return y_means.mean(0), y_sampled
