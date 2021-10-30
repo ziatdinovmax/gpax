@@ -28,9 +28,9 @@ class ExactGP:
     """
 
     def __init__(self, input_dim: int, kernel: str,
-                 mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray]]] = None,
-                 kernel_priors: Optional[Callable[[None], Dict[str, jnp.ndarray]]] = None,
-                 mean_fn_priors: Optional[Callable[[None], Dict[str, jnp.ndarray]]] = None
+                 mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
+                 kernel_priors: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 mean_fn_priors: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
         xla._xla_callable.cache_clear()
         self.input_dim = input_dim
