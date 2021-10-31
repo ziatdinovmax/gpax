@@ -33,7 +33,7 @@ class ExactGP:
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
         xla._xla_callable.cache_clear()
-        self.input_dim = input_dim
+        self.kernel_dim = input_dim
         self.kernel = kernel
         self.mean_fn = mean_fn
         self.kernel_prior = kernel_prior
@@ -147,12 +147,12 @@ class ExactGP:
         y_sample = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sample.squeeze()
 
-    def _sample_kernel_params(self) -> Dict[str, jnp.ndarray]:
+    def _sample_kernel_params(self, dim: int = None) -> Dict[str, jnp.ndarray]:
         """
         Sample kernel parameters and noise
         with weakly-informative log-normal priors
         """
-        with numpyro.plate('k_param', self.input_dim):  # allows using ARD kernel for input_dim > 1
+        with numpyro.plate('k_param', self.kernel_dim):  # allows using ARD kernel for dim > 1
             length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
         scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
         if self.kernel == 'Periodic':

@@ -20,8 +20,8 @@ class DKL(ExactGP):
 
     Args:
         input_dim: number of input dimensions
-        kernel: type of kernel ('RBF', 'Matern', 'Periodic')
         z_dim: latent space dimensionality
+        kernel: type of kernel ('RBF', 'Matern', 'Periodic')
         kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
         bnn_fn: Custom MLP
         bnn_fn_prior: Bayesian priors over the weights and biases in bnn_fn
@@ -36,10 +36,8 @@ class DKL(ExactGP):
         xla._xla_callable.cache_clear()
         self.bnn = bnn_fn if bnn_fn else bnn
         self.bnn_prior = bnn_fn_prior if bnn_fn_prior else bnn_prior(input_dim, z_dim)
+        self.kernel_dim = z_dim
         self.zdim = z_dim
-        self.X_train = None
-        self.y_train = None
-        self.mcmc = None
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
         """DKL probabilistic model"""
