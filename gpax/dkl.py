@@ -6,7 +6,6 @@ import numpyro
 import numpyro.distributions as dist
 from jax import jit
 from jax.interpreters import xla
-from jax.lax import Precision
 
 from .gp import ExactGP
 from .kernels import get_kernel
@@ -104,9 +103,9 @@ def sample_biases(name: str, channels: int) -> jnp.ndarray:
 
 def bnn(X: jnp.ndarray, params: Dict[str, jnp.ndarray]) -> jnp.ndarray:
     """Simple Bayesian MLP"""
-    h1 = jnp.tanh(jnp.matmul(X, params["w1"], precision=Precision.HIGH) + params["b1"])
-    h2 = jnp.tanh(jnp.matmul(h1, params["w2"], precision=Precision.HIGH) + params["b2"])
-    z = jnp.matmul(h2, params["w3"], precision=Precision.HIGH) + params["b3"]
+    h1 = jnp.tanh(jnp.matmul(X, params["w1"]) + params["b1"])
+    h2 = jnp.tanh(jnp.matmul(h1, params["w2"]) + params["b2"])
+    z = jnp.matmul(h2, params["w3"]) + params["b3"]
     return z
 
 
