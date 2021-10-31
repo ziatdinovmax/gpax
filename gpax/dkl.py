@@ -101,13 +101,13 @@ def sample_weights(name: str, in_channels: int, out_channels: int) -> jnp.ndarra
                 scale=jnp.ones((in_channels, out_channels))))
 
 
-def sample_biases(name: str, channels: int) -> jnp.ndarray():
+def sample_biases(name: str, channels: int) -> jnp.ndarray:
     """Sampling bias vector"""
     return numpyro.sample(name=name, fn=dist.Normal(
                 loc=jnp.zeros((channels)), scale=jnp.ones((channels))))
 
 
-def bnn(X: jnp.ndarray, params: Dict[str, jnp.ndarray]) -> jnp.ndarray():
+def bnn(X: jnp.ndarray, params: Dict[str, jnp.ndarray]) -> jnp.ndarray:
     """Simple Bayesian MLP"""
     h1 = jnp.tanh(jnp.matmul(X, params["w1"], precision=Precision.HIGH) + params["b1"])
     h2 = jnp.tanh(jnp.matmul(h1, params["w2"], precision=Precision.HIGH) + params["b2"])
@@ -115,7 +115,7 @@ def bnn(X: jnp.ndarray, params: Dict[str, jnp.ndarray]) -> jnp.ndarray():
     return z
 
 
-def bnn_prior(input_dim: int, zdim: int = 2) -> Dict[str, jnp.array(object)]:
+def bnn_prior(input_dim: int, zdim: int = 2) -> Dict[str, jnp.array]:
     """Priors over weights and biases in the default Bayesian MLP"""
     hdim = [64, 32]
 
