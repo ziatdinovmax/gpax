@@ -37,7 +37,6 @@ class DKL(ExactGP):
         self.bnn = bnn_fn if bnn_fn else bnn
         self.bnn_prior = bnn_fn_prior if bnn_fn_prior else bnn_prior(input_dim, z_dim)
         self.kernel_dim = z_dim
-        self.zdim = z_dim
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
         """DKL probabilistic model"""
