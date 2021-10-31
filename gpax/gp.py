@@ -23,21 +23,21 @@ class ExactGP:
         input_dim: number of input dimensions
         kernel: type of kernel ('RBF', 'Matern', 'Periodic')
         mean_fn: optional deterministic mean function (use 'mean_fn_priors' to turn it into probabilistic)
-        kernel_priors: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
-        mean_fn_priors: optional priors over mean function parameters
+        kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
+        mean_fn_prior: optional priors over mean function parameters
     """
 
     def __init__(self, input_dim: int, kernel: str,
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
-                 kernel_priors: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 mean_fn_priors: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
+                 kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
         xla._xla_callable.cache_clear()
         self.input_dim = input_dim
         self.kernel = kernel
         self.mean_fn = mean_fn
-        self.kernel_priors = kernel_priors
-        self.mean_fn_priors = mean_fn_priors
+        self.kernel_prior = kernel_prior
+        self.mean_fn_prior = mean_fn_prior
         self.X_train = None
         self.y_train = None
         self.mcmc = None
@@ -47,8 +47,8 @@ class ExactGP:
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
         # Sample kernel parameters and noise
-        if self.kernel_priors:
-            kernel_params = self.kernel_priors()
+        if self.kernel_prior:
+            kernel_params = self.kernel_prior()
         else:
             kernel_params = self._sample_kernel_params()
         # Sample noise
@@ -56,8 +56,8 @@ class ExactGP:
         # Add mean function (if any)
         if self.mean_fn is not None:
             args = [X]
-            if self.mean_fn_priors is not None:
-                args += [self.mean_fn_priors()]
+            if self.mean_fn_prior is not None:
+                args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
         # compute kernel
         k = get_kernel(self.kernel)(
@@ -121,7 +121,7 @@ class ExactGP:
         noise = params["noise"]
         y_residual = self.y_train
         if self.mean_fn is not None:
-            args = [self.X_train, params] if self.mean_fn_priors else [self.X_train]
+            args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
             y_residual -= self.mean_fn(*args).squeeze()
         # compute kernel matrices for train and test data
         k_pp = get_kernel(self.kernel)(X_test, X_test, params, noise)
@@ -132,7 +132,7 @@ class ExactGP:
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
         mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
         if self.mean_fn is not None:
-            args = [X_test, params] if self.mean_fn_priors else [X_test]
+            args = [X_test, params] if self.mean_fn_prior else [X_test]
             mean += self.mean_fn(*args).squeeze()
         return mean, cov
 
