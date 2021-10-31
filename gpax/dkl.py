@@ -11,8 +11,6 @@ from jax.lax import Precision
 from .gp import ExactGP
 from .kernels import get_kernel
 
-numpyro.enable_x64()
-
 
 class DKL(ExactGP):
     """

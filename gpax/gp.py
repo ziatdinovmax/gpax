@@ -12,8 +12,6 @@ from numpyro.infer import MCMC, NUTS, init_to_median
 
 from .kernels import get_kernel
 
-numpyro.enable_x64()
-
 
 class ExactGP:
     """
