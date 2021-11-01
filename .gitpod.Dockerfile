@@ -4,4 +4,4 @@ RUN  apt-get update && apt-get install --assume-yes --no-install-recommends pyth
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY ./requirements.txt .
 RUN  pip3 install -r requirements.txt
-WORKDIR /workspace/pyroVED
+WORKDIR /workspace/gpax
