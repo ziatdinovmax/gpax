@@ -44,7 +44,7 @@ class ExactGP:
         """GP probabilistic model"""
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
-        # Sample kernel parameters and noise
+        # Sample kernel parameters
         if self.kernel_prior:
             kernel_params = self.kernel_prior()
         else:
@@ -162,7 +162,8 @@ class ExactGP:
 
     def predict(self, rng_key: jnp.ndarray, X_test: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
-                n: int = 1) -> Tuple[jnp.ndarray, jnp.ndarray]:
+                n: int = 1, filter_nans: bool = False
+                ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_test points using sampled GP hyperparameters
 
@@ -171,6 +172,7 @@ class ExactGP:
             X_test: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
             samples: optional posterior samples
             n: number of samples from Multivariate Normal posterior for each MCMC sample with GP hyperaparameters
+            filter_nans: filter out samples containing NaN values (if any)
 
         Returns:
             Center of the mass of sampled means and all the sampled predictions
@@ -182,4 +184,7 @@ class ExactGP:
         predictive = jax.vmap(
             lambda params: self._predict(params[0], X_test, params[1], n))
         y_means, y_sampled = predictive(vmap_args)
+        if filter_nans:
+            y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
+            y_sampled = jnp.array(y_sampled_)
         return y_means.mean(0), y_sampled
