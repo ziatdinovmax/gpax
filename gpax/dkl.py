@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Callable, Dict, Optional, Tuple
 
+import jax
 import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
@@ -86,6 +87,13 @@ class DKL(ExactGP):
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
         mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, self.y_train))
         return mean, cov
+
+    @partial(jit, static_argnames='self')
+    def embed(self, X_test: jnp.ndarray) -> jnp.ndarray:
+        samples = self.get_samples(chain_dim=False)
+        predictive = jax.vmap(lambda params: self.bnn(X_test, params))
+        z = predictive(samples)
+        return z
 
 
 def sample_weights(name: str, in_channels: int, out_channels: int) -> jnp.ndarray:
