@@ -20,15 +20,17 @@ class ExactGP:
     Args:
         input_dim: number of input dimensions
         kernel: type of kernel ('RBF', 'Matern', 'Periodic')
-        mean_fn: optional deterministic mean function (use 'mean_fn_priors' to turn it into probabilistic)
-        kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
+        mean_fn: optional deterministic mean function (use 'mean_fn_priors' to make it probabilistic)
+        kernel_prior: optional custom priors over kernel hyperparameters (uses LogNormal(0,1) by default)
         mean_fn_prior: optional priors over mean function parameters
+        noise_prior: optional custom prior for observation noise
     """
 
     def __init__(self, input_dim: int, kernel: str,
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
+                 mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
         xla._xla_callable.cache_clear()
         self.kernel_dim = input_dim
@@ -36,6 +38,7 @@ class ExactGP:
         self.mean_fn = mean_fn
         self.kernel_prior = kernel_prior
         self.mean_fn_prior = mean_fn_prior
+        self.noise_prior = noise_prior
         self.X_train = None
         self.y_train = None
         self.mcmc = None
@@ -50,7 +53,10 @@ class ExactGP:
         else:
             kernel_params = self._sample_kernel_params()
         # Sample noise
-        noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
+        if self.noise_prior:
+            noise = self.noise_prior()
+        else:
+            noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
         # Add mean function (if any)
         if self.mean_fn is not None:
             args = [X]
@@ -147,8 +153,8 @@ class ExactGP:
 
     def _sample_kernel_params(self, dim: int = None) -> Dict[str, jnp.ndarray]:
         """
-        Sample kernel parameters and noise
-        with weakly-informative log-normal priors
+        Sample kernel parameters with default
+        weakly-informative log-normal priors
         """
         with numpyro.plate('k_param', self.kernel_dim):  # allows using ARD kernel for dim > 1
             length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
