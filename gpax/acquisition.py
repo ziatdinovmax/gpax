@@ -75,20 +75,21 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     """
     Batch mode for the upper confidence bound
     """
-    std_all, obj_all = [], []
+    dist_all, obj_all = [], []
     for i in range(n_restarts):
         y_sampled = obtain_samples(rng_key, model, X, batch_size, n)
         mean, var = y_sampled.mean(1), y_sampled.var(1)
         delta = jnp.sqrt(beta * var)
         if maximize:
             obj = mean + delta
-            std = obj.argmax(1).std()
+            points = X[obj.argmax(1)]
         else:
             obj = mean - delta
-            std = obj.argmin(1).std()
-        std_all.append(std)
+            points = X[obj.argmin(1)]
+        d = get_distance(points)
+        dist_all.append(d)
         obj_all.append(obj)
-    idx = onp.argmax(std_all)
+    idx = jnp.array(dist_all).argmax()
     return obj_all[idx]
 
 
@@ -102,3 +103,11 @@ def obtain_samples(rng_key: jnp.ndarray, model: Type[ExactGP],
     samples = {k: v[idx] for (k, v) in posterior_samples.items()}
     _, y_sampled = model.predict(rng_key, X, samples, n)
     return y_sampled
+
+
+def get_distance(points: jnp.ndarray) -> float:
+    d = []
+    for p1 in points:
+        for p2 in points:
+            d.append(jnp.linalg.norm(p1-p2))
+    return jnp.array(d).mean().item()
