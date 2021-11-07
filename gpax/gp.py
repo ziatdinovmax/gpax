@@ -4,6 +4,7 @@ from typing import Callable, Dict, Optional, Tuple
 import jax
 import jax.numpy as jnp
 import jax.random as jra
+import numpy as onp
 import numpyro
 import numpyro.distributions as dist
 from jax import jit
@@ -116,7 +117,7 @@ class ExactGP:
 
     @partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
-                          X_test: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                          X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
@@ -128,25 +129,25 @@ class ExactGP:
             args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
             y_residual -= self.mean_fn(*args).squeeze()
         # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(X_test, X_test, params, noise)
-        k_pX = get_kernel(self.kernel)(X_test, self.X_train, params, jitter=0.0)
+        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise)
+        k_pX = get_kernel(self.kernel)(X_new, self.X_train, params, jitter=0.0)
         k_XX = get_kernel(self.kernel)(self.X_train, self.X_train, params, noise)
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
         mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
         if self.mean_fn is not None:
-            args = [X_test, params] if self.mean_fn_prior else [X_test]
+            args = [X_new, params] if self.mean_fn_prior else [X_new]
             mean += self.mean_fn(*args).squeeze()
         return mean, cov
 
-    def _predict(self, rng_key: jnp.ndarray, X_test: jnp.ndarray,
+    def _predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                  params: Dict[str, jnp.ndarray], n: int
                  ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Prediction with a single sample of GP hyperparameters"""
-        X_test = X_test if X_test.ndim > 1 else X_test[:, None]
+        X_new = X_new if X_new.ndim > 1 else X_new[:, None]
         # Get the predictive mean and covariance
-        y_mean, K = self.get_mvn_posterior(X_test, params)
+        y_mean, K = self.get_mvn_posterior(X_new, params)
         # draw samples from the posterior predictive for a given set of hyperparameters
         y_sample = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sample.squeeze()
@@ -166,16 +167,48 @@ class ExactGP:
             "period": period if self.kernel == "Periodic" else None}
         return kernel_params
 
-    def predict(self, rng_key: jnp.ndarray, X_test: jnp.ndarray,
+    def predict_in_batches(self, rng_key: jnp.ndarray,
+                           X_new: jnp.ndarray,  batch_size: int = 100,
+                           samples: Optional[Dict[str, jnp.ndarray]] = None,
+                           n: int = 1, filter_nans: bool = False
+                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Make prediction at X_new points with sampled GP hyperparameters
+        using batches to avoid potential memory overflow
+        """
+
+        def predict_batch(Xi):
+            mean, sampled = self.predict(rng_key, Xi, samples, n, filter_nans)
+            mean = jax.device_put(mean, jax.devices("cpu")[0])
+            sampled = jax.device_put(sampled, jax.devices("cpu")[0])
+            return mean, sampled
+
+        num_batches = jnp.floor_divide(X_new.shape[0], batch_size)
+        y_pred, y_sampled = [], []
+        for i in range(num_batches):
+            Xi = X_new[i*batch_size:(i+1)*batch_size]
+            mean, sampled = predict_batch(Xi)
+            y_pred.append(mean)
+            y_sampled.append(sampled)
+        Xi = X_new[(i+1)*batch_size:]
+        if len(Xi) > 0:
+            mean, sampled = predict_batch(Xi)
+            y_pred.append(mean)
+            y_sampled.append(sampled)
+        y_pred = onp.concatenate(y_pred, 0)
+        y_sampled = onp.concatenate(y_sampled, -1)
+        return y_pred, y_sampled
+
+    def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
                 n: int = 1, filter_nans: bool = False
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Make prediction at X_test points using sampled GP hyperparameters
+        Make prediction at X_new points using sampled GP hyperparameters
 
         Args:
             rng_key: random number generator key
-            X_test: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
+            X_new: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
             samples: optional posterior samples
             n: number of samples from Multivariate Normal posterior for each MCMC sample with GP hyperaparameters
             filter_nans: filter out samples containing NaN values (if any)
@@ -188,7 +221,7 @@ class ExactGP:
         num_samples = samples["k_length"].shape[0]
         vmap_args = (jra.split(rng_key, num_samples), samples)
         predictive = jax.vmap(
-            lambda params: self._predict(params[0], X_test, params[1], n))
+            lambda params: self._predict(params[0], X_new, params[1], n))
         y_means, y_sampled = predictive(vmap_args)
         if filter_nans:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
