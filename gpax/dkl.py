@@ -23,27 +23,29 @@ class DKL(ExactGP):
         kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
         bnn_fn: Custom MLP
         bnn_fn_prior: Bayesian priors over the weights and biases in bnn_fn
+        latent_prior: Optional prior over the latent space (BNN embedding)
     """
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  bnn_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
-                 bnn_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
+                 bnn_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
         super(DKL, self).__init__(input_dim, kernel, kernel_prior)
         xla._xla_callable.cache_clear()
         self.bnn = bnn_fn if bnn_fn else bnn
         self.bnn_prior = bnn_fn_prior if bnn_fn_prior else bnn_prior(input_dim, z_dim)
         self.kernel_dim = z_dim
+        self.latent_prior = latent_prior
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
         """DKL probabilistic model"""
         # BNN part
         bnn_params = self.bnn_prior()
-        z_loc = self.bnn(X, bnn_params)
-        # Sample latent variable
-        z_sig = numpyro.sample("z_sig", dist.HalfNormal(jnp.ones(z_loc.shape)))
-        z = numpyro.sample("z", dist.Normal(z_loc, z_sig))
+        z = self.bnn(X, bnn_params)
+        if self.latent_prior:  # Sample latent variable
+            z = self.latent_prior(z)
         # Sample GP kernel parameters
         if self.kernel_prior:
             kernel_params = self.kernel_prior()
