@@ -57,11 +57,13 @@ class sviGP(ExactGP):
             optim=optim,
             loss=Trace_ELBO(),
             X=X,
-            Y=y,
+            y=y,
         )
-        params, _ = svi.run(rng_key, num_steps)
+        params = svi.run(rng_key, num_steps)[0]
         # Get kernel parameters from the guide
         self.kernel_params = svi.guide.median(params)
+        if print_summary:
+            self._print_summary()
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 kernel_params: Optional[Dict[str, jnp.ndarray]] = None,
@@ -83,3 +85,11 @@ class sviGP(ExactGP):
             kernel_params = self.kernel_params
         y_mean, y_sampled = self._predict(rng_key, X_new, kernel_params, n)
         return y_mean, y_sampled
+
+    def _print_summary(self) -> None:
+        if isinstance(self.kernel_params, dict):
+            print('\nInferred parameters')
+            for (k, v) in self.kernel_params.items():
+                spaces = " " * (15 - len(k))
+                print(k, spaces, jnp.around(v, 4))
+
