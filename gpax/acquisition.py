@@ -54,7 +54,6 @@ def UE(rng_key: jnp.ndarray,
 
 def Thompson(rng_key: jnp.ndarray,
              model: Type[ExactGP],
-             posterior_samples: Dict[str, jnp.ndarray],
              X: jnp.ndarray, n: int = 1) -> jnp.ndarray:
     """Thompson sampling"""
     posterior_samples = model.get_samples()
