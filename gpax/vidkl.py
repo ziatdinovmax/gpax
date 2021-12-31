@@ -32,7 +32,7 @@ class viDKL(ExactGP):
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 nn: Optional[Callable[jnp.ndarray, jnp.ndarray]] = None,
+                 nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None,
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
         super(viDKL, self).__init__(input_dim, kernel, kernel_prior)
