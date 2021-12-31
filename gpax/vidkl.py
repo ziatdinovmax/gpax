@@ -7,6 +7,7 @@ import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import SVI, Trace_ELBO
 from numpyro.infer.autoguide import AutoDelta
+from numpyro.contrib.module import haiku_module
 from jax import jit
 from jax.interpreters import xla
 import haiku as hk
@@ -36,7 +37,8 @@ class viDKL(ExactGP):
                  ) -> None:
         super(viDKL, self).__init__(input_dim, kernel, kernel_prior)
         xla._xla_callable.cache_clear()
-        self.feature_extractor = nn if nn else mlp
+        feature_extractor = nn if nn else mlp
+        self.feature_extractor = haiku_module("feature_extractor", feature_extractor)
         self.kernel_dim = z_dim
         self.latent_prior = latent_prior
 
