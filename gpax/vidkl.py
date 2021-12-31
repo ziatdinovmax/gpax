@@ -37,15 +37,18 @@ class viDKL(ExactGP):
                  ) -> None:
         super(viDKL, self).__init__(input_dim, kernel, kernel_prior)
         xla._xla_callable.cache_clear()
-        feature_extractor = nn if nn else mlp
-        self.feature_extractor = haiku_module("feature_extractor", feature_extractor)
+        nn_module = nn if nn else MLP
+        self.nn_module = hk.transform(lambda x: nn_module(z_dim)(x))
         self.kernel_dim = z_dim
+        self.data_dim = (input_dim,) if isinstance(input_dim, int) else input_dim
         self.latent_prior = latent_prior
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
         """DKL probabilistic model"""
         # NN part
-        z = self.feature_extractor(X)
+        feature_extractor = haiku_module(
+            "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim))
+        z = feature_extractor(X)
         if self.latent_prior:  # Sample latent variable
             z = self.latent_prior(z)
         # Sample GP kernel parameters
@@ -154,8 +157,15 @@ class viDKL(ExactGP):
         return z
 
 
-def mlp(embedim: int):
-    return hk.Sequential([
-        hk.Linear(1000), jax.nn.relu,
-        hk.Linear(500), jax.nn.relu,
-        hk.Linear(embedim)])
+class MLP(hk.Module):
+    def __init__(self, embedim=2):
+        super().__init__()
+        self._embedim = embedim   
+
+    def __call__(self, x):
+        x = hk.Linear(64)(x)
+        x = jax.nn.relu(x)
+        x = hk.Linear(64)(x)
+        x = jax.nn.relu(x)
+        x = hk.Linear(self._embedim)(x)
+        return x
