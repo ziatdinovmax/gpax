@@ -109,12 +109,13 @@ class viDKL(ExactGP):
 
     @partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
-                          X_test: jnp.ndarray,
+                          X_new: jnp.ndarray,
                           params: Dict[str, jnp.ndarray] = None
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Returns parameters (mean and cov) of multivariate normal posterior
-        for a single sample of DKL hyperparameters
+        Returns predictive mean and covariance at new points
+        (mean and cov, where cov.diag() is 'uncertainty')
+        given a single set of DKL hyperparameters
         """
         if params is None:
             params = self.kernel_params
@@ -123,7 +124,7 @@ class viDKL(ExactGP):
         z_train = self.nn_module.apply(
             self.nn_params, jax.random.PRNGKey(0), self.X_train)
         z_test = self.nn_module.apply(
-            self.nn_params, jax.random.PRNGKey(0), X_test)
+            self.nn_params, jax.random.PRNGKey(0), X_new)
         # compute kernel matrices for train and test data
         k_pp = get_kernel(self.kernel)(z_test, z_test, params, noise)
         k_pX = get_kernel(self.kernel)(z_test, z_train, params, jitter=0.0)
@@ -140,6 +141,7 @@ class viDKL(ExactGP):
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using learned GP hyperparameters
+        
         Args:
             rng_key: random number generator key
             X_new: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
@@ -161,9 +163,9 @@ class viDKL(ExactGP):
                 print(k, spaces, jnp.around(v, 4))
 
     @partial(jit, static_argnames='self')
-    def embed(self, X_test: jnp.ndarray) -> jnp.ndarray:
+    def embed(self, X_new: jnp.ndarray) -> jnp.ndarray:
         z = self.nn_module.apply(
-            self.nn_params, jax.random.PRNGKey(0), X_test)
+            self.nn_params, jax.random.PRNGKey(0), X_new)
         return z
 
 

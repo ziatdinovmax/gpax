@@ -70,7 +70,7 @@ class DKL(ExactGP):
 
     @partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
-                          X_test: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                          X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
@@ -79,7 +79,7 @@ class DKL(ExactGP):
         noise = params["noise"]
         # embed data intot the latent space
         z_train = self.bnn(self.X_train, params)
-        z_test = self.bnn(X_test, params)
+        z_test = self.bnn(X_new, params)
         # compute kernel matrices for train and test data
         k_pp = get_kernel(self.kernel)(z_test, z_test, params, noise)
         k_pX = get_kernel(self.kernel)(z_test, z_train, params, jitter=0.0)
@@ -91,9 +91,9 @@ class DKL(ExactGP):
         return mean, cov
 
     @partial(jit, static_argnames='self')
-    def embed(self, X_test: jnp.ndarray) -> jnp.ndarray:
+    def embed(self, X_new: jnp.ndarray) -> jnp.ndarray:
         samples = self.get_samples(chain_dim=False)
-        predictive = jax.vmap(lambda params: self.bnn(X_test, params))
+        predictive = jax.vmap(lambda params: self.bnn(X_new, params))
         z = predictive(samples)
         return z
 
