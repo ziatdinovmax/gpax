@@ -18,16 +18,15 @@ from .kernels import get_kernel
 
 class viDKL(ExactGP):
     """
-    Deep kernel learning with determenistic NN
-    and variational inference of GP hyperprameters
+    Implementation of deep kernel learning inspired by arXiv:1511.02222
 
     Args:
         input_dim: number of input dimensions
         z_dim: latent space dimensionality
         kernel: type of kernel ('RBF', 'Matern', 'Periodic')
         kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
-        nn: Custom neural network
-        latent_prior: Optional prior over the latent space (BNN embedding)
+        nn: Custom neural network (optional)
+        latent_prior: Optional prior over the latent space (NN embedding)
     """
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
@@ -78,6 +77,7 @@ class viDKL(ExactGP):
             print_summary: bool = True) -> None:
         """
         Run SVI to infer the GP model parameters
+
         Args:
             rng_key: random number generator key
             X: 2D 'feature vector' with :math:`n x num_features` dimensions
@@ -114,7 +114,7 @@ class viDKL(ExactGP):
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns predictive mean and covariance at new points
-        (mean and cov, where cov.diag() is 'uncertainty')
+        (mean and cov, where cov.diagonal() is 'uncertainty')
         given a single set of DKL hyperparameters
         """
         if params is None:

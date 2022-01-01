@@ -14,7 +14,7 @@ from .kernels import get_kernel
 
 class DKL(ExactGP):
     """
-    Deep kernel learning
+    Fully Bayesian implementation of deep kernel learning
 
     Args:
         input_dim: number of input dimensions
