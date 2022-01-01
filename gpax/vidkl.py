@@ -82,9 +82,11 @@ class viDKL(ExactGP):
         for a single sample of DKL hyperparameters
         """
         noise = params["noise"]
-        # embed data intot the latent space
-        z_train = self.feature_extractor(self.X_train)
-        z_test = self.feature_extractor(X_test)
+        # embed data into the latent space
+        z_train = self.nn_module.apply(
+            self.nn_params, jax.random.PRNGKey(0), self.X_train)
+        z_test = self.nn_module.apply(
+            self.nn_params, jax.random.PRNGKey(0), X_test)
         # compute kernel matrices for train and test data
         k_pp = get_kernel(self.kernel)(z_test, z_test, params, noise)
         k_pX = get_kernel(self.kernel)(z_test, z_train, params, jitter=0.0)
@@ -120,10 +122,12 @@ class viDKL(ExactGP):
             y=y,
         )
         params = svi.run(rng_key, num_steps)[0]
+        # Get NN weights
+        self.nn_params = params["feature_extractor$params"]
         # Get kernel parameters from the guide
         self.kernel_params = svi.guide.median(params)
         if print_summary:
-            self._print_summary()
+             self._print_summary()
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 kernel_params: Optional[Dict[str, jnp.ndarray]] = None,
@@ -153,7 +157,8 @@ class viDKL(ExactGP):
 
     @partial(jit, static_argnames='self')
     def embed(self, X_test: jnp.ndarray) -> jnp.ndarray:
-        z = self.feature_extractor(X_test)
+        z = self.nn_module.apply(
+            self.nn_params, jax.random.PRNGKey(0), X_test)
         return z
 
 
