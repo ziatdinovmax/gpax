@@ -28,6 +28,7 @@ if __name__ == "__main__":
         install_requires=[
             'jax>=0.2.21',
             'numpyro>=0.8.0',
+            'dm-haiku>=0.05',
             'matplotlib>=3.1'
         ],
         classifiers=['Programming Language :: Python',
