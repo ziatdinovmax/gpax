@@ -75,12 +75,15 @@ class viDKL(ExactGP):
 
     @partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
-                          X_test: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                          X_test: jnp.ndarray,
+                          params: Dict[str, jnp.ndarray] = None
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of DKL hyperparameters
         """
+        if params is None:
+            params = self.kernel_params
         noise = params["noise"]
         # embed data into the latent space
         z_train = self.nn_module.apply(
@@ -131,7 +134,7 @@ class viDKL(ExactGP):
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 kernel_params: Optional[Dict[str, jnp.ndarray]] = None,
-                n: int = 1000
+                n: int = 5000
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using learned GP hyperparameters
