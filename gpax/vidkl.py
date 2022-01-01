@@ -73,6 +73,40 @@ class viDKL(ExactGP):
             obs=y,
         )
 
+    def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
+            num_steps: int = 1000, step_size: float = 5e-3,
+            print_summary: bool = True) -> None:
+        """
+        Run SVI to infer the GP model parameters
+        Args:
+            rng_key: random number generator key
+            X: 2D 'feature vector' with :math:`n x num_features` dimensions
+            y: 1D 'target vector' with :math:`(n,)` dimensions
+            num_steps: number of SVI steps
+            step_size: step size schedule for Adam optimizer
+            print_summary: print summary at the end of sampling
+        """
+        X = X if X.ndim > 1 else X[:, None]
+        self.X_train = X
+        self.y_train = y
+        # Setup optimizer and SVI
+        optim = numpyro.optim.Adam(step_size=step_size, b1=0.5)
+        svi = SVI(
+            self.model,
+            guide=AutoDelta(self.model),
+            optim=optim,
+            loss=Trace_ELBO(),
+            X=X,
+            y=y,
+        )
+        params = svi.run(rng_key, num_steps)[0]
+        # Get NN weights
+        self.nn_params = params["feature_extractor$params"]
+        # Get kernel parameters from the guide
+        self.kernel_params = svi.guide.median(params)
+        if print_summary:
+            self._print_summary()
+
     @partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
                           X_test: jnp.ndarray,
@@ -99,38 +133,6 @@ class viDKL(ExactGP):
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
         mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, self.y_train))
         return mean, cov
-
-    def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
-            num_steps: int = 1000, print_summary: bool = True) -> None:
-        """
-        Run SVI to infer the GP model parameters
-        Args:
-            rng_key: random number generator key
-            X: 2D 'feature vector' with :math:`n x num_features` dimensions
-            y: 1D 'target vector' with :math:`(n,)` dimensions
-            num_steps: number of SVI steps
-            print_summary: print summary at the end of sampling
-        """
-        X = X if X.ndim > 1 else X[:, None]
-        self.X_train = X
-        self.y_train = y
-        # Setup optimizer and SVI
-        optim = numpyro.optim.Adam(step_size=0.005, b1=0.5)
-        svi = SVI(
-            self.model,
-            guide=AutoDelta(self.model),
-            optim=optim,
-            loss=Trace_ELBO(),
-            X=X,
-            y=y,
-        )
-        params = svi.run(rng_key, num_steps)[0]
-        # Get NN weights
-        self.nn_params = params["feature_extractor$params"]
-        # Get kernel parameters from the guide
-        self.kernel_params = svi.guide.median(params)
-        if print_summary:
-             self._print_summary()
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 kernel_params: Optional[Dict[str, jnp.ndarray]] = None,
