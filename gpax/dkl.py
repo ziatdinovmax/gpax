@@ -6,7 +6,6 @@ import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
 from jax import jit
-from jax.interpreters import xla
 
 from .gp import ExactGP
 from .kernels import get_kernel
@@ -33,7 +32,6 @@ class DKL(ExactGP):
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
         super(DKL, self).__init__(input_dim, kernel, kernel_prior)
-        xla._xla_callable.cache_clear()
         self.bnn = bnn_fn if bnn_fn else bnn
         self.bnn_prior = bnn_fn_prior if bnn_fn_prior else bnn_prior(input_dim, z_dim)
         self.kernel_dim = z_dim

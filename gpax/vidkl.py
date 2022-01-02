@@ -9,7 +9,6 @@ from numpyro.infer import SVI, Trace_ELBO
 from numpyro.infer.autoguide import AutoDelta
 from numpyro.contrib.module import haiku_module
 from jax import jit
-from jax.interpreters import xla
 import haiku as hk
 
 from .gp import ExactGP
@@ -35,7 +34,6 @@ class viDKL(ExactGP):
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
         super(viDKL, self).__init__(input_dim, kernel, kernel_prior)
-        xla._xla_callable.cache_clear()
         nn_module = nn if nn else MLP
         self.nn_module = hk.transform(lambda x: nn_module(z_dim)(x))
         self.kernel_dim = z_dim
