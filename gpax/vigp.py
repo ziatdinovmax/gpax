@@ -9,7 +9,7 @@ from numpyro.infer.autoguide import AutoDelta
 from .gp import ExactGP
 
 
-class sviGP(ExactGP):
+class viGP(ExactGP):
     """
     Gaussian process via stochastic variational inference
 
@@ -28,7 +28,7 @@ class sviGP(ExactGP):
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
         args = (input_dim, kernel, kernel_prior, mean_fn, mean_fn_prior, noise_prior)
-        super(sviGP, self).__init__(*args)
+        super(viGP, self).__init__(*args)
         xla._xla_callable.cache_clear()
         self.X_train = None
         self.y_train = None
