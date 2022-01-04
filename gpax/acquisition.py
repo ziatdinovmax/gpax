@@ -15,7 +15,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
     """
     Expected Improvement
     """
-    if hasattr(model, "mcmc"):
+    if model.mcmc is not None:
         y_mean, y_sampled = model.predict(rng_key, X, n=n)
         if n > 1:
             y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
@@ -36,13 +36,13 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     """
     Upper confidence bound
     """
-    if hasattr(model, "mcmc"):
+    if model.mcmc is not None:
         _, y_sampled = model.predict(rng_key, X, n=n)
         if n > 1:
             y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
         mean, var = y_sampled.mean(0), y_sampled.var(0)
     else:
-        mean, sigma = vi_mean_and_var(model, X)
+        mean, var = vi_mean_and_var(model, X)
     delta = jnp.sqrt(beta * var)
     if maximize:
         return mean + delta
@@ -53,7 +53,7 @@ def UE(rng_key: jnp.ndarray,
        model: Type[ExactGP],
        X: jnp.ndarray, n: int = 1) -> jnp.ndarray:
     """Uncertainty-based exploration (aka kriging)"""
-    if hasattr(model, "mcmc"):
+    if model.mcmc is not None:
         _, y_sampled = model.predict(rng_key, X, n=n)
         if n > 1:
             y_sampled = y_sampled.mean(1)
@@ -67,7 +67,7 @@ def Thompson(rng_key: jnp.ndarray,
              model: Type[ExactGP],
              X: jnp.ndarray, n: int = 1) -> jnp.ndarray:
     """Thompson sampling"""
-    if hasattr(model, "mcmc"):
+    if model.mcmc is not None:
         posterior_samples = model.get_samples()
         idx = jra.randint(rng_key, (1,), 0, len(posterior_samples["k_length"]))
         samples = {k: v[idx] for (k, v) in posterior_samples.items()}
@@ -88,7 +88,7 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     """
     Batch mode for the upper confidence bound
     """
-    if not hasattr(model, "mcmc"):
+    if model.mcmc is None:
         raise NotImplementedError(
             "Currently supports only ExactGP with MCMC inference")
     dist_all, obj_all = [], []
@@ -135,6 +135,6 @@ def vi_mean_and_var(model: Type[viDKL], X: jnp.ndarray,
     mean, cov = model.get_mvn_posterior(X)
     var = cov.diagonal()
     if compute_std:
-        return mean, var.std()
+        return mean, jnp.sqrt(var)
     return mean, var
 
