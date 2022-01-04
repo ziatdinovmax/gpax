@@ -1,0 +1,30 @@
+import sys
+import pytest
+import numpy as onp
+import jax.numpy as jnp
+import jax
+import numpyro
+from numpy.testing import assert_equal
+
+sys.path.append("../../../")
+
+from gpax.vidkl import viDKL
+from gpax.utils import get_keys
+
+
+def get_dummy_data(jax_ndarray=True):
+    X = onp.random.randn(10, 36)
+    y = onp.random.randn(10,)
+    if jax_ndarray:
+        return jnp.array(X), jnp.array(y)
+    return X, y
+
+
+@pytest.mark.parametrize("jax_ndarray", [True, False])
+def test_fit(jax_ndarray):
+    X, y = get_dummy_data(jax_ndarray)
+    rng_key = get_keys()[0]
+    m = viDKL(X.shape[-1])
+    m.fit(rng_key, X, y, num_steps=100, step_size=0.05)
+    assert m.kernel_params is not None
+    assert m.nn_params is not None
