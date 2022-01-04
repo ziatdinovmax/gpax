@@ -17,7 +17,7 @@ The prediction with a trained GP model returns the center of the mass of the sam
 ```python3
 y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test)
 ```
-We can plot the GP prediction using the stadard approach where the uncertainty in predictions - represented by a standard deviation in ```y_sampled``` - is depicted as a shaded area around the mean value. See the full example [here]().
+We can plot the GP prediction using the stadard approach where the uncertainty in predictions - represented by a standard deviation in ```y_sampled``` - is depicted as a shaded area around the mean value. See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb).
 ```python3
 plt.scatter(X, y, marker='x', c='k', zorder=2, label="Noisy observations", alpha=0.7)
 plt.plot(X_test, y_pred, lw=1.5, zorder=2, c='b', label='Sampled means (CoM)')
