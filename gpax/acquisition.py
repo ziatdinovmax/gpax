@@ -1,4 +1,4 @@
-from typing import Dict, Type
+from typing import Dict, Type, Tuple
 
 import jax.numpy as jnp
 import jax.random as jra
