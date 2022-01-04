@@ -70,7 +70,7 @@ obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)
 next_point_idx = obj.argmax()
 # Perform measurement, update trainning data, etc.
 ```
-THe full example is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viDKL_plasmons.ipynb). Note that in viDKL, we use a simple MLP as a default feature extractor. However, you can easily write a custom DNN using [haiku](https://github.com/deepmind/dm-haiku) and pass it to the viDKL initializer
+The full example is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viDKL_plasmons.ipynb). Note that in viDKL, we use a simple MLP as a default feature extractor. However, you can easily write a custom DNN using [haiku](https://github.com/deepmind/dm-haiku) and pass it to the viDKL initializer
 ```python3
 class ConvNet(hk.Module):
     def __init__(self, embedim=2):
