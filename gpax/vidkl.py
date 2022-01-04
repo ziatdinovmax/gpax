@@ -39,6 +39,8 @@ class viDKL(ExactGP):
         self.kernel_dim = z_dim
         self.data_dim = (input_dim,) if isinstance(input_dim, int) else input_dim
         self.latent_prior = latent_prior
+        self.kernel_params = None
+        self.nn_params = None
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
         """DKL probabilistic model"""
