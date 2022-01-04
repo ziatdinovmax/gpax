@@ -8,10 +8,14 @@ import numpy as onp
 import numpyro
 import numpyro.distributions as dist
 from jax import jit
-from jax.interpreters import xla
 from numpyro.infer import MCMC, NUTS, init_to_median
 
 from .kernels import get_kernel
+
+if jax.__version__ < '0.2.26':
+    clear_cache = jax.interpreters.xla._xla_callable.cache_clear
+else:
+    clear_cache = jax._src.dispatch._xla_callable.cache_clear
 
 
 class ExactGP:
@@ -33,7 +37,7 @@ class ExactGP:
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
-        xla._xla_callable.cache_clear()
+        clear_cache()
         self.kernel_dim = input_dim
         self.kernel = kernel
         self.mean_fn = mean_fn
