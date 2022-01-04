@@ -56,6 +56,7 @@ sgp_model.fit(rng_key, X, y)
 # Get GP prediction on new/test data
 y_pred, y_sampled = sgp_model.predict(rng_key_predict, X_test)
 ```
+The full example is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb).
 ### Deep kernel learning
 The deep kernel learning (DKL), originally [introduced](https://arxiv.org/abs/1511.02222) by Andrew Gordon Wilson, can be understood as a hybrid of deep neural network (DNN) and GP. The DNN serves as a feature extractor that allows reducing the complex high-dimensional features to low-dimensional descriptors on which a standard GP kernel operates. The parameters of DNN and of GP kernel are inferred jointly in an end-to-end fashion. Practically, the DKL training inputs are usually patches from (easy-to-acquire) structural image, and training targets represent physical property of interest derived from the (hard-to-acquire) spectra measured in those patches. The DKL output on the new inputs (image patches for which there are no measured spectra) is the expected property value and associated uncertainty, which can be used to derive the next measurement point in the automated experiment.
 GPax package has the fully Bayesian DKL (weights of neural network and GP are inferred using MCMC) and the Variational Inference approximation of DKL, viDKL The former can provide an assymtotically exact soultion, but is too slow for most automated experiments. Hence, for the latter, one may use the  viDKL
@@ -69,7 +70,7 @@ obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)
 next_point_idx = obj.argmax()
 # Perform measurement, update trainning data, etc.
 ```
-In viDKL, we use a simple MLP as a default feature extractor. However, you can easily write a custom DNN using [haiku and pass it to the viDKL initializer
+THe full example is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viDKL_plasmons.ipynb). Note that in viDKL, we use a simple MLP as a default feature extractor. However, you can easily write a custom DNN using [haiku](https://github.com/deepmind/dm-haiku) and pass it to the viDKL initializer
 ```python3
 class ConvNet(hk.Module):
     def __init__(self, embedim=2):
