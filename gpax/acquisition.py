@@ -6,6 +6,7 @@ import numpy as onp
 import numpyro.distributions as dist
 
 from .gp import ExactGP
+from .vidkl import viDKL
 
 
 def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
@@ -14,10 +15,13 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
     """
     Expected Improvement
     """
-    y_mean, y_sampled = model.predict(rng_key, X, n=n)
-    if n > 1:
-        y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
-    mean, sigma = y_sampled.mean(0), y_sampled.std(0)
+    if hasattr(model, "mcmc"):
+        y_mean, y_sampled = model.predict(rng_key, X, n=n)
+        if n > 1:
+            y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
+        mean, sigma = y_sampled.mean(0), y_sampled.std(0)
+    else:
+        mean, sigma = vi_mean_and_var(model, X, compute_std=True)
     u = (mean - y_mean.max() - xi) / sigma
     u = -u if not maximize else u
     normal = dist.Normal(jnp.zeros_like(u), jnp.ones_like(u))
@@ -32,10 +36,13 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     """
     Upper confidence bound
     """
-    _, y_sampled = model.predict(rng_key, X, n=n)
-    if n > 1:
-        y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
-    mean, var = y_sampled.mean(0), y_sampled.var(0)
+    if hasattr(model, "mcmc"):
+        _, y_sampled = model.predict(rng_key, X, n=n)
+        if n > 1:
+            y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
+        mean, var = y_sampled.mean(0), y_sampled.var(0)
+    else:
+        mean, sigma = vi_mean_and_var(model, X)
     delta = jnp.sqrt(beta * var)
     if maximize:
         return mean + delta
@@ -46,23 +53,30 @@ def UE(rng_key: jnp.ndarray,
        model: Type[ExactGP],
        X: jnp.ndarray, n: int = 1) -> jnp.ndarray:
     """Uncertainty-based exploration (aka kriging)"""
-    _, y_sampled = model.predict(rng_key, X, n=n)
-    if n > 1:
-        y_sampled = y_sampled.mean(1)
-    return y_sampled.var(0)
+    if hasattr(model, "mcmc"):
+        _, y_sampled = model.predict(rng_key, X, n=n)
+        if n > 1:
+            y_sampled = y_sampled.mean(1)
+        var = y_sampled.var(0)
+    else:
+        _, var = vi_mean_and_var(model, X)
+    return 
 
 
 def Thompson(rng_key: jnp.ndarray,
              model: Type[ExactGP],
              X: jnp.ndarray, n: int = 1) -> jnp.ndarray:
     """Thompson sampling"""
-    posterior_samples = model.get_samples()
-    idx = jra.randint(rng_key, (1,), 0, len(posterior_samples["k_length"]))
-    samples = {k: v[idx] for (k, v) in posterior_samples.items()}
-    _, tsample = model.predict(rng_key, X, samples, n)
-    if n > 1:
-        tsample = tsample.mean(1)
-    return tsample.squeeze()
+    if hasattr(model, "mcmc"):
+        posterior_samples = model.get_samples()
+        idx = jra.randint(rng_key, (1,), 0, len(posterior_samples["k_length"]))
+        samples = {k: v[idx] for (k, v) in posterior_samples.items()}
+        _, tsample = model.predict(rng_key, X, samples, n)
+        if n > 1:
+            tsample = tsample.mean(1).squeeze()
+    else:
+        _, tsample = model.predict(rng_key, X_new, n=1)
+    return tsample
 
 
 def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
@@ -74,6 +88,9 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     """
     Batch mode for the upper confidence bound
     """
+    if not hasattr(model, "mcmc"):
+        raise NotImplementedError(
+            "Currently supports only ExactGP with MCMC inference")
     dist_all, obj_all = [], []
     for i in range(n_restarts):
         y_sampled = obtain_samples(rng_key, model, X, batch_size, n)
@@ -110,3 +127,14 @@ def get_distance(points: jnp.ndarray) -> float:
         for p2 in points:
             d.append(jnp.linalg.norm(p1-p2))
     return jnp.array(d).mean().item()
+
+
+def vi_mean_and_var(model: Type[viDKL], X: jnp.ndarray,
+                    compute_std: bool = False
+                    ) -> Tuple[jnp.ndarray]:
+    mean, cov = model.get_mvn_posterior(X)
+    var = cov.diagonal()
+    if compute_std:
+        return mean, var.std()
+    return mean, var
+
