@@ -42,7 +42,7 @@ def test_get_mvn_posterior():
                "k_length": jnp.array([1.0]),
               "k_scale": jnp.array(1.0),
               "noise": jnp.array(0.1)}
-    m = DKL(X.shape[-1], 'RBF')
+    m = DKL(X.shape[-1], kernel='RBF')
     m.X_train = X
     m.y_train = y
     mean, cov = m.get_mvn_posterior(X_test, params)
