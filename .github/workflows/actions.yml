@@ -19,7 +19,7 @@ jobs:
     strategy:
       max-parallel: 5
       matrix:
-        python-version: [3.8, 3.7, 3.6]
+        python-version: [3.8, 3.7]
 
     steps:
     - uses: actions/checkout@v2
@@ -34,6 +34,8 @@ jobs:
         sudo apt-get update -qq
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
+        python -m pip install jaxlib
+        python -m pip install jax
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
             
     - name: install package
