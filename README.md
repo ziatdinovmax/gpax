@@ -42,7 +42,7 @@ def piecewise_priors():
     # Sample model parameters
     t = numpyro.sample("t", numpyro.distributions.Uniform(0.5, 2.5))
     beta1 = numpyro.sample("beta1", numpyro.distributions.Normal(3, 1))
-    beta2 = numpyro.sample("beta2", numpyro.distributions.LogNormal(3, 1))
+    beta2 = numpyro.sample("beta2", numpyro.distributions.Normal(3, 1))
     # Return sampled parameters as a dictionary
     return {"t": t, "beta1": beta1, "beta2": beta2}
 ```
