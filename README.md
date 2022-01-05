@@ -1,5 +1,5 @@
-# Gpax
-GPax is a small Python package for phyiscs-based Gaussian processes (GPs) built on top of NumPyro and JAX.
+# GPax
+GPax is a small Python package for physics-based Gaussian processes (GPs) built on top of NumPyro and JAX. Its purpose is to take advantage of prior physical knowledge and different data modalities when using GPs for data reconstruction and active learning. It is a work in progress, and more models will be added in the near future.
 
 ## How to use
 ### Simple GP
@@ -89,5 +89,36 @@ class ConvNet(hk.Module):
 
 dkl = gpax.viDKL(X.shape[1:], 2, nn=ConvNet)  # input data dimensions are (n,h,w,c)
 dkl.fit(rng_key, X_train, y_train, num_steps=100, step_size=0.05)
-# ...
+obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)
+next_point_idx = obj.argmax()
+```
+## Installation
+If you would like to utilize a GPU acceleration, follow these [instructions](https://github.com/google/jax#installation) to install JAX with a GPU support.
+
+Then, install GPax using pip:
+
+```$ pip install git+https://github.com/ziatdinovmax/gpax```
+
+## Cite us
+
+If you use GPax in your work, please consider citing our papers:
+```@misc{ziatdinov2021physics,
+      title={Physics makes the difference: Bayesian optimization and active learning via augmented Gaussian process}, 
+      author={Maxim Ziatdinov and Ayana Ghosh and Sergei V. Kalinin},
+      year={2021},
+      eprint={2108.10280},
+      archivePrefix={arXiv},
+      primaryClass={physics.comp-ph}
+}
+```
+and
+```
+@misc{ziatdinov2021hypothesis,
+      title={Hypothesis learning in an automated experiment: application to combinatorial materials libraries}, 
+      author={Maxim Ziatdinov and Yongtao Liu and Anna N. Morozovska and Eugene A. Eliseev and Xiaohang Zhang and Ichiro Takeuchi and Sergei V. Kalinin},
+      year={2021},
+      eprint={2112.06649},
+      archivePrefix={arXiv},
+      primaryClass={cond-mat.mtrl-sci}
+}
 ```
