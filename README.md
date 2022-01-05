@@ -101,26 +101,23 @@ Then, install GPax using pip:
 
 ```$ pip install git+https://github.com/ziatdinovmax/gpax```
 
+If you are a Windows user, we recommend to use the Windows Subsystem for Linux (WSL2), which comes free Windows 10 and 11.
+
 ## Cite us
 
 If you use GPax in your work, please consider citing our papers:
-```@misc{ziatdinov2021physics,
-      title={Physics makes the difference: Bayesian optimization and active learning via augmented Gaussian process}, 
-      author={Maxim Ziatdinov and Ayana Ghosh and Sergei V. Kalinin},
-      year={2021},
-      eprint={2108.10280},
-      archivePrefix={arXiv},
-      primaryClass={physics.comp-ph}
+```
+@article{ziatdinov2021physics,
+  title={Physics makes the difference: Bayesian optimization and active learning via augmented Gaussian process},
+  author={Ziatdinov, Maxim and Ghosh, Ayana and Kalinin, Sergei V},
+  journal={arXiv preprint arXiv:2108.10280},
+  year={2021}
 }
-```
-and
-```
-@misc{ziatdinov2021hypothesis,
-      title={Hypothesis learning in an automated experiment: application to combinatorial materials libraries}, 
-      author={Maxim Ziatdinov and Yongtao Liu and Anna N. Morozovska and Eugene A. Eliseev and Xiaohang Zhang and Ichiro Takeuchi and Sergei V. Kalinin},
-      year={2021},
-      eprint={2112.06649},
-      archivePrefix={arXiv},
-      primaryClass={cond-mat.mtrl-sci}
+
+@article{ziatdinov2021hypothesis,
+  title={Hypothesis learning in an automated experiment: application to combinatorial materials libraries},
+  author={Ziatdinov, Maxim and Liu, Yongtao and Morozovska, Anna N and Eliseev, Eugene A and Zhang, Xiaohang and Takeuchi, Ichiro and Kalinin, Sergei V},
+  journal={arXiv preprint arXiv:2112.06649},
+  year={2021}
 }
 ```
