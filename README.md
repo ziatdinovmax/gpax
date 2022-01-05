@@ -26,7 +26,9 @@ plt.legend()
 ```
 ### Structured GP
 The limitation of the standard GP is that it does not usually allow for the incorporation of prior domain knowledge and can be biased toward a trivial interpolative solution. Recently, we [introduced](https://arxiv.org/abs/2108.10280) a structured Gaussian Process (sGP), where a classical GP is augmented by a structured probabilistic model of the expected system’s behavior. This approach allows us to [balance](https://towardsdatascience.com/unknown-knowns-bayesian-inference-and-structured-gaussian-processes-why-domain-scientists-know-4659b7e924a4) the flexibility of the non-parametric GP approach with a rigid structure of prior (physical) knowledge encoded into the parametric model.
-Implementation-wise, we substitute a constant/zero prior mean function in GP with a probabilistic model of the expected system's behavior. For example, if we have prior knowledge that our objective function has a discontinuous 'phase transition', and a power law-like behavior before and after this transition, we may express it using function
+Implementation-wise, we substitute a constant/zero prior mean function in GP with a probabilistic model of the expected system's behavior.
+
+For example, if we have prior knowledge that our objective function has a discontinuous 'phase transition', and a power law-like behavior before and after this transition, we may express it using function
 ```python3
 def piecewise(x: jnp.ndarray, params: Dict[str, float]) -> jnp.ndarray:
     """Power-law behavior before and after the transition"""
@@ -39,8 +41,8 @@ where ```jnp``` corresponds to jax.numpy module. This function is deterministic.
 def piecewise_priors():
     # Sample model parameters
     t = numpyro.sample("t", numpyro.distributions.Uniform(0.5, 2.5))
-    beta1 = numpyro.sample("beta1", numpyro.distributions.LogNormal(0, 1))
-    beta2 = numpyro.sample("beta2", numpyro.distributions.LogNormal(0, 1))
+    beta1 = numpyro.sample("beta1", numpyro.distributions.Normal(3, 1))
+    beta2 = numpyro.sample("beta2", numpyro.distributions.LogNormal(3, 1))
     # Return sampled parameters as a dictionary
     return {"t": t, "beta1": beta1, "beta2": beta2}
 ```
