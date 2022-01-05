@@ -1,4 +1,4 @@
-from typing import Dict, Type, Tuple
+from typing import Type, Tuple
 
 import jax.numpy as jnp
 import jax.random as jra
@@ -20,9 +20,10 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
         if n > 1:
             y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
         mean, sigma = y_sampled.mean(0), y_sampled.std(0)
+        u = (mean - y_mean.max() - xi) / sigma
     else:
         mean, sigma = vi_mean_and_var(model, X, compute_std=True)
-    u = (mean - y_mean.max() - xi) / sigma
+        u = (mean - mean.max() - xi) / sigma
     u = -u if not maximize else u
     normal = dist.Normal(jnp.zeros_like(u), jnp.ones_like(u))
     ucdf = normal.cdf(u)
@@ -60,7 +61,7 @@ def UE(rng_key: jnp.ndarray,
         var = y_sampled.var(0)
     else:
         _, var = vi_mean_and_var(model, X)
-    return 
+    return var
 
 
 def Thompson(rng_key: jnp.ndarray,
@@ -75,7 +76,7 @@ def Thompson(rng_key: jnp.ndarray,
         if n > 1:
             tsample = tsample.mean(1).squeeze()
     else:
-        _, tsample = model.predict(rng_key, X_new, n=1)
+        _, tsample = model.predict(rng_key, X, n=1)
     return tsample
 
 
@@ -137,4 +138,3 @@ def vi_mean_and_var(model: Type[viDKL], X: jnp.ndarray,
     if compute_std:
         return mean, jnp.sqrt(var)
     return mean, var
-
