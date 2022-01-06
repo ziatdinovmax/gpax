@@ -7,11 +7,11 @@ The code snippet below shows how to use vanilla GP in a fully Bayesian mode
 ```python3
 import gpax
 
-# Get random number generator keys (see JAX documentation for why it is neccessary)
+# Get random number generator keys for training and prediction
 rng_key, rng_key_predict = gpax.utils.get_keys()
 # Initialize model
 gp_model = gpax.ExactGP(1, kernel='Matern')
-# Run MCMC to obtain posterior samples
+# Run MCMC to obtain posterior samples for the GP model parameters
 gp_model.fit(rng_key, X, y, num_chains=1)  # X and y are numpy arrays with dimensions (n, d) and (n,)
 ```
 The prediction with a trained GP model returns the center of the mass of the sampled means (```y_pred```) and samples from multivariate normal posteriors (```y_sampled```). Note that in a [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a multivariate normal posterior for each MCMC sample with kernel hyperparameters.
