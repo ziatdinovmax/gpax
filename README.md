@@ -14,7 +14,7 @@ gp_model = gpax.ExactGP(1, kernel='Matern')
 # Run MCMC to obtain posterior samples for the GP model parameters
 gp_model.fit(rng_key, X, y, num_chains=1)  # X and y are numpy arrays with dimensions (n, d) and (n,)
 ```
-The prediction with a trained GP model returns the center of the mass of the sampled means (```y_pred```) and samples from multivariate normal posteriors (```y_sampled```). Note that in a [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a multivariate normal posterior for each MCMC sample with kernel hyperparameters.
+The prediction with a trained GP model returns the center of the mass of the sampled means (```y_pred```) and samples from multivariate normal posteriors (```y_sampled```). Note that in a [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a multivariate normal posterior for each MCMC sample containing the GP parameters (in this case, the Matern kernel hyperparameters and model noise).
 ```python3
 y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test)
 ```
