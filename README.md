@@ -5,12 +5,14 @@ GPax is a small Python package for physics-based Gaussian processes (GPs) built 
 ### Simple GP
 The code snippet below shows how to use vanilla GP in a fully Bayesian mode
 ```python3
+import gpax
+
 # Get random number generator keys (see JAX documentation for why it is neccessary)
 rng_key, rng_key_predict = gpax.utils.get_keys()
 # Initialize model
 gp_model = gpax.ExactGP(1, kernel='Matern')
 # Run MCMC to obtain posterior samples
-gp_model.fit(rng_key, X, y, num_chains=1)  # X and y dimensions are (n, d) and (n,)
+gp_model.fit(rng_key, X, y, num_chains=1)  # X and y are numpy arrays with dimensions (n, d) and (n,)
 ```
 The prediction with a trained GP model returns the center of the mass of the sampled means (```y_pred```) and samples from multivariate normal posteriors (```y_sampled```). Note that in a [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a multivariate normal posterior for each MCMC sample with kernel hyperparameters.
 ```python3
@@ -18,10 +20,12 @@ y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test)
 ```
 We can plot the GP prediction using the standard approach where the uncertainty in predictions - represented by a standard deviation in ```y_sampled``` - is depicted as a shaded area around the mean value (if the data is 1-dimensional). See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb).
 ```python3
-plt.scatter(X, y, marker='x', c='k', zorder=2, label="Noisy observations", alpha=0.7)
-plt.plot(X_test, y_pred, lw=1.5, zorder=2, c='b', label='Sampled means (CoM)')
+import matplotlib.pyplot as plt
+
+plt.scatter(X, y, marker='x', c='k', label="Noisy observations", alpha=0.7)
+plt.plot(X_test, y_pred, lw=1.5, c='b', label='Sampled means (CoM)')
 plt.fill_between(X_test, y_pred - y_sampled.std(0), y_pred + y_sampled.std(0),
-                color='r', alpha=0.3, label="Model uncertainty")
+                 color='r', alpha=0.3, label="Model uncertainty")
 plt.legend()
 ```
 ### Structured GP
@@ -30,6 +34,8 @@ Implementation-wise, we substitute a constant/zero prior mean function in GP wit
 
 For example, if we have prior knowledge that our objective function has a discontinuous 'phase transition', and a power law-like behavior before and after this transition, we may express it using function
 ```python3
+import jax.numpy as jnp
+
 def piecewise(x: jnp.ndarray, params: Dict[str, float]) -> jnp.ndarray:
     """Power-law behavior before and after the transition"""
     return jnp.piecewise(
@@ -38,6 +44,8 @@ def piecewise(x: jnp.ndarray, params: Dict[str, float]) -> jnp.ndarray:
 ```
 where ```jnp``` corresponds to jax.numpy module. This function is deterministic. To make it probabilistic, we put priors over its parameters with the help of [NumPyro](https://github.com/pyro-ppl/numpyro)
 ```python3
+import numpyro
+
 def piecewise_priors():
     # Sample model parameters
     t = numpyro.sample("t", numpyro.distributions.Uniform(0.5, 2.5))
@@ -64,7 +72,7 @@ Deep kernel learning (DKL), initially [introduced](https://arxiv.org/abs/1511.02
 GPax package has the fully Bayesian DKL (weights of neural network and GP hyperparameters are inferred using MCMC) and the Variational Inference approximation of DKL, viDKL. The fully Bayesian DKL can provide an asymptotically exact solution but is too slow for most automated experiments. Hence, for the latter, one may use the viDKL
 ```python3
 # Obtain/update DKL posterior
-dkl = gpax.viDKL(X.shape[-1], 2)  # input data dimensions are (n, h*w*c)
+dkl = gpax.viDKL(input_dim=X.shape[-1], z_dim=2)  # input data dimensions are (n, h*w*c)
 dkl.fit(rng_key, X_train, y_train, num_steps=100, step_size=0.05)
 # Compute UCB acquisition function
 obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)
@@ -74,6 +82,8 @@ next_point_idx = obj.argmax()
 ```
 The full example is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viDKL_plasmons.ipynb). Note that in viDKL, we use a simple MLP as a default feature extractor. However, you can easily write a custom DNN using [haiku](https://github.com/deepmind/dm-haiku) and pass it to the viDKL initializer
 ```python3
+import haiku as hk
+
 class ConvNet(hk.Module):
     def __init__(self, embedim=2):
         super().__init__()
