@@ -101,7 +101,7 @@ Then, install GPax using pip:
 
 ```$ pip install git+https://github.com/ziatdinovmax/gpax```
 
-If you are a Windows user, we recommend to use the Windows Subsystem for Linux (WSL2), which comes free Windows 10 and 11.
+If you are a Windows user, we recommend to use the Windows Subsystem for Linux (WSL2), which comes free on Windows 10 and 11.
 
 ## Cite us
 
