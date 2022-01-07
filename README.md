@@ -74,7 +74,7 @@ Deep kernel learning (DKL), initially [introduced](https://arxiv.org/abs/1511.02
 GPax package has the fully Bayesian DKL (weights of neural network and GP hyperparameters are inferred using MCMC) and the Variational Inference approximation of DKL, viDKL. The fully Bayesian DKL can provide an asymptotically exact solution but is too slow for most automated experiments. Hence, for the latter, one may use the viDKL
 ```python3
 # Obtain/update DKL posterior
-dkl = gpax.viDKL(input_dim=X.shape[-1], z_dim=2)  # input data dimensions are (n, h*w*c)
+dkl = gpax.viDKL(input_dim=X.shape[-1], z_dim=2, kernel='RBF')  # input data dimensions are (n, h*w*c)
 dkl.fit(rng_key, X_train, y_train, num_steps=100, step_size=0.05)
 # Compute UCB acquisition function
 obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)
@@ -101,7 +101,7 @@ class ConvNet(hk.Module):
         x = hk.Linear(self._embedim)(x)
         return x
 
-dkl = gpax.viDKL(X.shape[1:], 2, nn=ConvNet)  # input data dimensions are (n,h,w,c)
+dkl = gpax.viDKL(X.shape[1:], 2, kernel='RBF', nn=ConvNet)  # input data dimensions are (n,h,w,c)
 dkl.fit(rng_key, X_train, y_train, num_steps=100, step_size=0.05)
 obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)
 next_point_idx = obj.argmax()
