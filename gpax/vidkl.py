@@ -137,7 +137,7 @@ class viDKL(ExactGP):
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 kernel_params: Optional[Dict[str, jnp.ndarray]] = None,
-                n: int = 5000
+                n: int = 5000, *args
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using learned GP hyperparameters
