@@ -51,29 +51,27 @@ class ExactGP:
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
         """GP probabilistic model"""
         # Initialize mean function at zeros
-        f_loc = jnp.zeros(X.shape[0])
+        f_loc = jnp.zeros(X.shape[:2])
         # Sample kernel parameters
         if self.kernel_prior:
             kernel_params = self.kernel_prior()
         else:
-            kernel_params = self._sample_kernel_params()
+            kernel_params = self._sample_kernel_params(task_dim=X.shape[0])
         # Sample noise
-        if self.noise_prior:
-            noise = self.noise_prior()
-        else:
-            noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
+        with numpyro.plate("obs_noise", X.shape[0]):
+            if self.noise_prior:
+                noise = self.noise_prior()
+            else:
+                noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
         # Add mean function (if any)
         if self.mean_fn is not None:
             args = [X]
             if self.mean_fn_prior is not None:
                 args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
-        # compute kernel
-        k = get_kernel(self.kernel)(
-            X, X,
-            kernel_params,
-            noise
-        )
+        # Compute kernel(s)
+        vmap_args = (X, X, kernel_params, noise)
+        k = jax.jit(jax.vmap(get_kernel(self.kernel)))(*vmap_args)
         # sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
@@ -97,7 +95,9 @@ class ExactGP:
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
         """
-        X = X if X.ndim > 1 else X[:, None]
+        X = X[:, None] if X.ndim == 1 else X  # add feature pseudo-dimension
+        X = X[None] if X.ndim == 2 else X  # add batch/task pseudo-dimension
+        y = y[None] if y.ndim == 1 else y  # add batch/task pseudo-dimension
         self.X_train = X
         self.y_train = y
 
@@ -156,18 +156,19 @@ class ExactGP:
         y_sample = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sample.squeeze()
 
-    def _sample_kernel_params(self, dim: int = None) -> Dict[str, jnp.ndarray]:
+    def _sample_kernel_params(self, task_dim: int = None) -> Dict[str, jnp.ndarray]:
         """
         Sample kernel parameters with default
         weakly-informative log-normal priors
         """
-        with numpyro.plate('k_param', self.kernel_dim):  # allows using ARD kernel for dim > 1
-            length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
-        scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
-        if self.kernel == 'Periodic':
-            period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
+        with numpyro.plate("kernel_params", task_dim):  # batch/task dimension'
+            with numpyro.plate('lengthscale', self.kernel_dim):  # allows using ARD kernel for dim > 1
+                length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
+            scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
+            if self.kernel == 'Periodic':
+                period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
         kernel_params = {
-            "k_length": length, "k_scale": scale,
+            "k_length": length.T, "k_scale": scale,
             "period": period if self.kernel == "Periodic" else None}
         return kernel_params
 
