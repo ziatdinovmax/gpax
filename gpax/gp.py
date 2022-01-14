@@ -119,6 +119,28 @@ class ExactGP:
         """Get posterior samples (after running the MCMC chains)"""
         return self.mcmc.get_samples(group_by_chain=chain_dim)
 
+    def _get_mvn_posterior(self,
+                          X_train: jnp.ndarray, y_residual: jnp.ndarray,
+                          X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                          ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        noise = params["noise"]
+        # y_residual = self.y_train
+        # if self.mean_fn is not None:
+        #     args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
+        #     y_residual -= self.mean_fn(*args).squeeze()
+        # compute kernel matrices for train and test data
+        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise)
+        k_pX = get_kernel(self.kernel)(X_new, X_train, params, jitter=0.0)
+        k_XX = get_kernel(self.kernel)(X_train, X_train, params, noise)
+        # compute the predictive covariance and mean
+        K_xx_inv = jnp.linalg.inv(k_XX)
+        cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
+        mean_ = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
+        # if self.mean_fn is not None:
+        #     args = [X_new, params] if self.mean_fn_prior else [X_new]
+        #     mean += self.mean_fn(*args).squeeze()
+        return mean_, cov
+
     @partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
@@ -127,19 +149,12 @@ class ExactGP:
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of GP hyperparameters
         """
-        noise = params["noise"]
         y_residual = self.y_train
         if self.mean_fn is not None:
             args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
             y_residual -= self.mean_fn(*args).squeeze()
-        # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise)
-        k_pX = get_kernel(self.kernel)(X_new, self.X_train, params, jitter=0.0)
-        k_XX = get_kernel(self.kernel)(self.X_train, self.X_train, params, noise)
-        # compute the predictive covariance and mean
-        K_xx_inv = jnp.linalg.inv(k_XX)
-        cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
-        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
+        vmap_args = (self.X_train, y_residual, X_new, params)
+        mean, cov = jax.vmap(self._get_mvn_posterior)(*vmap_args)
         if self.mean_fn is not None:
             args = [X_new, params] if self.mean_fn_prior else [X_new]
             mean += self.mean_fn(*args).squeeze()
@@ -149,7 +164,8 @@ class ExactGP:
                  params: Dict[str, jnp.ndarray], n: int
                  ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Prediction with a single sample of GP hyperparameters"""
-        X_new = X_new if X_new.ndim > 1 else X_new[:, None]
+        X_new = X_new[:, None] if X_new.ndim == 1 else X_new  # add feature pseudo-dimension
+        X_new = X_new[None] if X_new.ndim == 2 else X_new  # add batch/task pseudo-dimension
         # Get the predictive mean and covariance
         y_mean, K = self.get_mvn_posterior(X_new, params)
         # draw samples from the posterior predictive for a given set of hyperparameters
@@ -161,14 +177,15 @@ class ExactGP:
         Sample kernel parameters with default
         weakly-informative log-normal priors
         """
-        with numpyro.plate("kernel_params", task_dim):  # batch/task dimension'
-            with numpyro.plate('lengthscale', self.kernel_dim):  # allows using ARD kernel for dim > 1
+        with numpyro.plate("plate_1", task_dim, dim=-2):  # batch/task dimension'
+            with numpyro.plate('lengthscale', self.kernel_dim, dim=-1):  # allows using ARD kernel for dim > 1
                 length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
+        with numpyro.plate("plate_2", task_dim):  # batch/task dimension'
             scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
             if self.kernel == 'Periodic':
                 period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
         kernel_params = {
-            "k_length": length.T, "k_scale": scale,
+            "k_length": length, "k_scale": scale,
             "period": period if self.kernel == "Periodic" else None}
         return kernel_params
 
@@ -231,4 +248,4 @@ class ExactGP:
         if filter_nans:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
             y_sampled = jnp.array(y_sampled_)
-        return y_means.mean(0), y_sampled
+        return y_means.mean(0).squeeze(), y_sampled
