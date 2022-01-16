@@ -39,9 +39,10 @@ class DKL(ExactGP):
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
         """DKL probabilistic model"""
+        task_dim = X.shape[0]
         # BNN part
-        bnn_params = self.bnn_prior()
-        z = self.bnn(X, bnn_params)
+        bnn_params = self.bnn_prior(task_dim)
+        z = jax.jit(jax.vmap(self.bnn))(X, bnn_params)
         if self.latent_prior:  # Sample latent variable
             z = self.latent_prior(z)
         # Sample GP kernel parameters
@@ -50,15 +51,18 @@ class DKL(ExactGP):
         else:
             kernel_params = self._sample_kernel_params()
         # Sample noise
-        noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
+        with numpyro.plate('obs_noise', task_dim):
+            noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
         # GP's mean function
-        f_loc = jnp.zeros(z.shape[0])
-        # compute kernel
-        k = get_kernel(self.kernel)(
-            z, z,
-            kernel_params,
-            noise
-        )
+        f_loc = jnp.zeros(z.shape[:2])
+        # compute kernel(s)
+        k_args = (z, z, kernel_params, noise)
+        k = jax.jit(jax.vmap(get_kernel(self.kernel)))(*k_args)
+        # k = get_kernel(self.kernel)(
+        #     z, z,
+        #     kernel_params,
+        #     noise
+        # )
         # sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
@@ -96,17 +100,20 @@ class DKL(ExactGP):
         return z
 
 
-def sample_weights(name: str, in_channels: int, out_channels: int) -> jnp.ndarray:
+def sample_weights(name: str, in_channels: int, out_channels: int, task_dim: int) -> jnp.ndarray:
     """Sampling weights matrix"""
-    return numpyro.sample(name=name, fn=dist.Normal(
-                loc=jnp.zeros((in_channels, out_channels)),
-                scale=jnp.ones((in_channels, out_channels))))
+    with numpyro.plate("batch_dim", task_dim, dim=-3):
+        w = numpyro.sample(name=name, fn=dist.Normal(
+            loc=jnp.zeros((in_channels, out_channels)),
+            scale=jnp.ones((in_channels, out_channels))))
+    return w
 
-
-def sample_biases(name: str, channels: int) -> jnp.ndarray:
+def sample_biases(name: str, channels: int, task_dim: int) -> jnp.ndarray:
     """Sampling bias vector"""
-    return numpyro.sample(name=name, fn=dist.Normal(
-                loc=jnp.zeros((channels)), scale=jnp.ones((channels))))
+    with numpyro.plate("batch_dim", task_dim, dim=-3):
+        b = numpyro.sample(name=name, fn=dist.Normal(
+            loc=jnp.zeros((channels)), scale=jnp.ones((channels))))
+    return b
 
 
 def bnn(X: jnp.ndarray, params: Dict[str, jnp.ndarray]) -> jnp.ndarray:
@@ -121,13 +128,13 @@ def bnn_prior(input_dim: int, zdim: int = 2) -> Dict[str, jnp.array]:
     """Priors over weights and biases in the default Bayesian MLP"""
     hdim = [64, 32]
 
-    def _bnn_prior():
-        w1 = sample_weights("w1", input_dim, hdim[0])
-        b1 = sample_biases("b1", hdim[0])
-        w2 = sample_weights("w2", hdim[0], hdim[1])
-        b2 = sample_biases("b2", hdim[1])
-        w3 = sample_weights("w3", hdim[1], zdim)
-        b3 = sample_biases("b3", zdim)
+    def _bnn_prior(task_dim: int):
+        w1 = sample_weights("w1", input_dim, hdim[0], task_dim)
+        b1 = sample_biases("b1", hdim[0], task_dim)
+        w2 = sample_weights("w2", hdim[0], hdim[1], task_dim)
+        b2 = sample_biases("b2", hdim[1], task_dim)
+        w3 = sample_weights("w3", hdim[1], zdim, task_dim)
+        b3 = sample_biases("b3", zdim, task_dim)
         return {"w1": w1, "b1": b1, "w2": w2, "b2": b2, "w3": w3, "b3": b3}
 
     return _bnn_prior
