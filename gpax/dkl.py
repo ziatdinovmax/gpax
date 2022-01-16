@@ -49,7 +49,7 @@ class DKL(ExactGP):
         if self.kernel_prior:
             kernel_params = self.kernel_prior()
         else:
-            kernel_params = self._sample_kernel_params()
+            kernel_params = self._sample_kernel_params(task_dim)
         # Sample noise
         with numpyro.plate('obs_noise', task_dim):
             noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
