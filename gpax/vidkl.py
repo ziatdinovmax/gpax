@@ -183,7 +183,7 @@ class viDKL(ExactGP):
         task_dim = self.X_train.shape[0]
         key, _ = get_keys()
         z = [
-            self.nn_module.apply(self.nn_params[i], key, self.X_train[i])
+            self.nn_module.apply(self.nn_params[i], key, X_new[i])
             for i in range(task_dim)
         ]
         return jnp.array(z)
