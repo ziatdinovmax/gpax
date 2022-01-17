@@ -13,6 +13,7 @@ import haiku as hk
 
 from .gp import ExactGP
 from .kernels import get_kernel
+from .utils import get_keys
 
 
 class viDKL(ExactGP):
@@ -44,27 +45,26 @@ class viDKL(ExactGP):
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
         """DKL probabilistic model"""
+        task_dim = X.shape[0]
         # NN part
-        feature_extractor = haiku_module(
-            "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim))
-        z = feature_extractor(X)
-        if self.latent_prior:  # Sample latent variable
-            z = self.latent_prior(z)
+        feature_nets = [
+            haiku_module("feature_net_{}".format(i), self.nn_module, input_shape=(1, *self.data_dim))
+            for i in range(task_dim)
+        ]
+        z = jnp.array([f(X[i]) for (i, f) in enumerate(feature_nets)])
         # Sample GP kernel parameters
         if self.kernel_prior:
             kernel_params = self.kernel_prior()
         else:
-            kernel_params = self._sample_kernel_params()
+            kernel_params = self._sample_kernel_params(task_dim)
         # Sample noise
-        noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
+        with numpyro.plate('obs_noise', task_dim):
+            noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
         # GP's mean function
-        f_loc = jnp.zeros(z.shape[0])
-        # compute kernel
-        k = get_kernel(self.kernel)(
-            z, z,
-            kernel_params,
-            noise
-        )
+        f_loc = jnp.zeros(z.shape[:2])
+        # compute kernel(s)
+        k_args = (z, z, kernel_params, noise)
+        k = jax.jit(jax.vmap(get_kernel(self.kernel)))(*k_args)
         # sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
@@ -86,7 +86,9 @@ class viDKL(ExactGP):
             step_size: step size schedule for Adam optimizer
             print_summary: print summary at the end of sampling
         """
-        X = X if X.ndim > 1 else X[:, None]
+        X = X[:, None] if X.ndim == 1 else X  # add feature pseudo-dimension
+        X = X[None] if X.ndim == 2 else X  # add batch/task pseudo-dimension
+        y = y[None] if y.ndim == 1 else y  # add batch/task pseudo-dimension
         self.X_train = X
         self.y_train = y
         # Setup optimizer and SVI
@@ -101,13 +103,37 @@ class viDKL(ExactGP):
         )
         params = svi.run(rng_key, num_steps)[0]
         # Get NN weights
-        self.nn_params = params["feature_extractor$params"]
+        self.nn_params = [params
+            ["feature_net_{}$params".format(i)] for i in range(X.shape[0])
+        ]
         # Get kernel parameters from the guide
         self.kernel_params = svi.guide.median(params)
         if print_summary:
             self._print_summary()
 
-    @partial(jit, static_argnames='self')
+    def _get_mvn_posterior(self,
+                           z_train: jnp.ndarray,
+                           y_train: jnp.ndarray,
+                           z_test: jnp.ndarray,
+                           params: Dict[str, jnp.ndarray] = None
+                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        noise = params["noise"]
+        # embed data into the latent space
+        # z_train = self.nn_module.apply(
+        #     self.nn_params, jax.random.PRNGKey(0), self.X_train)
+        # z_test = self.nn_module.apply(
+        #     self.nn_params, jax.random.PRNGKey(0), X_new)
+        # compute kernel matrices for train and test data
+        k_pp = get_kernel(self.kernel)(z_test, z_test, params, noise)
+        k_pX = get_kernel(self.kernel)(z_test, z_train, params, jitter=0.0)
+        k_XX = get_kernel(self.kernel)(z_train, z_train, params, noise)
+        # compute the predictive covariance and mean
+        K_xx_inv = jnp.linalg.inv(k_XX)
+        cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
+        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_train))
+        return mean, cov
+
+    #@partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
                           X_new: jnp.ndarray,
                           params: Dict[str, jnp.ndarray] = None
@@ -119,22 +145,12 @@ class viDKL(ExactGP):
         """
         if params is None:
             params = self.kernel_params
-        noise = params["noise"]
-        # embed data into the latent space
-        z_train = self.nn_module.apply(
-            self.nn_params, jax.random.PRNGKey(0), self.X_train)
-        z_test = self.nn_module.apply(
-            self.nn_params, jax.random.PRNGKey(0), X_new)
-        # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(z_test, z_test, params, noise)
-        k_pX = get_kernel(self.kernel)(z_test, z_train, params, jitter=0.0)
-        k_XX = get_kernel(self.kernel)(z_train, z_train, params, noise)
-        # compute the predictive covariance and mean
-        K_xx_inv = jnp.linalg.inv(k_XX)
-        cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
-        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, self.y_train))
+        z_train = self.embed(self.X_train)
+        z_new = self.embed(X_new)
+        vmap_args = (z_train, self.y_train, z_new, params)
+        mean, cov = jax.vmap(self._get_mvn_posterior)(*vmap_args)
         return mean, cov
-
+        
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 kernel_params: Optional[Dict[str, jnp.ndarray]] = None,
                 n: int = 5000, *args
@@ -164,9 +180,13 @@ class viDKL(ExactGP):
 
     @partial(jit, static_argnames='self')
     def embed(self, X_new: jnp.ndarray) -> jnp.ndarray:
-        z = self.nn_module.apply(
-            self.nn_params, jax.random.PRNGKey(0), X_new)
-        return z
+        task_dim = self.X_train.shape[0]
+        key, _ = get_keys()
+        z = [
+            self.nn_module.apply(self.nn_params[i], key, self.X_train[i])
+            for i in range(task_dim)
+        ]
+        return jnp.array(z)
 
 
 class MLP(hk.Module):
