@@ -208,16 +208,16 @@ class ExactGP:
         num_batches = jnp.floor_divide(X_new.shape[0], batch_size)
         y_pred, y_sampled = [], []
         for i in range(num_batches):
-            Xi = X_new[i*batch_size:(i+1)*batch_size]
+            Xi = X_new[:, i*batch_size:(i+1)*batch_size]
             mean, sampled = predict_batch(Xi)
             y_pred.append(mean)
             y_sampled.append(sampled)
-        Xi = X_new[(i+1)*batch_size:]
+        Xi = X_new[:, (i+1)*batch_size:]
         if len(Xi) > 0:
             mean, sampled = predict_batch(Xi)
             y_pred.append(mean)
             y_sampled.append(sampled)
-        y_pred = onp.concatenate(y_pred, 0)
+        y_pred = onp.concatenate(y_pred, -1)
         y_sampled = onp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
 
