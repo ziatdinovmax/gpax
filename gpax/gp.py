@@ -205,7 +205,10 @@ class ExactGP:
             sampled = jax.device_put(sampled, jax.devices("cpu")[0])
             return mean, sampled
 
-        num_batches = jnp.floor_divide(X_new.shape[0], batch_size)
+        X_new = X_new[:, None] if X_new.ndim == 1 else X_new  # add feature pseudo-dimension
+        X_new = X_new[None] if X_new.ndim == 2 else X_new  # add batch/task pseudo-dimension
+        
+        num_batches = jnp.floor_divide(X_new.shape[1], batch_size)
         y_pred, y_sampled = [], []
         for i in range(num_batches):
             Xi = X_new[:, i*batch_size:(i+1)*batch_size]
