@@ -86,9 +86,7 @@ class viDKL(ExactGP):
             step_size: step size schedule for Adam optimizer
             print_summary: print summary at the end of sampling
         """
-        X = X[:, None] if X.ndim == 1 else X  # add feature pseudo-dimension
-        X = X[None] if X.ndim == 2 else X  # add batch/task pseudo-dimension
-        y = y[None] if y.ndim == 1 else y  # add batch/task pseudo-dimension
+        X, y = self._set_data(X, y)
         self.X_train = X
         self.y_train = y
         # Setup optimizer and SVI
@@ -103,8 +101,8 @@ class viDKL(ExactGP):
         )
         params = svi.run(rng_key, num_steps)[0]
         # Get NN weights
-        self.nn_params = [params
-            ["feature_net_{}$params".format(i)] for i in range(X.shape[0])
+        self.nn_params = [
+            params["feature_net_{}$params".format(i)] for i in range(X.shape[0])
         ]
         # Get kernel parameters from the guide
         self.kernel_params = svi.guide.median(params)
@@ -172,6 +170,7 @@ class viDKL(ExactGP):
         Embeds data into the latent space using
         the DKL's (trained) neural network
         """
+        X_new = self._set_data(X_new)
         task_dim = self.X_train.shape[0]
         key, _ = get_keys()
         z = [

@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -95,9 +95,7 @@ class ExactGP:
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
         """
-        X = X[:, None] if X.ndim == 1 else X  # add feature pseudo-dimension
-        X = X[None] if X.ndim == 2 else X  # add batch/task pseudo-dimension
-        y = y[None] if y.ndim == 1 else y  # add batch/task pseudo-dimension
+        X, y = self._set_data(X, y)
         self.X_train = X
         self.y_train = y
 
@@ -124,11 +122,11 @@ class ExactGP:
                            X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
-        # compute kernel matrices for train and test data
+        # compute kernel matrices for train and new/test data
         k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise)
         k_pX = get_kernel(self.kernel)(X_new, X_train, params, jitter=0.0)
         k_XX = get_kernel(self.kernel)(X_train, X_train, params, noise)
-        # compute the predictive covariance and mean
+        # compute the predictive covariance and mean (sans mean_fn addition)
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
         mean_ = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
@@ -157,8 +155,7 @@ class ExactGP:
                  params: Dict[str, jnp.ndarray], n: int
                  ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Prediction with a single sample of GP hyperparameters"""
-        X_new = X_new[:, None] if X_new.ndim == 1 else X_new  # add feature pseudo-dimension
-        X_new = X_new[None] if X_new.ndim == 2 else X_new  # add batch/task pseudo-dimension
+        X_new = self._set_data(X_new)
         # Get the predictive mean and covariance
         y_mean, K = self.get_mvn_posterior(X_new, params)
         # draw samples from the posterior predictive for a given set of hyperparameters
@@ -198,9 +195,7 @@ class ExactGP:
             sampled = jax.device_put(sampled, jax.devices("cpu")[0])
             return mean, sampled
 
-        X_new = X_new[:, None] if X_new.ndim == 1 else X_new  # add feature pseudo-dimension
-        X_new = X_new[None] if X_new.ndim == 2 else X_new  # add batch/task pseudo-dimension
-        
+        X_new = self._set_data(X_new)
         num_batches = jnp.floor_divide(X_new.shape[1], batch_size)
         y_pred, y_sampled = [], []
         for i in range(num_batches):
@@ -245,6 +240,17 @@ class ExactGP:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
             y_sampled = jnp.array(y_sampled_)
         return y_means.mean(0).squeeze(), y_sampled
+
+    def _set_data(self,
+                  X: jnp.ndarray,
+                  y: Optional[jnp.ndarray] = None
+                  ) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
+        X = X[:, None] if X.ndim == 1 else X  # add feature pseudo-dimension
+        X = X[None] if X.ndim == 2 else X  # add task pseudo-dimension
+        if y is not None:
+            y = y[None] if y.ndim == 1 else y  # add task pseudo-dimension
+            return X, y
+        return X
 
     def _print_summary(self):
         samples = self.get_samples(1)
