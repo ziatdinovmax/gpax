@@ -184,12 +184,13 @@ class viDKL(ExactGP):
         """
         task_dim = self.X_train.shape[0]
         X_new = self._set_data(X_new)
-        if X_new.shape[0] != task_dim and self.ensemble_mode:
-            X_new = X_new.repeat(task_dim, axis=0)
-        else:
-            raise AssertionError(
-                "The batch/task dimension of new data must match" +
-                " the batch/task dimension of train data")
+        if X_new.shape[0] != task_dim:
+            if self.ensemble_mode:
+                X_new = X_new.repeat(task_dim, axis=0)
+            else:
+                raise AssertionError(
+                    "The batch/task dimension of new data must match" +
+                    " the batch/task dimension of train data")
         key, _ = get_keys()
         z = [
             self.nn_module.apply(self.nn_params[i], key, X_new[i])
