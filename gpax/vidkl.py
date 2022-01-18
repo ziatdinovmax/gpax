@@ -118,11 +118,6 @@ class viDKL(ExactGP):
                            params: Dict[str, jnp.ndarray] = None
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
-        # embed data into the latent space
-        # z_train = self.nn_module.apply(
-        #     self.nn_params, jax.random.PRNGKey(0), self.X_train)
-        # z_test = self.nn_module.apply(
-        #     self.nn_params, jax.random.PRNGKey(0), X_new)
         # compute kernel matrices for train and test data
         k_pp = get_kernel(self.kernel)(z_test, z_test, params, noise)
         k_pX = get_kernel(self.kernel)(z_test, z_train, params, jitter=0.0)
@@ -133,7 +128,7 @@ class viDKL(ExactGP):
         mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_train))
         return mean, cov
 
-    #@partial(jit, static_argnames='self')
+    @partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
                           X_new: jnp.ndarray,
                           params: Dict[str, jnp.ndarray] = None
@@ -150,14 +145,14 @@ class viDKL(ExactGP):
         vmap_args = (z_train, self.y_train, z_new, params)
         mean, cov = jax.vmap(self._get_mvn_posterior)(*vmap_args)
         return mean, cov
-        
+
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 kernel_params: Optional[Dict[str, jnp.ndarray]] = None,
                 n: int = 5000, *args
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using learned GP hyperparameters
-        
+
         Args:
             rng_key: random number generator key
             X_new: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
@@ -171,15 +166,12 @@ class viDKL(ExactGP):
         y_mean, y_sampled = self._predict(rng_key, X_new, kernel_params, n)
         return y_mean, y_sampled
 
-    def _print_summary(self) -> None:
-        if isinstance(self.kernel_params, dict):
-            print('\nInferred parameters')
-            for (k, v) in self.kernel_params.items():
-                spaces = " " * (15 - len(k))
-                print(k, spaces, jnp.around(v, 4))
-
     @partial(jit, static_argnames='self')
     def embed(self, X_new: jnp.ndarray) -> jnp.ndarray:
+        """
+        Embeds data into the latent space using
+        the DKL's (trained) neural network
+        """
         task_dim = self.X_train.shape[0]
         key, _ = get_keys()
         z = [
@@ -188,11 +180,24 @@ class viDKL(ExactGP):
         ]
         return jnp.array(z)
 
+    def _print_summary(self) -> None:
+        if isinstance(self.kernel_params, dict):
+            print('\nInferred parameters')
+            if self.X_train.shape[0] == 1:
+                for (k, vals) in self.kernel_params.items():
+                    spaces = " " * (15 - len(k))
+                    print(k, spaces, jnp.around(vals, 4))
+            else:
+                for (k, vals) in self.kernel_params.items():
+                    for i, v in enumerate(vals):
+                        spaces = " " * (15 - len(k))
+                        print(k+"[{}]".format(i), spaces, jnp.around(v, 4))
+
 
 class MLP(hk.Module):
     def __init__(self, embedim=2):
         super().__init__()
-        self._embedim = embedim   
+        self._embedim = embedim
 
     def __call__(self, x):
         x = hk.Linear(64)(x)

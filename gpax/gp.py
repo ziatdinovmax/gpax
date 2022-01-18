@@ -70,8 +70,8 @@ class ExactGP:
                 args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
         # Compute kernel(s)
-        vmap_args = (X, X, kernel_params, noise)
-        k = jax.jit(jax.vmap(get_kernel(self.kernel)))(*vmap_args)
+        k_args = (X, X, kernel_params, noise)
+        k = jax.jit(jax.vmap(get_kernel(self.kernel)))(*k_args)
         # sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
@@ -113,21 +113,17 @@ class ExactGP:
         )
         self.mcmc.run(rng_key, X, y)
         if print_summary:
-            self.mcmc.print_summary()
+            self._print_summary()
 
     def get_samples(self, chain_dim: bool = False) -> Dict[str, jnp.ndarray]:
         """Get posterior samples (after running the MCMC chains)"""
         return self.mcmc.get_samples(group_by_chain=chain_dim)
 
     def _get_mvn_posterior(self,
-                          X_train: jnp.ndarray, y_residual: jnp.ndarray,
-                          X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
-                          ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+                           X_train: jnp.ndarray, y_residual: jnp.ndarray,
+                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
-        # y_residual = self.y_train
-        # if self.mean_fn is not None:
-        #     args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
-        #     y_residual -= self.mean_fn(*args).squeeze()
         # compute kernel matrices for train and test data
         k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise)
         k_pX = get_kernel(self.kernel)(X_new, X_train, params, jitter=0.0)
@@ -136,9 +132,6 @@ class ExactGP:
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
         mean_ = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
-        # if self.mean_fn is not None:
-        #     args = [X_new, params] if self.mean_fn_prior else [X_new]
-        #     mean += self.mean_fn(*args).squeeze()
         return mean_, cov
 
     @partial(jit, static_argnames='self')
@@ -252,3 +245,7 @@ class ExactGP:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
             y_sampled = jnp.array(y_sampled_)
         return y_means.mean(0).squeeze(), y_sampled
+
+    def _print_summary(self):
+        samples = self.get_samples(1)
+        numpyro.diagnostics.print_summary(samples)

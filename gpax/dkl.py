@@ -58,11 +58,6 @@ class DKL(ExactGP):
         # compute kernel(s)
         k_args = (z, z, kernel_params, noise)
         k = jax.jit(jax.vmap(get_kernel(self.kernel)))(*k_args)
-        # k = get_kernel(self.kernel)(
-        #     z, z,
-        #     kernel_params,
-        #     noise
-        # )
         # sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
@@ -72,9 +67,9 @@ class DKL(ExactGP):
 
     @partial(jit, static_argnames='self')
     def _get_mvn_posterior(self,
-                          X_train: jnp.ndarray, y_train: jnp.ndarray,
-                          X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
-                          ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+                           X_train: jnp.ndarray, y_train: jnp.ndarray,
+                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
         # embed data intot the latent space
         z_train = self.bnn(X_train, params)
@@ -91,10 +86,20 @@ class DKL(ExactGP):
 
     @partial(jit, static_argnames='self')
     def embed(self, X_new: jnp.ndarray) -> jnp.ndarray:
+        """
+        Embeds data into the latent space using the inferred weights
+        of the DKL's Bayesian neural network
+        """
         samples = self.get_samples(chain_dim=False)
         predictive = jax.vmap(lambda params: self.bnn(X_new, params))
         z = predictive(samples)
         return z
+
+    def _print_summary(self):
+        list_of_keys = ["k_scale", "k_length", "noise", "period"]
+        samples = self.get_samples(1)
+        numpyro.diagnostics.print_summary(
+            {k: v for (k, v) in samples.items() if k in list_of_keys})
 
 
 def sample_weights(name: str, in_channels: int, out_channels: int, task_dim: int) -> jnp.ndarray:
@@ -104,6 +109,7 @@ def sample_weights(name: str, in_channels: int, out_channels: int, task_dim: int
             loc=jnp.zeros((in_channels, out_channels)),
             scale=jnp.ones((in_channels, out_channels))))
     return w
+
 
 def sample_biases(name: str, channels: int, task_dim: int) -> jnp.ndarray:
     """Sampling bias vector"""
