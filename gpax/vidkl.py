@@ -42,6 +42,7 @@ class viDKL(ExactGP):
         self.latent_prior = latent_prior
         self.kernel_params = None
         self.nn_params = None
+        self.ensemble_mode = False
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
         """DKL probabilistic model"""
@@ -109,6 +110,17 @@ class viDKL(ExactGP):
         if print_summary:
             self._print_summary()
 
+    def fit_ensemble(self, rng_key: jnp.array,
+                     X: jnp.ndarray, y: jnp.ndarray,
+                     n_models: int, num_steps: int = 1000,
+                     step_size: float = 5e-3, print_summary: bool = True
+                     ) -> None:
+        self.ensemble_mode = True
+        X, y = self._set_data(X, y)
+        X = X.repeat(n_models, axis=0)
+        y = y.repeat(n_models, axis=0)
+        self.fit(rng_key, X, y, num_steps, step_size, print_summary)
+
     def _get_mvn_posterior(self,
                            z_train: jnp.ndarray,
                            y_train: jnp.ndarray,
@@ -170,8 +182,14 @@ class viDKL(ExactGP):
         Embeds data into the latent space using
         the DKL's (trained) neural network
         """
-        X_new = self._set_data(X_new)
         task_dim = self.X_train.shape[0]
+        X_new = self._set_data(X_new)
+        if X_new.shape[0] != task_dim and self.ensemble_mode:
+            X_new = X_new.repeat(task_dim, axis=0)
+        else:
+            raise AssertionError(
+                "The batch/task dimension of new data must match" +
+                " the batch/task dimension of train data")
         key, _ = get_keys()
         z = [
             self.nn_module.apply(self.nn_params[i], key, X_new[i])
