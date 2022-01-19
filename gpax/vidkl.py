@@ -53,13 +53,15 @@ class viDKL(ExactGP):
             for i in range(task_dim)
         ]
         z = jnp.array([f(X[i]) for (i, f) in enumerate(feature_nets)])
+        if self.latent_prior:  # Sample latent variable
+            z = self.latent_prior(z)
         # Sample GP kernel parameters
         if self.kernel_prior:
             kernel_params = self.kernel_prior()
         else:
             kernel_params = self._sample_kernel_params(task_dim)
         # Sample noise
-        with numpyro.plate('obs_noise', task_dim):
+        with numpyro.plate('obs_noise_plate', task_dim):
             noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
         # GP's mean function
         f_loc = jnp.zeros(z.shape[:2])
