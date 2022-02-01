@@ -11,6 +11,7 @@ from jax import jit
 from numpyro.infer import MCMC, NUTS, init_to_median
 
 from .kernels import get_kernel
+from .utils import split_in_batches
 
 if jax.__version__ < '0.2.26':
     clear_cache = jax.interpreters.xla._xla_callable.cache_clear
@@ -183,7 +184,7 @@ class ExactGP:
                            X_new: jnp.ndarray,  batch_size: int = 100,
                            samples: Optional[Dict[str, jnp.ndarray]] = None,
                            n: int = 1, filter_nans: bool = False
-                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+                           ) -> Tuple[onp.ndarray, onp.ndarray]:
         """
         Make prediction at X_new points with sampled GP hyperparameters
         using batches to avoid potential memory overflow
@@ -196,15 +197,8 @@ class ExactGP:
             return mean, sampled
 
         X_new = self._set_data(X_new)
-        num_batches = jnp.floor_divide(X_new.shape[1], batch_size)
         y_pred, y_sampled = [], []
-        for i in range(num_batches):
-            Xi = X_new[:, i*batch_size:(i+1)*batch_size]
-            mean, sampled = predict_batch(Xi)
-            y_pred.append(mean)
-            y_sampled.append(sampled)
-        Xi = X_new[:, (i+1)*batch_size:]
-        if len(Xi) > 0:
+        for Xi in split_in_batches(X_new, batch_size, dim=1):
             mean, sampled = predict_batch(Xi)
             y_pred.append(mean)
             y_sampled.append(sampled)
