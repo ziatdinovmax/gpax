@@ -1,4 +1,4 @@
-from typing import Type, Tuple
+from typing import Type, Tuple, Optional
 
 import jax.numpy as jnp
 import jax.random as jra
@@ -81,53 +81,49 @@ def Thompson(rng_key: jnp.ndarray,
 
 
 def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
-         X: jnp.ndarray, batch_size: int = 4,
-         beta: float = .25,
-         maximize: bool = False,
-         n: int = 100,
-         n_restarts: int = 20) -> jnp.ndarray:
+         X: jnp.ndarray, indices: Optional[jnp.ndarray] = None,
+         batch_size: int = 4, beta: float = .25,
+         maximize: bool = False, n: int = 200,
+         n_restarts: int = 20, **kwargs) -> jnp.ndarray:
     """
     Batch mode for the upper confidence bound
     """
     if model.mcmc is None:
         raise NotImplementedError(
-            "Currently supports only ExactGP with MCMC inference")
+            "Currently supports only ExactGP and DKL with MCMC inference")
     dist_all, obj_all = [], []
-    for i in range(n_restarts):
-        y_sampled = obtain_samples(rng_key, model, X, batch_size, n)
+    X_ = jnp.array(indices) if indices is not None else X
+    for _ in range(n_restarts):
+        y_sampled = obtain_samples(rng_key, model, X, batch_size, n, **kwargs)
         mean, var = y_sampled.mean(1), y_sampled.var(1)
         delta = jnp.sqrt(beta * var)
         if maximize:
             obj = mean + delta
-            points = X[obj.argmax(1)]
+            points = X_[obj.argmax(-1)]
         else:
             obj = mean - delta
-            points = X[obj.argmin(1)]
-        d = get_distance(points)
+            points = X_[obj.argmin(-1)]
+        d = jnp.linalg.norm(points, axis=-1).mean(0)
         dist_all.append(d)
         obj_all.append(obj)
-    idx = jnp.array(dist_all).argmax()
+    idx = jnp.array(dist_all).argmax(0)
+    if idx.ndim > 0:
+        obj_all = jnp.array(obj_all)
+        return jnp.array([obj_all[j,:,i] for i, j in enumerate(idx)])
     return obj_all[idx]
 
 
 def obtain_samples(rng_key: jnp.ndarray, model: Type[ExactGP],
                    X: jnp.ndarray, batch_size: int = 4,
-                   n: int = 500) -> jnp.ndarray:
+                   n: int = 200, **kwargs) -> jnp.ndarray:
     posterior_samples = model.get_samples()
     idx = onp.arange(0, len(posterior_samples["k_length"]))
     onp.random.shuffle(idx)
     idx = idx[:batch_size]
     samples = {k: v[idx] for (k, v) in posterior_samples.items()}
-    _, y_sampled = model.predict(rng_key, X, samples, n)
+    _, y_sampled = model.predict_in_batches(
+        rng_key, X, kwargs.get("xbatch_size", 500), samples, n)
     return y_sampled
-
-
-def get_distance(points: jnp.ndarray) -> float:
-    d = []
-    for p1 in points:
-        for p2 in points:
-            d.append(jnp.linalg.norm(p1-p2))
-    return jnp.array(d).mean().item()
 
 
 def vi_mean_and_var(model: Type[viDKL], X: jnp.ndarray,
