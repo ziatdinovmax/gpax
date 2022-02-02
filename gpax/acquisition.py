@@ -82,8 +82,8 @@ def Thompson(rng_key: jnp.ndarray,
 
 def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
          X: jnp.ndarray, indices: Optional[jnp.ndarray] = None,
-         batch_size: int = 4, beta: float = .25,
-         maximize: bool = False, n: int = 200,
+         batch_size: int = 4, alpha: float = 1.0, beta: float = .25,
+         maximize: bool = True, n: int = 500,
          n_restarts: int = 20, **kwargs) -> jnp.ndarray:
     """
     Batch mode for the upper confidence bound
@@ -98,10 +98,10 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         mean, var = y_sampled.mean(1), y_sampled.var(1)
         delta = jnp.sqrt(beta * var)
         if maximize:
-            obj = mean + delta
+            obj = alpha * mean + delta
             points = X_[obj.argmax(-1)]
         else:
-            obj = mean - delta
+            obj = alpha * mean - delta
             points = X_[obj.argmin(-1)]
         d = jnp.linalg.norm(points, axis=-1).mean(0)
         dist_all.append(d)
@@ -115,7 +115,7 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
 
 def obtain_samples(rng_key: jnp.ndarray, model: Type[ExactGP],
                    X: jnp.ndarray, batch_size: int = 4,
-                   n: int = 200, **kwargs) -> jnp.ndarray:
+                   n: int = 500, **kwargs) -> jnp.ndarray:
     posterior_samples = model.get_samples()
     idx = onp.arange(0, len(posterior_samples["k_length"]))
     onp.random.shuffle(idx)
