@@ -118,10 +118,10 @@ class ExactGP:
         """Get posterior samples (after running the MCMC chains)"""
         return self.mcmc.get_samples(group_by_chain=chain_dim)
 
-     def _get_mvn_posterior(self,
-                            X_train: jnp.ndarray, y_train: jnp.ndarray,
-                            X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
-                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def _get_mvn_posterior(self,
+                           X_train: jnp.ndarray, y_train: jnp.ndarray,
+                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
         y_residual = y_train
         if self.mean_fn is not None:
