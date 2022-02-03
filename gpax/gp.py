@@ -197,6 +197,8 @@ class ExactGP:
             mean, sampled = self.predict(rng_key, Xi, samples, n, filter_nans)
             mean = jax.device_put(mean, jax.devices("cpu")[0])
             sampled = jax.device_put(sampled, jax.devices("cpu")[0])
+            if Xi.shape[1] == 1:
+                mean, sampled = mean[..., None], sampled[..., None]
             return mean, sampled
 
         X_new = self._set_data(X_new)
