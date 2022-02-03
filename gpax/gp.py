@@ -118,20 +118,27 @@ class ExactGP:
         """Get posterior samples (after running the MCMC chains)"""
         return self.mcmc.get_samples(group_by_chain=chain_dim)
 
-    def _get_mvn_posterior(self,
-                           X_train: jnp.ndarray, y_residual: jnp.ndarray,
-                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
-                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+     def _get_mvn_posterior(self,
+                            X_train: jnp.ndarray, y_train: jnp.ndarray,
+                            X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
-        # compute kernel matrices for train and new/test data
+        y_residual = y_train
+        if self.mean_fn is not None:
+            args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
+            y_residual -= self.mean_fn(*args).squeeze()
+        # compute kernel matrices for train and test data
         k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise)
         k_pX = get_kernel(self.kernel)(X_new, X_train, params, jitter=0.0)
         k_XX = get_kernel(self.kernel)(X_train, X_train, params, noise)
-        # compute the predictive covariance and mean (sans mean_fn addition)
+        # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
-        mean_ = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
-        return mean_, cov
+        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
+        if self.mean_fn is not None:
+            args = [X_new, params] if self.mean_fn_prior else [X_new]
+            mean += self.mean_fn(*args).squeeze()
+        return mean, cov
 
     @partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
@@ -141,15 +148,11 @@ class ExactGP:
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of GP hyperparameters
         """
-        y_residual = self.y_train
-        if self.mean_fn is not None:
-            args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
-            y_residual -= self.mean_fn(*args).squeeze()
-        vmap_args = (self.X_train, y_residual, X_new, params)
+        params_unsqueezed = {
+            k: p[None] if p.ndim == 0 else p for (k,p) in params.items()
+        }
+        vmap_args = (self.X_train, self.y_train, X_new, params_unsqueezed)
         mean, cov = jax.vmap(self._get_mvn_posterior)(*vmap_args)
-        if self.mean_fn is not None:
-            args = [X_new, params] if self.mean_fn_prior else [X_new]
-            mean += self.mean_fn(*args).squeeze()
         return mean, cov
 
     def _predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
@@ -168,7 +171,7 @@ class ExactGP:
         Sample kernel parameters with default
         weakly-informative log-normal priors
         """
-        with numpyro.plate("plate_1", task_dim, dim=-2):  # batch/task dimension'
+        with numpyro.plate("plate_1", task_dim, dim=-2):  # task dimension'
             with numpyro.plate('lengthscale', self.kernel_dim, dim=-1):  # allows using ARD kernel for dim > 1
                 length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
         with numpyro.plate("plate_2", task_dim):  # batch/task dimension'
