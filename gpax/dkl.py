@@ -120,7 +120,7 @@ def sample_biases(name: str, channels: int, task_dim: int) -> jnp.ndarray:
 
 
 def bnn(X: jnp.ndarray, params: Dict[str, jnp.ndarray]) -> jnp.ndarray:
-    """Simple Bayesian MLP"""
+    """Simple MLP for a single MCMC sample of weights and biases"""
     h1 = jnp.tanh(jnp.matmul(X, params["w1"]) + params["b1"])
     h2 = jnp.tanh(jnp.matmul(h1, params["w2"]) + params["b2"])
     z = jnp.matmul(h2, params["w3"]) + params["b3"]

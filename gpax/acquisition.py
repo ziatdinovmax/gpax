@@ -33,7 +33,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
 
 def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         X: jnp.ndarray, beta: float = .25,
-        maximize: bool = False, n: int = 1) -> jnp.ndarray:
+        maximize: bool = True, n: int = 1) -> jnp.ndarray:
     """
     Upper confidence bound
     """
@@ -53,7 +53,7 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
 def UE(rng_key: jnp.ndarray,
        model: Type[ExactGP],
        X: jnp.ndarray, n: int = 1) -> jnp.ndarray:
-    """Uncertainty-based exploration (aka kriging)"""
+    """Uncertainty-based exploration"""
     if model.mcmc is not None:
         _, y_sampled = model.predict(rng_key, X, n=n)
         if n > 1:
@@ -86,7 +86,29 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
          maximize: bool = True, n: int = 500,
          n_restarts: int = 20, **kwargs) -> jnp.ndarray:
     """
-    Batch mode for the upper confidence bound
+    The acquisition function defined as alpha * mu + sqrt(beta) * sigma
+    that can output a "batch" of next points to evaluate. It takes advantage of
+    the fact that in MCMC-based GP or DKL we obtain a separate multivariate
+    normal posterior for each set of sampled kernel hyperparameters.
+
+    Args:
+        rng_key: random number generator key
+        model: ExactGP or DKL type of model
+        X: input array
+        indices: indices of data points in X array. For example, if
+            each data point is an image patch, the indices should
+            correspond to their (x, y) coordinates in the original image.
+        batch_size: desired number of sampled points (default: 4)
+        alpha: coefficient before mean prediction term (default: 1.0)
+        beta: coefficient before variance term (default: 0.25)
+        maximize: sign of variance term (+/- if True/False)
+        n: number of draws from each multivariate normal posterior
+        n_restarts: number of restarts to find a batch of maximally
+            separated points to evaluate next
+
+    Returns:
+        Computed acquisition function with batch x features
+        or task x batch x features dimensions
     """
     if model.mcmc is None:
         raise NotImplementedError(

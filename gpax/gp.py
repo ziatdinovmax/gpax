@@ -146,7 +146,7 @@ class ExactGP:
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
-        for a single sample of GP hyperparameters
+        for a single sample of GP hyperparameters. Wrapper over self._get_mvn_posterior.
         """
         params_unsqueezed = {
             k: p[None] if p.ndim == 0 else p for (k,p) in params.items()
@@ -189,8 +189,9 @@ class ExactGP:
                            n: int = 1, filter_nans: bool = False
                            ) -> Tuple[onp.ndarray, onp.ndarray]:
         """
-        Make prediction at X_new points with sampled GP hyperparameters
-        using batches to avoid potential memory overflow
+        Make prediction at X_new with sampled GP hyperparameters
+        by spitting the input array into chunks ("batches") and running
+        self.predict on each of them one-by-one to avoid memory overflow
         """
 
         def predict_batch(Xi):
