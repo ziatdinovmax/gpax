@@ -18,6 +18,17 @@ def get_keys(seed: int = 0):
     return rng_key_1, rng_key_2
 
 
+def clone_keys(seed: int, n: int = 10):
+    """
+    Repeats the rng keys for training and prediction n times.
+    Can be used for parallel task learning with jax.vmap or jax.pmap.
+    """
+    key1, key2 = get_keys(seed)
+    keys1 = key1[None].repeat(n, axis=0)
+    keys2 = key2[None].repeat(n, axis=0)
+    return keys1, keys2
+
+
 def split_in_batches(X_new: Union[onp.ndarray, jnp.ndarray],
                      batch_size: int = 100, dim: int = 0):
     """
