@@ -189,7 +189,7 @@ class ExactGP:
             mean = jax.device_put(mean, jax.devices("cpu")[0])
             sampled = jax.device_put(sampled, jax.devices("cpu")[0])
             if Xi.shape[0] == 1:
-                mean, sampled = mean[..., None], sampled[..., None]
+                sampled = sampled[..., None]
             return mean, sampled
 
         y_pred, y_sampled = [], []
