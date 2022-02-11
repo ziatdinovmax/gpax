@@ -4,7 +4,6 @@ from typing import Callable, Dict, Optional, Tuple, Union
 import jax
 import jax.numpy as jnp
 import jax.random as jra
-import numpy as onp
 import numpyro
 import numpyro.distributions as dist
 from jax import jit
@@ -187,7 +186,7 @@ class ExactGP:
                            X_new: jnp.ndarray,  batch_size: int = 100,
                            samples: Optional[Dict[str, jnp.ndarray]] = None,
                            n: int = 1, filter_nans: bool = False
-                           ) -> Tuple[onp.ndarray, onp.ndarray]:
+                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new with sampled GP hyperparameters
         by spitting the input array into chunks ("batches") and running
@@ -208,8 +207,8 @@ class ExactGP:
             mean, sampled = predict_batch(Xi)
             y_pred.append(mean)
             y_sampled.append(sampled)
-        y_pred = onp.concatenate(y_pred, -1)
-        y_sampled = onp.concatenate(y_sampled, -1)
+        y_pred = jnp.concatenate(y_pred, -1)
+        y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
