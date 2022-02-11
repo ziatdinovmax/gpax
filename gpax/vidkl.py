@@ -74,7 +74,7 @@ class viDKL(ExactGP):
 
     def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
             num_steps: int = 1000, step_size: float = 5e-3,
-            print_summary: bool = True) -> None:
+            print_summary: bool = True, progress_bar=True) -> None:
         """
         Run SVI to infer the GP model parameters
 
@@ -99,7 +99,7 @@ class viDKL(ExactGP):
             X=X,
             y=y,
         )
-        params = svi.run(rng_key, num_steps)[0]
+        params = svi.run(rng_key, num_steps, progress_bar=progress_bar)[0]
         # Get NN weights
         self.nn_params = params["feature_extractor$params"]
         # Get kernel parameters from the guide

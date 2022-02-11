@@ -199,8 +199,8 @@ class ExactGP:
             mean, sampled = predict_batch(Xi)
             y_pred.append(mean)
             y_sampled.append(sampled)
-        y_pred = onp.concatenate(y_pred, 0)
-        y_sampled = onp.concatenate(y_sampled, -1)
+        y_pred = jnp.concatenate(y_pred, 0)
+        y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
