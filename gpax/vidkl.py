@@ -116,13 +116,16 @@ class viDKL(ExactGP):
     def fit_ensemble(self, rng_key: jnp.array,
                      X: jnp.ndarray, y: jnp.ndarray,
                      n_models: int, num_steps: int = 1000,
-                     step_size: float = 5e-3, print_summary: bool = True
+                     step_size: float = 5e-3,
+                     print_summary: bool = True,
+                     progress_bar: bool = False
                      ) -> None:
         self.ensemble_mode = True
         X, y = self._set_data(X, y)
         X = X.repeat(n_models, axis=0)
         y = y.repeat(n_models, axis=0)
-        self.fit(rng_key, X, y, num_steps, step_size, print_summary)
+        self.fit(rng_key, X, y, num_steps, step_size,
+                 print_summary, progress_bar)
 
     def _get_mvn_posterior(self,
                            z_train: jnp.ndarray,
