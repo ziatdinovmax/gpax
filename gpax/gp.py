@@ -4,7 +4,6 @@ from typing import Callable, Dict, Optional, Tuple
 import jax
 import jax.numpy as jnp
 import jax.random as jra
-import numpy as onp
 import numpyro
 import numpyro.distributions as dist
 from jax import jit
@@ -84,7 +83,8 @@ class ExactGP:
         )
 
     def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
-            num_warmup: int = 2000, num_samples: int = 2000, num_chains: int = 1,
+            num_warmup: int = 2000, num_samples: int = 2000,
+            num_chains: int = 1, chain_method: str = 'sequential',
             progress_bar: bool = True, print_summary: bool = True) -> None:
         """
         Run MCMC to infer the GP model parameters
@@ -96,6 +96,7 @@ class ExactGP:
             num_warmup: number of MCMC warmup states
             num_samples: number of MCMC samples
             num_chains: number of MCMC chains
+            chain_method: 'sequential', 'parallel' or 'vectorized'
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
         """
@@ -110,6 +111,7 @@ class ExactGP:
             num_warmup=num_warmup,
             num_samples=num_samples,
             num_chains=num_chains,
+            chain_method=chain_method,
             progress_bar=progress_bar,
             jit_model_args=False
         )
