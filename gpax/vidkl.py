@@ -170,6 +170,17 @@ class viDKL(ExactGP):
         mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_train))
         return mean, cov
 
+    def sample_from_posterior(self, rng_key: jnp.ndarray,
+                              X_new: jnp.ndarray, n: int = 1000
+                              ) -> Tuple[jnp.ndarray]:
+        """
+        Samples from the DKL posterior at X_new points
+        """
+        y_mean, K = self.get_mvn_posterior(
+            self.X_train, self.y_train, X_new, self.nn_params, self.kernel_params)
+        y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
+        return y_mean, y_sampled
+
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 params: Optional[Tuple[Dict[str, jnp.ndarray]]] = None,
                 *args) -> Tuple[jnp.ndarray, jnp.ndarray]:
