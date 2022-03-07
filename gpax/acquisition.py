@@ -1,4 +1,4 @@
-from typing import Type, Tuple
+from typing import Type, Tuple, Optional
 
 import jax.numpy as jnp
 import jax.random as jra
