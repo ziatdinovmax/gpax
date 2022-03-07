@@ -3,6 +3,7 @@ from typing import Type, Tuple
 import jax.numpy as jnp
 import jax.random as jra
 import numpy as onp
+import numpyro
 import numpyro.distributions as dist
 
 from .gp import ExactGP
@@ -76,7 +77,9 @@ def Thompson(rng_key: jnp.ndarray,
         if n > 1:
             tsample = tsample.mean(1).squeeze()
     else:
-        _, tsample = model.predict(rng_key, X, n=1)
+        mean, cov = model.get_mvn_posterior(
+            model.X_train, model.y_train, X, model.nn_params, model.kernel_params)
+        tsample = numpyro.distributions.MultivariateNormal(mean, cov).sample(rng_key, sample_shape=(1,))
     return tsample
 
 
@@ -133,8 +136,7 @@ def get_distance(points: jnp.ndarray) -> float:
 def vi_mean_and_var(model: Type[viDKL], X: jnp.ndarray,
                     compute_std: bool = False
                     ) -> Tuple[jnp.ndarray]:
-    mean, cov = model.get_mvn_posterior(X)
-    var = cov.diagonal()
+    mean, var = model.predict(None, X)
     if compute_std:
         return mean, jnp.sqrt(var)
     return mean, var
