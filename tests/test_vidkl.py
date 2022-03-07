@@ -46,14 +46,10 @@ def test_get_mvn_posterior():
     net = hk.transform(lambda x: MLP()(x))
     nn_params = net.init(rng_key, X)
     kernel_params = {"k_length": jnp.array([1.0]),
-              "k_scale": jnp.array(1.0),
-              "noise": jnp.array(0.1)}
+                     "k_scale": jnp.array(1.0),
+                     "noise": jnp.array(0.1)}
     m = viDKL(X.shape[-1])
-    m.X_train = X
-    m.y_train = y
-    m.nn_params = nn_params
-    m.kernel_params = kernel_params
-    mean, cov = m.get_mvn_posterior(X_test)
+    mean, cov = m.get_mvn_posterior(X, y, X_test, nn_params, kernel_params)
     assert isinstance(mean, jnp.ndarray)
     assert isinstance(cov, jnp.ndarray)
     assert_equal(mean.shape, (X_test.shape[0],))
@@ -67,15 +63,15 @@ def test_predict():
     net = hk.transform(lambda x: MLP()(x))
     nn_params = net.init(rng_key, X)
     kernel_params = {"k_length": jnp.array([1.0]),
-              "k_scale": jnp.array(1.0),
-              "noise": jnp.array(0.1)}
+                     "k_scale": jnp.array(1.0),
+                     "noise": jnp.array(0.1)}
     m = viDKL(X.shape[-1])
     m.X_train = X
     m.y_train = y
     m.nn_params = nn_params
     m.kernel_params = kernel_params
-    y_mean, y_sampled = m.predict(rng_key, X_test, n=100)
-    assert isinstance(y_mean, jnp.ndarray)
-    assert isinstance(y_sampled, jnp.ndarray)
-    assert_equal(y_mean.shape, (len(X_test),))
-    assert_equal(y_sampled.shape, (100, len(X_test)))
+    mean, var = m.predict(rng_key, X_test)
+    assert isinstance(mean, jnp.ndarray)
+    assert isinstance(var, jnp.ndarray)
+    assert_equal(mean.shape, (len(X_test),))
+    assert_equal(var.shape, (len(X_test),))

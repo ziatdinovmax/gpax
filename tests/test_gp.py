@@ -123,11 +123,10 @@ def test_get_mvn_posterior():
     assert_equal(cov.shape, (X_test.shape[0], X_test.shape[0]))
 
 
-@pytest.mark.parametrize("unsqueeze", [True, False])
-def test_single_sample_prediction(unsqueeze):
+def test_single_sample_prediction():
     rng_key = get_keys()[0]
     X, y = get_dummy_data(unsqueeze=True)
-    X_test, _ = get_dummy_data(unsqueeze=unsqueeze)
+    X_test, _ = get_dummy_data(unsqueeze=True)
     params = {"k_length": jnp.array([1.0]),
               "k_scale": jnp.array(1.0),
               "noise": jnp.array(0.1)}
@@ -141,10 +140,11 @@ def test_single_sample_prediction(unsqueeze):
     assert_equal(y_sample.shape, X_test.squeeze().shape)
 
 
-def test_prediction():
+@pytest.mark.parametrize("unsqueeze", [True, False])
+def test_prediction(unsqueeze):
     rng_keys = get_keys()
     X, y = get_dummy_data(unsqueeze=True)
-    X_test, _ = get_dummy_data()
+    X_test, _ = get_dummy_data(unsqueeze=unsqueeze)
     samples = {"k_length": jax.random.normal(rng_keys[0], shape=(100, 1)),
                "k_scale": jax.random.normal(rng_keys[0], shape=(100,)),
                "noise": jax.random.normal(rng_keys[0], shape=(100,))}
