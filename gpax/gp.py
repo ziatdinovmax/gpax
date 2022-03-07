@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -50,7 +50,7 @@ class ExactGP:
         self.mcmc = None
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
-        """GP probabilistic model"""
+        """GP probabilistic model with inputs X and targets y"""
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
         # Sample kernel parameters
@@ -100,7 +100,7 @@ class ExactGP:
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
         """
-        X = X if X.ndim > 1 else X[:, None]
+        X, y = self._set_data(X, y)
         self.X_train = X
         self.y_train = y
 
@@ -117,7 +117,7 @@ class ExactGP:
         )
         self.mcmc.run(rng_key, X, y)
         if print_summary:
-            self.mcmc.print_summary()
+            self._print_summary()
 
     def get_samples(self, chain_dim: bool = False) -> Dict[str, jnp.ndarray]:
         """Get posterior samples (after running the MCMC chains)"""
@@ -153,7 +153,6 @@ class ExactGP:
                  params: Dict[str, jnp.ndarray], n: int
                  ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Prediction with a single sample of GP hyperparameters"""
-        X_new = X_new if X_new.ndim > 1 else X_new[:, None]
         # Get the predictive mean and covariance
         y_mean, K = self.get_mvn_posterior(X_new, params)
         # draw samples from the posterior predictive for a given set of hyperparameters
@@ -165,7 +164,7 @@ class ExactGP:
         Sample kernel parameters with default
         weakly-informative log-normal priors
         """
-        with numpyro.plate('k_param', self.kernel_dim):  # allows using ARD kernel for dim > 1
+        with numpyro.plate('k_param', self.kernel_dim):  # allows using ARD kernel for kernel_dim > 1
             length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
         scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
         if self.kernel == 'Periodic':
@@ -220,6 +219,7 @@ class ExactGP:
         Returns:
             Center of the mass of sampled means and all the sampled predictions
         """
+        X_new = self._set_data(X_new)
         if samples is None:
             samples = self.get_samples(chain_dim=False)
         num_samples = samples["k_length"].shape[0]
@@ -231,3 +231,16 @@ class ExactGP:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
             y_sampled = jnp.array(y_sampled_)
         return y_means.mean(0), y_sampled
+
+    def _set_data(self,
+                  X: jnp.ndarray,
+                  y: Optional[jnp.ndarray] = None
+                  ) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
+        X = X if X.ndim > 1 else X[:, None]
+        if y is not None:
+            return X, y.squeeze()
+        return X
+
+    def _print_summary(self):
+        samples = self.get_samples(1)
+        numpyro.diagnostics.print_summary(samples)
