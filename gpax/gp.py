@@ -174,19 +174,18 @@ class ExactGP:
             "period": period if self.kernel == "Periodic" else None}
         return kernel_params
 
-    def predict_in_batches(self, rng_key: jnp.ndarray,
-                           X_new: jnp.ndarray,  batch_size: int = 100,
-                           samples: Optional[Dict[str, jnp.ndarray]] = None,
-                           n: int = 1, filter_nans: bool = False
-                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """
-        Make prediction at X_new with sampled GP hyperparameters
-        by spitting the input array into chunks ("batches") and running
-        self.predict on each of them one-by-one to avoid memory overflow
-        """
+    def _predict_in_batches(self, rng_key: jnp.ndarray,
+                            X_new: jnp.ndarray,  batch_size: int = 100,
+                            samples: Optional[Dict[str, jnp.ndarray]] = None,
+                            n: int = 1, filter_nans: bool = False,
+                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None
+                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+
+        if predict_fn is None:
+            predict_fn = lambda xi, n:  self.predict(rng_key, xi, samples, n, filter_nans)
 
         def predict_batch(Xi):
-            mean, sampled = self.predict(rng_key, Xi, samples, n, filter_nans)
+            mean, sampled = predict_fn(Xi, n)
             mean = jax.device_put(mean, jax.devices("cpu")[0])
             sampled = jax.device_put(sampled, jax.devices("cpu")[0])
             if Xi.shape[0] == 1:
@@ -201,6 +200,21 @@ class ExactGP:
         y_pred = jnp.concatenate(y_pred, 0)
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
+
+    def predict_in_batches(self, rng_key: jnp.ndarray,
+                           X_new: jnp.ndarray,  batch_size: int = 100,
+                           samples: Optional[Dict[str, jnp.ndarray]] = None,
+                           n: int = 1, filter_nans: bool = False,
+                           predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None
+                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Make prediction at X_new with sampled GP hyperparameters
+        by spitting the input array into chunks ("batches") and running
+        predict_fn (defaults to self.predcit) on each of them one-by-one
+        to avoid a memory overflow
+        """
+        return self._predict_in_batches(
+            rng_key, X_new, batch_size, samples, n, filter_nans, predict_fn)
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
