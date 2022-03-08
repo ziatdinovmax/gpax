@@ -176,6 +176,7 @@ class ExactGP:
 
     def _predict_in_batches(self, rng_key: jnp.ndarray,
                             X_new: jnp.ndarray,  batch_size: int = 100,
+                            batch_dim: int = 0,
                             samples: Optional[Dict[str, jnp.ndarray]] = None,
                             n: int = 1, filter_nans: bool = False,
                             predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None
@@ -193,7 +194,7 @@ class ExactGP:
             return mean, sampled
 
         y_pred, y_sampled = [], []
-        for Xi in split_in_batches(X_new, batch_size, dim=0):
+        for Xi in split_in_batches(X_new, batch_size, dim=batch_dim):
             mean, sampled = predict_batch(Xi)
             y_pred.append(mean)
             y_sampled.append(sampled)
@@ -212,7 +213,7 @@ class ExactGP:
         to avoid a memory overflow
         """
         y_pred, y_sampled = self._predict_in_batches(
-            rng_key, X_new, batch_size, samples, n, filter_nans, predict_fn)
+            rng_key, X_new, batch_size, 0, samples, n, filter_nans, predict_fn)
         y_pred = jnp.concatenate(y_pred, 0)
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
