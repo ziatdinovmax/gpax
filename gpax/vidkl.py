@@ -181,6 +181,20 @@ class viDKL(ExactGP):
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
 
+    def predict_in_batches(self, rng_key: jnp.ndarray,
+                           X_new: jnp.ndarray,  batch_size: int = 100,
+                           n: int = 2000
+                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Make prediction at X_new with sampled DKL hyperparameters
+        by spitting the input array into chunks ("batches") and running
+        self.sample_from_posterior on each of them one-by-one
+        to avoid a memory overflow
+        """
+        predict_fn = lambda xi, n: self.sample_from_posterior(rng_key, xi, n)
+        return self._predict_in_batches(
+            rng_key, X_new, batch_size, predict_fn=predict_fn)
+
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 params: Optional[Tuple[Dict[str, jnp.ndarray]]] = None,
                 *args) -> Tuple[jnp.ndarray, jnp.ndarray]:
