@@ -234,7 +234,8 @@ class viDKL(ExactGP):
 
     def fit_predict(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
                     X_new: jnp.ndarray, num_steps: int = 1000, step_size: float = 5e-3,
-                    n_models: int = 1, print_summary: bool = True, progress_bar=True
+                    n_models: int = 1, batch_size: int = 100, print_summary: bool = True,
+                    progress_bar=True
                     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Run SVI to infer a DKL model(s) parameters and make a prediction with
@@ -248,6 +249,7 @@ class viDKL(ExactGP):
             num_steps: number of SVI steps
             step_size: step size schedule for Adam optimizer
             n_models: number of models in the ensemble (defaults to 1)
+            batch_size: prediction batch size (to avoid memory overflows)
             print_summary: print summary at the end of sampling
             progress_bar: show progress bar (works only for scalar outputs)
         """
@@ -255,7 +257,7 @@ class viDKL(ExactGP):
         def single_fit_predict(key):
             self.fit(key, X, y, num_steps, step_size,
                      print_summary, progress_bar)
-            mean, var = self.predict(key, X_new)
+            mean, var = self.predict_in_batches(key, X_new, batch_size)
             return mean, var
 
         keys = jax.random.split(rng_key, num=n_models)
