@@ -23,7 +23,8 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
         mean, sigma = y_sampled.mean(0), y_sampled.std(0)
         u = (mean - y_mean.max() - xi) / sigma
     else:
-        mean, sigma = vi_mean_and_var(model, X, compute_std=True)
+        mean, var = model.predict(rng_key, X)
+        sigma = jnp.sqrt(var)
         u = (mean - mean.max() - xi) / sigma
     u = -u if not maximize else u
     normal = dist.Normal(jnp.zeros_like(u), jnp.ones_like(u))
@@ -44,7 +45,7 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
             y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
         mean, var = y_sampled.mean(0), y_sampled.var(0)
     else:
-        mean, var = vi_mean_and_var(model, X)
+        mean, var = model.predict(rng_key, X)
     delta = jnp.sqrt(beta * var)
     if maximize:
         return mean + delta
@@ -61,7 +62,7 @@ def UE(rng_key: jnp.ndarray,
             y_sampled = y_sampled.mean(1)
         var = y_sampled.var(0)
     else:
-        _, var = vi_mean_and_var(model, X)
+        _, var = model.predict(rng_key, X)
     return var
 
 
@@ -77,9 +78,7 @@ def Thompson(rng_key: jnp.ndarray,
         if n > 1:
             tsample = tsample.mean(1).squeeze()
     else:
-        mean, cov = model.get_mvn_posterior(
-            model.X_train, model.y_train, X, model.nn_params, model.kernel_params)
-        tsample = numpyro.distributions.MultivariateNormal(mean, cov).sample(rng_key, sample_shape=(1,))
+        _, tsample = model.sample_from_posterior(rng_key, X, n=1)
     return tsample
 
 
@@ -150,11 +149,3 @@ def obtain_samples(rng_key: jnp.ndarray, model: Type[ExactGP],
         rng_key, X, kwargs.get("xbatch_size", 500), samples, n)
     return y_sampled
 
-
-def vi_mean_and_var(model: Type[viDKL], X: jnp.ndarray,
-                    compute_std: bool = False
-                    ) -> Tuple[jnp.ndarray]:
-    mean, var = model.predict(None, X)
-    if compute_std:
-        return mean, jnp.sqrt(var)
-    return mean, var
