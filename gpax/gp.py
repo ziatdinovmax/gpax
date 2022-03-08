@@ -197,8 +197,6 @@ class ExactGP:
             mean, sampled = predict_batch(Xi)
             y_pred.append(mean)
             y_sampled.append(sampled)
-        y_pred = jnp.concatenate(y_pred, 0)
-        y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
 
     def predict_in_batches(self, rng_key: jnp.ndarray,
@@ -210,11 +208,14 @@ class ExactGP:
         """
         Make prediction at X_new with sampled GP hyperparameters
         by spitting the input array into chunks ("batches") and running
-        predict_fn (defaults to self.predcit) on each of them one-by-one
+        predict_fn (defaults to self.predict) on each of them one-by-one
         to avoid a memory overflow
         """
-        return self._predict_in_batches(
+        y_pred, y_sampled = self._predict_in_batches(
             rng_key, X_new, batch_size, samples, n, filter_nans, predict_fn)
+        y_pred = jnp.concatenate(y_pred, 0)
+        y_sampled = jnp.concatenate(y_sampled, -1)
+        return y_pred, y_sampled
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
