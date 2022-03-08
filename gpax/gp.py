@@ -182,10 +182,10 @@ class ExactGP:
                             ) -> Tuple[jnp.ndarray, jnp.ndarray]:
 
         if predict_fn is None:
-            predict_fn = lambda xi, n:  self.predict(rng_key, xi, samples, n, filter_nans)
+            predict_fn = lambda xi:  self.predict(rng_key, xi, samples, n, filter_nans)
 
         def predict_batch(Xi):
-            mean, sampled = predict_fn(Xi, n)
+            mean, sampled = predict_fn(Xi)
             mean = jax.device_put(mean, jax.devices("cpu")[0])
             sampled = jax.device_put(sampled, jax.devices("cpu")[0])
             if Xi.shape[0] == 1:
