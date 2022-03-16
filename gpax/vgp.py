@@ -152,7 +152,6 @@ class vExactGP(ExactGP):
                 out1, out2 = out1[..., None], out2[..., None]
             return out1, out2
 
-        X_new = self._set_data(X_new)
         y_out1, y_out2 = [], []
         for Xi in split_in_batches(X_new, batch_size, dim=batch_dim):
             out1, out2 = predict_batch(Xi)
@@ -172,6 +171,7 @@ class vExactGP(ExactGP):
         predict_fn (defaults to self.predict) on each of them one-by-one
         to avoid a memory overflow
         """
+        X_new = self._set_data(X_new)
         y_pred, y_sampled = self._predict_in_batches(
             rng_key, X_new, batch_size, 1, samples, n, filter_nans, predict_fn)
         y_pred = jnp.concatenate(y_pred, -1)
