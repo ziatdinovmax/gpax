@@ -18,8 +18,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
     """
     if model.mcmc is not None:
         y_mean, y_sampled = model.predict(rng_key, X, n=n)
-        if n > 1:
-            y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
+        y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
         mean, sigma = y_sampled.mean(0), y_sampled.std(0)
         u = (mean - y_mean.max() - xi) / sigma
     else:
@@ -41,8 +40,7 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     """
     if model.mcmc is not None:
         _, y_sampled = model.predict(rng_key, X, n=n)
-        if n > 1:
-            y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
+        y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
         mean, var = y_sampled.mean(0), y_sampled.var(0)
     else:
         mean, var = model.predict(rng_key, X)
@@ -58,8 +56,7 @@ def UE(rng_key: jnp.ndarray,
     """Uncertainty-based exploration (aka kriging)"""
     if model.mcmc is not None:
         _, y_sampled = model.predict(rng_key, X, n=n)
-        if n > 1:
-            y_sampled = y_sampled.mean(1)
+        y_sampled = y_sampled.mean(1)
         var = y_sampled.var(0)
     else:
         _, var = model.predict(rng_key, X)
@@ -148,4 +145,3 @@ def obtain_samples(rng_key: jnp.ndarray, model: Type[ExactGP],
     _, y_sampled = model.predict_in_batches(
         rng_key, X, kwargs.get("xbatch_size", 500), samples, n)
     return y_sampled
-
