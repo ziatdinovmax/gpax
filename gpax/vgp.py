@@ -148,8 +148,6 @@ class vExactGP(ExactGP):
             out1, out2 = predict_fn(Xi)
             out1 = jax.device_put(out1, jax.devices("cpu")[0])
             out2 = jax.device_put(out2, jax.devices("cpu")[0])
-            if Xi.shape[1] == 1:
-                out1, out2 = out1[..., None], out2[..., None]
             return out1, out2
 
         y_out1, y_out2 = [], []
