@@ -156,8 +156,8 @@ class ExactGP:
         # Get the predictive mean and covariance
         y_mean, K = self.get_mvn_posterior(X_new, params)
         # draw samples from the posterior predictive for a given set of hyperparameters
-        y_sample = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
-        return y_mean, y_sample.squeeze()
+        y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
+        return y_mean, y_sampled
 
     def _sample_kernel_params(self, dim: int = None) -> Dict[str, jnp.ndarray]:
         """
@@ -189,8 +189,6 @@ class ExactGP:
             out1, out2 = predict_fn(Xi)
             out1 = jax.device_put(out1, jax.devices("cpu")[0])
             out2 = jax.device_put(out2, jax.devices("cpu")[0])
-            if Xi.shape[0] == 1:
-                out2 = out2[..., None]
             return out1, out2
 
         y_out1, y_out2 = [], []
