@@ -1,6 +1,6 @@
 from . import utils, kernels, acquisition
 from .gp import ExactGP
-from vgp import vExactGP
+from .vgp import vExactGP
 from .dkl import DKL
 from .vidkl import viDKL
 
