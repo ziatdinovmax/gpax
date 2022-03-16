@@ -137,7 +137,7 @@ def test_single_sample_prediction():
     assert isinstance(y_mean, jnp.ndarray)
     assert isinstance(y_sample, jnp.ndarray)
     assert_equal(y_mean.shape, X_test.squeeze().shape)
-    assert_equal(y_sample.shape, X_test.squeeze().shape)
+    assert_equal(y_sample.shape, (1, X_test.shape[0]))
 
 
 @pytest.mark.parametrize("unsqueeze", [True, False])
@@ -155,7 +155,7 @@ def test_prediction(unsqueeze):
     assert isinstance(y_mean, jnp.ndarray)
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_mean.shape, X_test.squeeze().shape)
-    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+    assert_equal(y_sampled.shape, (100, 1, X_test.shape[0]))
 
 
 @pytest.mark.parametrize("kernel", ['RBF', 'Matern', 'Periodic'])
@@ -170,7 +170,7 @@ def test_fit_predict(kernel):
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_pred.shape, X_test.squeeze().shape)
     print(y_sampled.shape)
-    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+    assert_equal(y_sampled.shape, (100, 1, X_test.shape[0]))
 
 
 @pytest.mark.parametrize("kernel", ['RBF', 'Matern', 'Periodic'])
@@ -185,7 +185,7 @@ def test_fit_predict_in_batches(kernel):
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_pred.shape, X_test.squeeze().shape)
     print(y_sampled.shape)
-    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+    assert_equal(y_sampled.shape, (100, 1, X_test.shape[0]))
 
 
 @pytest.mark.parametrize("jax_ndarray", [True, False])
@@ -217,7 +217,7 @@ def test_fit_predict_with_mean_fn():
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_pred.shape, X_test.squeeze().shape)
     print(y_sampled.shape)
-    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+    assert_equal(y_sampled.shape, (100, 1, X_test.shape[0]))
 
 
 def test_fit_predict_with_prob_mean_fn():
@@ -230,5 +230,4 @@ def test_fit_predict_with_prob_mean_fn():
     assert isinstance(y_pred, jnp.ndarray)
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_pred.shape, X_test.squeeze().shape)
-    print(y_sampled.shape)
-    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+    assert_equal(y_sampled.shape, (100, 1, X_test.shape[0]))
