@@ -186,19 +186,19 @@ class ExactGP:
             predict_fn = lambda xi:  self.predict(rng_key, xi, samples, n, filter_nans)
 
         def predict_batch(Xi):
-            mean, sampled = predict_fn(Xi)
-            mean = jax.device_put(mean, jax.devices("cpu")[0])
-            sampled = jax.device_put(sampled, jax.devices("cpu")[0])
+            out1, out2 = predict_fn(Xi)
+            out1 = jax.device_put(out1, jax.devices("cpu")[0])
+            out2 = jax.device_put(out2, jax.devices("cpu")[0])
             if Xi.shape[0] == 1:
-                sampled = sampled[..., None]
-            return mean, sampled
+                out2 = out2[..., None]
+            return out1, out2
 
-        y_pred, y_sampled = [], []
+        y_out1, y_out2 = [], []
         for Xi in split_in_batches(X_new, batch_size, dim=batch_dim):
-            mean, sampled = predict_batch(Xi)
-            y_pred.append(mean)
-            y_sampled.append(sampled)
-        return y_pred, y_sampled
+            out1, out2 = predict_batch(Xi)
+            y_out1.append(out1)
+            y_out2.append(out2)
+        return y_out1, y_out2
 
     def predict_in_batches(self, rng_key: jnp.ndarray,
                            X_new: jnp.ndarray,  batch_size: int = 100,
