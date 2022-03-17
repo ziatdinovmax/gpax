@@ -104,9 +104,9 @@ def test_prediction(n):
     rng_keys = get_keys()
     X, y = get_dummy_data(unsqueeze=True)
     X_test, _ = get_dummy_data(unsqueeze=True)
-    samples = {"k_length": jax.random.normal(rng_keys[0], shape=(3, 100, 1)),
-               "k_scale": jax.random.normal(rng_keys[0], shape=(3, 100,)),
-               "noise": jax.random.normal(rng_keys[0], shape=(3, 100,))}
+    samples = {"k_length": jax.random.normal(rng_keys[0], shape=(100, 3, 1)),
+               "k_scale": jax.random.normal(rng_keys[0], shape=(100, 3)),
+               "noise": jax.random.normal(rng_keys[0], shape=(100, 3))}
     m = vExactGP(1, 'RBF')
     m.X_train = X
     m.y_train = y
