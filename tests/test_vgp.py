@@ -115,3 +115,19 @@ def test_prediction(n):
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_mean.shape, X_test.shape[:-1])
     assert_equal(y_sampled.shape, (100, n, *X_test.shape[:-1]))
+
+
+@pytest.mark.parametrize("n", [1, 10])
+@pytest.mark.parametrize("kernel", ['RBF', 'Matern', 'Periodic'])
+def test_fit_predict_in_batches(kernel, n):
+    rng_keys = get_keys()
+    X, y = get_dummy_data()
+    X_test, _ = get_dummy_data()
+    m = vExactGP(1, kernel)
+    m.fit(rng_keys[0], X, y, num_warmup=50, num_samples=50)
+    y_pred, y_sampled = m.predict_in_batches(rng_keys[1], X_test, batch_size=4, n=n)
+    assert isinstance(y_pred, jnp.ndarray)
+    assert isinstance(y_sampled, jnp.ndarray)
+    assert_equal(y_pred.shape, X_test.squeeze().shape)
+    print(y_sampled.shape)
+    assert_equal(y_sampled.shape, (100, n, *X_test.shape))
