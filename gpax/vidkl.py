@@ -18,7 +18,7 @@ from .utils import get_haiku_dict
 
 class viDKL(ExactGP):
     """
-    Implementation of deep kernel learning inspired by arXiv:1511.02222
+    Implementation of the variational infernece-based deep kernel learning
 
     Args:
         input_dim: number of input dimensions
@@ -27,7 +27,7 @@ class viDKL(ExactGP):
         kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
         nn: Custom neural network (optional)
         latent_prior: Optional prior over the latent space (NN embedding)
-        guide: auto-guide option: 'delta' (default) or 'normal'
+        guide: auto-guide option, use 'delta' (default) or 'normal'
     """
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
@@ -82,7 +82,9 @@ class viDKL(ExactGP):
     def single_fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
                    num_steps: int = 1000, step_size: float = 5e-3,
                    print_summary: bool = True, progress_bar=True) -> None:
-
+        """
+        Optimizes parameters of a single DKL model
+        """
         # Setup optimizer and SVI
         optim = numpyro.optim.Adam(step_size=step_size, b1=0.5)
         svi = SVI(
@@ -107,7 +109,7 @@ class viDKL(ExactGP):
             num_steps: int = 1000, step_size: float = 5e-3,
             print_summary: bool = True, progress_bar=True):
         """
-        Run SVI to infer a DKL model parameters
+        Run stochastic variational inference to learn a DKL model(s) parameters
 
         Args:
             rng_key: random number generator key
@@ -153,7 +155,6 @@ class viDKL(ExactGP):
         (mean and cov, where cov.diagonal() is 'uncertainty')
         given a single set of DKL hyperparameters
         """
-
         noise = k_params["noise"]
         # embed data into the latent space
         z_train = self.nn_module.apply(
@@ -201,7 +202,7 @@ class viDKL(ExactGP):
                 params: Optional[Tuple[Dict[str, jnp.ndarray]]] = None,
                 *args) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Make prediction at X_new points using learned GP hyperparameters
+        Make prediction at X_new points using a trained DKL model(s)
 
         Args:
             rng_key: random number generator key
@@ -210,7 +211,7 @@ class viDKL(ExactGP):
             kernel_params: kernel posterior parameters (optional)
 
         Returns:
-            Center of the mass of sampled means and all the sampled predictions
+            Predictive mean and variance
         """
 
         def single_predict(x_train_i, y_train_i, x_new_i, nnpar_i, kpar_i):
@@ -238,7 +239,7 @@ class viDKL(ExactGP):
                     progress_bar=True
                     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Run SVI to infer a DKL model(s) parameters and make a prediction with
+        Run SVI to learn DKL model(s) parameters and make a prediction with
         trained model(s) on new data. Allows using an ensemble of models.
 
         Args:
@@ -252,6 +253,9 @@ class viDKL(ExactGP):
             batch_size: prediction batch size (to avoid memory overflows)
             print_summary: print summary at the end of sampling
             progress_bar: show progress bar (works only for scalar outputs)
+
+        Returns:
+            Predictive mean and variance
         """
 
         def single_fit_predict(key):
@@ -271,7 +275,10 @@ class viDKL(ExactGP):
 
     @partial(jit, static_argnames='self')
     def embed(self, X_new: jnp.ndarray) -> jnp.ndarray:
-
+        """
+        Use trained neural network(s) to embed the input data
+        into the latent space(s)
+        """
         def single_embed(nnpar_i, x_i):
             return self.nn_module.apply(nnpar_i, jax.random.PRNGKey(0), x_i)
 
