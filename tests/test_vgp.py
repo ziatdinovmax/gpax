@@ -97,3 +97,21 @@ def test_get_mvn_posterior():
     assert isinstance(cov, jnp.ndarray)
     assert_equal(mean.shape, X_test.shape[:-1])
     assert_equal(cov.shape, (X_test.shape[0], X_test.shape[1], X_test.shape[1]))
+
+
+@pytest.mark.parametrize("n", [1, 10])
+def test_prediction(n):
+    rng_keys = get_keys()
+    X, y = get_dummy_data(unsqueeze=True)
+    X_test, _ = get_dummy_data(unsqueeze=True)
+    samples = {"k_length": jax.random.normal(rng_keys[0], shape=(3, 100, 1)),
+               "k_scale": jax.random.normal(rng_keys[0], shape=(3, 100,)),
+               "noise": jax.random.normal(rng_keys[0], shape=(3, 100,))}
+    m = vExactGP(1, 'RBF')
+    m.X_train = X
+    m.y_train = y
+    y_mean, y_sampled = m.predict(rng_keys[1], X_test, samples, n=n)
+    assert isinstance(y_mean, jnp.ndarray)
+    assert isinstance(y_sampled, jnp.ndarray)
+    assert_equal(y_mean.shape, X_test.shape[:-1])
+    assert_equal(y_sampled.shape, (100, n, *X_test.shape[:-1]))
