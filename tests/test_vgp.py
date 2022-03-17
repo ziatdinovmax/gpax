@@ -65,7 +65,7 @@ def test_get_samples_chain_dim(chain_dim, samples_dim):
 def test_sample_kernel(kernel):
     m = vExactGP(1, kernel)
     with numpyro.handlers.seed(rng_seed=1):
-        kernel_params = m._sample_kernel_params()
+        kernel_params = m._sample_kernel_params(task_dim=3)
     _ = kernel_params.pop('period')
     param_names = ['k_length', 'k_scale']
     for k, v in kernel_params.items():
@@ -76,7 +76,7 @@ def test_sample_kernel(kernel):
 def test_sample_periodic_kernel():
     m = vExactGP(1, 'Periodic')
     with numpyro.handlers.seed(rng_seed=1):
-        kernel_params = m._sample_kernel_params()
+        kernel_params = m._sample_kernel_params(task_dim=3)
     param_names = ['k_length', 'k_scale', 'period']
     for k, v in kernel_params.items():
         assert k in param_names
