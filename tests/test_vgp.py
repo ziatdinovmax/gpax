@@ -130,4 +130,4 @@ def test_fit_predict_in_batches(kernel, n):
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_pred.shape, X_test.squeeze().shape)
     print(y_sampled.shape)
-    assert_equal(y_sampled.shape, (100, n, *X_test.shape))
+    assert_equal(y_sampled.shape, (50, n, *X_test.shape))
