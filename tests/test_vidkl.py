@@ -10,11 +10,19 @@ from numpy.testing import assert_equal
 sys.path.append("../../../")
 
 from gpax.vidkl import viDKL, MLP
-from gpax.utils import get_keys, get_haiku_dict
+from gpax.utils import get_keys
 
 
 def get_dummy_data(jax_ndarray=True):
     X = onp.random.randn(21, 36)
+    y = onp.random.randn(21,)
+    if jax_ndarray:
+        return jnp.array(X), jnp.array(y)
+    return X, y
+
+
+def get_dummy_image_data(jax_ndarray=True):
+    X = onp.random.randn(21, 16, 16, 1)
     y = onp.random.randn(21,)
     if jax_ndarray:
         return jnp.array(X), jnp.array(y)
@@ -28,12 +36,20 @@ def get_dummy_vector_data(jax_ndarray=True):
     return X, y
 
 
-def get_dummy_nn_params():
-    rng_key = get_keys()[0]
-    X, y = get_dummy_data()
-    mlp = MLP()
-    net = hk.transform(lambda x: mlp()(x))
-    params = net.init(rng_key, X, y)
+class CustomConvNet(hk.Module):
+    def __init__(self, embedim=2):
+        super().__init__()
+        self._embedim = embedim   
+
+    def __call__(self, x):
+        x = hk.Conv2D(32, 3)(x)
+        x = jax.nn.relu(x)
+        x = hk.MaxPool(2, 2, 'SAME')(x)
+        x = hk.Conv2D(64, 3)(x)
+        x = jax.nn.relu(x)
+        x = hk.Flatten()(x)
+        x = hk.Linear(self._embedim)(x)
+        return x
 
 
 @pytest.mark.parametrize("jax_ndarray", [True, False])
@@ -46,6 +62,19 @@ def test_single_fit(jax_ndarray):
     assert isinstance(kernel_params, dict)
     assert isinstance(nn_params, dict)
     assert isinstance(losses, jnp.ndarray)
+
+
+@pytest.mark.parametrize("jax_ndarray", [True, False])
+def test_single_fit_custom_net(jax_ndarray):
+    X, y = get_dummy_image_data(jax_ndarray)
+    rng_key = get_keys()[0]
+    m = viDKL(X.shape[1:], nn=CustomConvNet)
+    nn_params, kernel_params, losses = m.single_fit(
+        rng_key, X, y, num_steps=100, step_size=0.05)
+    for i, val in enumerate(nn_params.values()):
+        for k, v in val.items():
+            if 'w' in k and i < 2:
+                assert_equal(v.ndim, 4) # confirm that this is a 4-dim weights tensor of CNN
 
 
 def test_get_mvn_posterior():
@@ -228,3 +257,17 @@ def test_fit_predict_vector_ensemble():
     assert isinstance(var, jnp.ndarray)
     assert_equal(mean.shape, (2, *X_test.shape[:-1]))
     assert_equal(var.shape, (2, *X_test.shape[:-1]))
+
+
+def test_fit_predict_scalar_ensemble_custom_net():
+    rng_key = get_keys()[0]
+    X, y = get_dummy_image_data()
+    X_test, _ = get_dummy_image_data()
+    m = viDKL(X.shape[1:], nn=CustomConvNet)
+    mean, var = m.fit_predict(
+        rng_key, X, y, X_test, n_models=2,
+        num_steps=100, step_size=0.05, batch_size=10)
+    assert isinstance(mean, jnp.ndarray)
+    assert isinstance(var, jnp.ndarray)
+    assert_equal(mean.shape, (2, len(X_test),))
+    assert_equal(var.shape, (2, len(X_test),))
