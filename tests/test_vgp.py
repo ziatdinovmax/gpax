@@ -81,3 +81,19 @@ def test_sample_periodic_kernel():
     for k, v in kernel_params.items():
         assert k in param_names
         assert isinstance(v, jnp.ndarray)
+
+
+def test_get_mvn_posterior():
+    X, y = get_dummy_data(unsqueeze=True)
+    X_test, _ = get_dummy_data(unsqueeze=True)
+    params = {"k_length": jnp.array([[1.0], [1.0], [1.0]]),
+              "k_scale": jnp.array([1.0, 1.0, 1.0]),
+              "noise": jnp.array([0.1, 0.1, 0.1])}
+    m = vExactGP(1, 'RBF')
+    m.X_train = X
+    m.y_train = y
+    mean, cov = m.get_mvn_posterior(X_test, params)
+    assert isinstance(mean, jnp.ndarray)
+    assert isinstance(cov, jnp.ndarray)
+    assert_equal(mean.shape, X_test.shape[:-1])
+    assert_equal(cov.shape, (X_test.shape[0], X_test.shape[1], X_test.shape[1]))
