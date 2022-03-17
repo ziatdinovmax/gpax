@@ -47,3 +47,37 @@ def test_get_samples(kernel, jax_ndarray):
         assert isinstance(k, str)
         assert isinstance(v, jnp.ndarray)
         assert_equal(v.shape[:2], (50, 3))
+
+
+@pytest.mark.parametrize("chain_dim, samples_dim", [(True, 3), (False, 2)])
+def test_get_samples_chain_dim(chain_dim, samples_dim):
+    rng_key = get_keys()[0]
+    X, y = get_dummy_data()
+    m = vExactGP(1, 'RBF')
+    m.fit(rng_key, X, y, num_warmup=50, num_samples=50, num_chains=2)
+    samples = m.get_samples(chain_dim)
+    assert_equal(samples["k_scale"].ndim, samples_dim)
+    assert_equal(samples["noise"].ndim, samples_dim)
+    assert_equal(samples["k_length"].ndim, samples_dim + 1)
+
+
+@pytest.mark.parametrize("kernel", ['RBF', 'Matern'])
+def test_sample_kernel(kernel):
+    m = vExactGP(1, kernel)
+    with numpyro.handlers.seed(rng_seed=1):
+        kernel_params = m._sample_kernel_params()
+    _ = kernel_params.pop('period')
+    param_names = ['k_length', 'k_scale']
+    for k, v in kernel_params.items():
+        assert k in param_names
+        assert isinstance(v, jnp.ndarray)
+
+
+def test_sample_periodic_kernel():
+    m = vExactGP(1, 'Periodic')
+    with numpyro.handlers.seed(rng_seed=1):
+        kernel_params = m._sample_kernel_params()
+    param_names = ['k_length', 'k_scale', 'period']
+    for k, v in kernel_params.items():
+        assert k in param_names
+        assert isinstance(v, jnp.ndarray)
