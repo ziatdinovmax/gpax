@@ -20,20 +20,20 @@ class DKL(vExactGP):
         z_dim: latent space dimensionality
         kernel: type of kernel ('RBF', 'Matern', 'Periodic')
         kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
-        bnn_fn: Custom MLP
-        bnn_fn_prior: Bayesian priors over the weights and biases in bnn_fn
+        nn_fn: Custom MLP
+        nn_fn_prior: Bayesian priors over the weights and biases in bnn_fn
         latent_prior: Optional prior over the latent space (BNN embedding)
     """
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 bnn_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
-                 bnn_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 nn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
+                 nn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
         super(DKL, self).__init__(input_dim, kernel, kernel_prior)
-        self.bnn = bnn_fn if bnn_fn else bnn
-        self.bnn_prior = bnn_fn_prior if bnn_fn_prior else bnn_prior(input_dim, z_dim)
+        self.nn = nn if nn else mlp
+        self.nn_prior = nn_prior if nn_prior else mlp_prior(input_dim, z_dim)
         self.kernel_dim = z_dim
         self.latent_prior = latent_prior
 
@@ -41,8 +41,8 @@ class DKL(vExactGP):
         """DKL probabilistic model"""
         task_dim = X.shape[0]
         # BNN part
-        bnn_params = self.bnn_prior(task_dim)
-        z = jax.jit(jax.vmap(self.bnn))(X, bnn_params)
+        bnn_params = self.nn_prior(task_dim)
+        z = jax.jit(jax.vmap(self.nn))(X, bnn_params)
         if self.latent_prior:  # Sample latent variable
             z = self.latent_prior(z)
         # Sample GP kernel parameters
@@ -72,8 +72,8 @@ class DKL(vExactGP):
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
         # embed data into the latent space
-        z_train = self.bnn(X_train, params)
-        z_new = self.bnn(X_new, params)
+        z_train = self.nn(X_train, params)
+        z_new = self.nn(X_new, params)
         # compute kernel matrices for train and new ('test') data
         k_pp = get_kernel(self.kernel)(z_new, z_new, params, noise)
         k_pX = get_kernel(self.kernel)(z_new, z_train, params, jitter=0.0)
@@ -91,7 +91,7 @@ class DKL(vExactGP):
         of the DKL's Bayesian neural network
         """
         samples = self.get_samples(chain_dim=False)
-        predictive = jax.vmap(lambda params: self.bnn(X_new, params))
+        predictive = jax.vmap(lambda params: self.nn(X_new, params))
         z = predictive(samples)
         return z
 
@@ -129,7 +129,7 @@ def sample_biases(name: str, channels: int, task_dim: int) -> jnp.ndarray:
     return b
 
 
-def bnn(X: jnp.ndarray, params: Dict[str, jnp.ndarray]) -> jnp.ndarray:
+def mlp(X: jnp.ndarray, params: Dict[str, jnp.ndarray]) -> jnp.ndarray:
     """Simple MLP for a single MCMC sample of weights and biases"""
     h1 = jnp.tanh(jnp.matmul(X, params["w1"]) + params["b1"])
     h2 = jnp.tanh(jnp.matmul(h1, params["w2"]) + params["b2"])
@@ -137,7 +137,7 @@ def bnn(X: jnp.ndarray, params: Dict[str, jnp.ndarray]) -> jnp.ndarray:
     return z
 
 
-def bnn_prior(input_dim: int, zdim: int = 2) -> Dict[str, jnp.array]:
+def mlp_prior(input_dim: int, zdim: int = 2) -> Dict[str, jnp.array]:
     """Priors over weights and biases in the default Bayesian MLP"""
     hdim = [64, 32]
 
