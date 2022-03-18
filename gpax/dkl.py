@@ -20,8 +20,8 @@ class DKL(vExactGP):
         z_dim: latent space dimensionality
         kernel: type of kernel ('RBF', 'Matern', 'Periodic')
         kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
-        nn_fn: Custom MLP
-        nn_fn_prior: Bayesian priors over the weights and biases in bnn_fn
+        nn: Custom MLP
+        nn_prior: Bayesian priors over the weights and biases in 'nn'
         latent_prior: Optional prior over the latent space (BNN embedding)
     """
 
