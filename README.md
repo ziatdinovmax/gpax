@@ -77,14 +77,17 @@ import gpax
 
 # Get random number generator keys for training and prediction
 rng_key, rng_key_predict = gpax.utils.get_keys()
+
 # Obtain/update DKL posterior; input data dimensions are (n, h*w*c)
 dkl = gpax.viDKL(input_dim=X.shape[-1], z_dim=2, kernel='RBF')
 dkl.fit(rng_key, X_train, y_train, num_steps=100, step_size=0.05)
+
 # Compute UCB acquisition function
 obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)
 # Select next point to measure (assuming grid data)
 next_point_idx = obj.argmax()
-# Perform measurement, update trainning data, etc.
+
+# Perform measurement in next_point_idx, update trainning data, etc.
 ```
 The full example is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viDKL_plasmons.ipynb). Note that in viDKL, we use a simple MLP as a default feature extractor. However, you can easily write a custom DNN using [haiku](https://github.com/deepmind/dm-haiku) and pass it to the viDKL initializer
 ```python3
