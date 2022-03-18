@@ -123,11 +123,10 @@ def test_get_mvn_posterior():
     assert_equal(cov.shape, (X_test.shape[0], X_test.shape[0]))
 
 
-@pytest.mark.parametrize("unsqueeze", [True, False])
-def test_single_sample_prediction(unsqueeze):
+def test_single_sample_prediction():
     rng_key = get_keys()[0]
     X, y = get_dummy_data(unsqueeze=True)
-    X_test, _ = get_dummy_data(unsqueeze=unsqueeze)
+    X_test, _ = get_dummy_data(unsqueeze=True)
     params = {"k_length": jnp.array([1.0]),
               "k_scale": jnp.array(1.0),
               "noise": jnp.array(0.1)}
@@ -138,24 +137,26 @@ def test_single_sample_prediction(unsqueeze):
     assert isinstance(y_mean, jnp.ndarray)
     assert isinstance(y_sample, jnp.ndarray)
     assert_equal(y_mean.shape, X_test.squeeze().shape)
-    assert_equal(y_sample.shape, X_test.squeeze().shape)
+    assert_equal(y_sample.shape, (1, X_test.shape[0]))
 
 
-def test_prediction():
+@pytest.mark.parametrize("n", [1, 10])
+@pytest.mark.parametrize("unsqueeze", [True, False])
+def test_prediction(unsqueeze, n):
     rng_keys = get_keys()
     X, y = get_dummy_data(unsqueeze=True)
-    X_test, _ = get_dummy_data()
+    X_test, _ = get_dummy_data(unsqueeze=unsqueeze)
     samples = {"k_length": jax.random.normal(rng_keys[0], shape=(100, 1)),
                "k_scale": jax.random.normal(rng_keys[0], shape=(100,)),
                "noise": jax.random.normal(rng_keys[0], shape=(100,))}
     m = ExactGP(1, 'RBF')
     m.X_train = X
     m.y_train = y
-    y_mean, y_sampled = m.predict(rng_keys[1], X_test, samples)
+    y_mean, y_sampled = m.predict(rng_keys[1], X_test, samples, n=n)
     assert isinstance(y_mean, jnp.ndarray)
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_mean.shape, X_test.squeeze().shape)
-    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+    assert_equal(y_sampled.shape, (100, n, X_test.shape[0]))
 
 
 @pytest.mark.parametrize("kernel", ['RBF', 'Matern', 'Periodic'])
@@ -170,22 +171,23 @@ def test_fit_predict(kernel):
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_pred.shape, X_test.squeeze().shape)
     print(y_sampled.shape)
-    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+    assert_equal(y_sampled.shape, (100, 1, X_test.shape[0]))
 
 
+@pytest.mark.parametrize("n", [1, 10])
 @pytest.mark.parametrize("kernel", ['RBF', 'Matern', 'Periodic'])
-def test_fit_predict_in_batches(kernel):
+def test_fit_predict_in_batches(kernel, n):
     rng_keys = get_keys()
     X, y = get_dummy_data()
     X_test, _ = get_dummy_data()
     m = ExactGP(1, kernel)
     m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
-    y_pred, y_sampled = m.predict_in_batches(rng_keys[1], X_test, batch_size=4)
+    y_pred, y_sampled = m.predict_in_batches(rng_keys[1], X_test, batch_size=4, n=n)
     assert isinstance(y_pred, jnp.ndarray)
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_pred.shape, X_test.squeeze().shape)
     print(y_sampled.shape)
-    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+    assert_equal(y_sampled.shape, (100, n, X_test.shape[0]))
 
 
 @pytest.mark.parametrize("jax_ndarray", [True, False])
@@ -217,7 +219,7 @@ def test_fit_predict_with_mean_fn():
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_pred.shape, X_test.squeeze().shape)
     print(y_sampled.shape)
-    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+    assert_equal(y_sampled.shape, (100, 1, X_test.shape[0]))
 
 
 def test_fit_predict_with_prob_mean_fn():
@@ -230,5 +232,4 @@ def test_fit_predict_with_prob_mean_fn():
     assert isinstance(y_pred, jnp.ndarray)
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_pred.shape, X_test.squeeze().shape)
-    print(y_sampled.shape)
-    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+    assert_equal(y_sampled.shape, (100, 1, X_test.shape[0]))

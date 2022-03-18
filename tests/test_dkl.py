@@ -39,18 +39,12 @@ def test_get_mvn_posterior():
               "b1": jax.random.normal(rng_key, shape=(64,)),
               "b2": jax.random.normal(rng_key, shape=(32,)),
               "b3": jax.random.normal(rng_key, shape=(2,)),
-               "k_length": jnp.array([1.0]),
+              "k_length": jnp.array([1.0]),
               "k_scale": jnp.array(1.0),
               "noise": jnp.array(0.1)}
     m = DKL(X.shape[-1], kernel='RBF')
-    m.X_train = X
-    m.y_train = y
-    mean, cov = m.get_mvn_posterior(X_test, params)
+    mean, cov = m._get_mvn_posterior(X, y, X_test, params)
     assert isinstance(mean, jnp.ndarray)
     assert isinstance(cov, jnp.ndarray)
     assert_equal(mean.shape, (X_test.shape[0],))
     assert_equal(cov.shape, (X_test.shape[0], X_test.shape[0]))
-
-
-
-

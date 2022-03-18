@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -50,7 +50,7 @@ class ExactGP:
         self.mcmc = None
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
-        """GP probabilistic model"""
+        """GP probabilistic model with inputs X and targets y"""
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
         # Sample kernel parameters
@@ -100,7 +100,7 @@ class ExactGP:
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
         """
-        X = X if X.ndim > 1 else X[:, None]
+        X, y = self._set_data(X, y)
         self.X_train = X
         self.y_train = y
 
@@ -117,7 +117,7 @@ class ExactGP:
         )
         self.mcmc.run(rng_key, X, y)
         if print_summary:
-            self.mcmc.print_summary()
+            self._print_summary()
 
     def get_samples(self, chain_dim: bool = False) -> Dict[str, jnp.ndarray]:
         """Get posterior samples (after running the MCMC chains)"""
@@ -153,19 +153,18 @@ class ExactGP:
                  params: Dict[str, jnp.ndarray], n: int
                  ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Prediction with a single sample of GP hyperparameters"""
-        X_new = X_new if X_new.ndim > 1 else X_new[:, None]
         # Get the predictive mean and covariance
         y_mean, K = self.get_mvn_posterior(X_new, params)
         # draw samples from the posterior predictive for a given set of hyperparameters
-        y_sample = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
-        return y_mean, y_sample.squeeze()
+        y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
+        return y_mean, y_sampled
 
     def _sample_kernel_params(self, dim: int = None) -> Dict[str, jnp.ndarray]:
         """
         Sample kernel parameters with default
         weakly-informative log-normal priors
         """
-        with numpyro.plate('k_param', self.kernel_dim):  # allows using ARD kernel for dim > 1
+        with numpyro.plate('k_param', self.kernel_dim):  # allows using ARD kernel for kernel_dim > 1
             length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
         scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
         if self.kernel == 'Periodic':
@@ -175,30 +174,44 @@ class ExactGP:
             "period": period if self.kernel == "Periodic" else None}
         return kernel_params
 
+    def _predict_in_batches(self, rng_key: jnp.ndarray,
+                            X_new: jnp.ndarray,  batch_size: int = 100,
+                            batch_dim: int = 0,
+                            samples: Optional[Dict[str, jnp.ndarray]] = None,
+                            n: int = 1, filter_nans: bool = False,
+                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None
+                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+
+        if predict_fn is None:
+            predict_fn = lambda xi:  self.predict(rng_key, xi, samples, n, filter_nans)
+
+        def predict_batch(Xi):
+            out1, out2 = predict_fn(Xi)
+            out1 = jax.device_put(out1, jax.devices("cpu")[0])
+            out2 = jax.device_put(out2, jax.devices("cpu")[0])
+            return out1, out2
+
+        y_out1, y_out2 = [], []
+        for Xi in split_in_batches(X_new, batch_size, dim=batch_dim):
+            out1, out2 = predict_batch(Xi)
+            y_out1.append(out1)
+            y_out2.append(out2)
+        return y_out1, y_out2
+
     def predict_in_batches(self, rng_key: jnp.ndarray,
                            X_new: jnp.ndarray,  batch_size: int = 100,
                            samples: Optional[Dict[str, jnp.ndarray]] = None,
-                           n: int = 1, filter_nans: bool = False
+                           n: int = 1, filter_nans: bool = False,
+                           predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new with sampled GP hyperparameters
         by spitting the input array into chunks ("batches") and running
-        self.predict on each of them one-by-one to avoid memory overflow
+        predict_fn (defaults to self.predict) on each of them one-by-one
+        to avoid a memory overflow
         """
-
-        def predict_batch(Xi):
-            mean, sampled = self.predict(rng_key, Xi, samples, n, filter_nans)
-            mean = jax.device_put(mean, jax.devices("cpu")[0])
-            sampled = jax.device_put(sampled, jax.devices("cpu")[0])
-            if Xi.shape[0] == 1:
-                sampled = sampled[..., None]
-            return mean, sampled
-
-        y_pred, y_sampled = [], []
-        for Xi in split_in_batches(X_new, batch_size, dim=0):
-            mean, sampled = predict_batch(Xi)
-            y_pred.append(mean)
-            y_sampled.append(sampled)
+        y_pred, y_sampled = self._predict_in_batches(
+            rng_key, X_new, batch_size, 0, samples, n, filter_nans, predict_fn)
         y_pred = jnp.concatenate(y_pred, 0)
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
@@ -220,6 +233,7 @@ class ExactGP:
         Returns:
             Center of the mass of sampled means and all the sampled predictions
         """
+        X_new = self._set_data(X_new)
         if samples is None:
             samples = self.get_samples(chain_dim=False)
         num_samples = samples["k_length"].shape[0]
@@ -231,3 +245,16 @@ class ExactGP:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
             y_sampled = jnp.array(y_sampled_)
         return y_means.mean(0), y_sampled
+
+    def _set_data(self,
+                  X: jnp.ndarray,
+                  y: Optional[jnp.ndarray] = None
+                  ) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
+        X = X if X.ndim > 1 else X[:, None]
+        if y is not None:
+            return X, y.squeeze()
+        return X
+
+    def _print_summary(self):
+        samples = self.get_samples(1)
+        numpyro.diagnostics.print_summary(samples)
