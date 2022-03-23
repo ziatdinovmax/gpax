@@ -68,14 +68,16 @@ class DKL(vExactGP):
     @partial(jit, static_argnames='self')
     def _get_mvn_posterior(self,
                            X_train: jnp.ndarray, y_train: jnp.ndarray,
-                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
+                           noiseless: bool = False
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
+        noise_p = noise * jnp.array(noiseless, int)
         # embed data into the latent space
         z_train = self.nn(X_train, params)
         z_new = self.nn(X_new, params)
         # compute kernel matrices for train and new ('test') data
-        k_pp = get_kernel(self.kernel)(z_new, z_new, params, noise)
+        k_pp = get_kernel(self.kernel)(z_new, z_new, params, noise_p)
         k_pX = get_kernel(self.kernel)(z_new, z_train, params, jitter=0.0)
         k_XX = get_kernel(self.kernel)(z_train, z_train, params, noise)
         # compute the predictive covariance and mean

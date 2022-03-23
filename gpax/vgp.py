@@ -72,13 +72,15 @@ class vExactGP(ExactGP):
                            X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
                            m_X: Optional[jnp.ndarray] = None,
                            m_p: Optional[jnp.ndarray] = None,
+                           noiseless: bool = False
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
+        noise_p = noise * jnp.array(noiseless, int)
         y_residual = y_train
         if m_X is not None:
             y_residual -= m_X
         # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise)
+        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise_p)
         k_pX = get_kernel(self.kernel)(X_new, X_train, params, jitter=0.0)
         k_XX = get_kernel(self.kernel)(X_train, X_train, params, noise)
         # compute the predictive covariance and mean
@@ -90,7 +92,8 @@ class vExactGP(ExactGP):
         return mean, cov
 
     def get_mvn_posterior(self,
-                          X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                          X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
+                          noiseless: bool = False
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
@@ -108,7 +111,8 @@ class vExactGP(ExactGP):
                 self.X_train, self.y_train, X_new, params_unsqueezed, m_X, m_p)
         else:
             vmap_args = (self.X_train, self.y_train, X_new, params)
-        mean, cov = jax.vmap(self._get_mvn_posterior)(*vmap_args)
+        noiseless = jnp.array(noiseless, int).repeat(X_new.shape[0])
+        mean, cov = jax.vmap(self._get_mvn_posterior)(*vmap_args, noiseless=noiseless)
         return mean, cov
 
     def _sample_kernel_params(self, task_dim: int = None) -> Dict[str, jnp.ndarray]:
@@ -132,7 +136,8 @@ class vExactGP(ExactGP):
                            X_new: jnp.ndarray,  batch_size: int = 100,
                            samples: Optional[Dict[str, jnp.ndarray]] = None,
                            n: int = 1, filter_nans: bool = False,
-                           predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None
+                           predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
+                           noiseless: bool = False
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new with sampled GP hyperparameters
@@ -142,7 +147,8 @@ class vExactGP(ExactGP):
         """
         X_new = self._set_data(X_new)
         y_pred, y_sampled = self._predict_in_batches(
-            rng_key, X_new, batch_size, 1, samples, n, filter_nans, predict_fn)
+            rng_key, X_new, batch_size, 1, samples, n,
+            filter_nans, predict_fn, noiseless)
         y_pred = jnp.concatenate(y_pred, -1)
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
