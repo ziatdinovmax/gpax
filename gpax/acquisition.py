@@ -12,17 +12,18 @@ from .vidkl import viDKL
 
 def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
        X: jnp.ndarray, xi: float = 0.01,
-       maximize: bool = False, n: int = 1) -> jnp.ndarray:
+       maximize: bool = False, n: int = 1,
+       noiseless: bool = False) -> jnp.ndarray:
     """
     Expected Improvement
     """
     if model.mcmc is not None:
-        y_mean, y_sampled = model.predict(rng_key, X, n=n)
+        y_mean, y_sampled = model.predict(rng_key, X, n=n, noiseless=noiseless)
         y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
         mean, sigma = y_sampled.mean(0), y_sampled.std(0)
         u = (mean - y_mean.max() - xi) / sigma
     else:
-        mean, var = model.predict(rng_key, X)
+        mean, var = model.predict(rng_key, X, noiseless=noiseless)
         sigma = jnp.sqrt(var)
         u = (mean - mean.max() - xi) / sigma
     u = -u if not maximize else u
@@ -34,16 +35,17 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
 
 def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         X: jnp.ndarray, beta: float = .25,
-        maximize: bool = False, n: int = 1) -> jnp.ndarray:
+        maximize: bool = False, n: int = 1,
+        noiseless: bool = False) -> jnp.ndarray:
     """
     Upper confidence bound
     """
     if model.mcmc is not None:
-        _, y_sampled = model.predict(rng_key, X, n=n)
+        _, y_sampled = model.predict(rng_key, X, n=n, noiseless=noiseless)
         y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
         mean, var = y_sampled.mean(0), y_sampled.var(0)
     else:
-        mean, var = model.predict(rng_key, X)
+        mean, var = model.predict(rng_key, X, noiseless=noiseless)
     delta = jnp.sqrt(beta * var)
     if maximize:
         return mean + delta
@@ -52,30 +54,32 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
 
 def UE(rng_key: jnp.ndarray,
        model: Type[ExactGP],
-       X: jnp.ndarray, n: int = 1) -> jnp.ndarray:
+       X: jnp.ndarray, n: int = 1,
+       noiseless: bool = False) -> jnp.ndarray:
     """Uncertainty-based exploration (aka kriging)"""
     if model.mcmc is not None:
-        _, y_sampled = model.predict(rng_key, X, n=n)
+        _, y_sampled = model.predict(rng_key, X, n=n, noiseless=noiseless)
         y_sampled = y_sampled.mean(1)
         var = y_sampled.var(0)
     else:
-        _, var = model.predict(rng_key, X)
+        _, var = model.predict(rng_key, X, noiseless=noiseless)
     return var
 
 
 def Thompson(rng_key: jnp.ndarray,
              model: Type[ExactGP],
-             X: jnp.ndarray, n: int = 1) -> jnp.ndarray:
+             X: jnp.ndarray, n: int = 1,
+             noiseless: bool = False) -> jnp.ndarray:
     """Thompson sampling"""
     if model.mcmc is not None:
         posterior_samples = model.get_samples()
         idx = jra.randint(rng_key, (1,), 0, len(posterior_samples["k_length"]))
         samples = {k: v[idx] for (k, v) in posterior_samples.items()}
-        _, tsample = model.predict(rng_key, X, samples, n)
+        _, tsample = model.predict(rng_key, X, samples, n, noiseless=noiseless)
         if n > 1:
             tsample = tsample.mean(1).squeeze()
     else:
-        _, tsample = model.sample_from_posterior(rng_key, X, n=1)
+        _, tsample = model.sample_from_posterior(rng_key, X, n=1, noiseless=noiseless)
     return tsample
 
 
@@ -83,7 +87,8 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
          X: jnp.ndarray, indices: Optional[jnp.ndarray] = None,
          batch_size: int = 4, alpha: float = 1.0, beta: float = .25,
          maximize: bool = True, n: int = 500,
-         n_restarts: int = 20, **kwargs) -> jnp.ndarray:
+         n_restarts: int = 20, noiseless: bool = False,
+         **kwargs) -> jnp.ndarray:
     """
     The acquisition function defined as alpha * mu + sqrt(beta) * sigma
     that can output a "batch" of next points to evaluate. It takes advantage of
@@ -104,6 +109,7 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         n: number of draws from each multivariate normal posterior
         n_restarts: number of restarts to find a batch of maximally
             separated points to evaluate next
+        noiseless: noise-free prediction for new/test data (default: False)
 
     Returns:
         Computed acquisition function with batch x features
@@ -115,7 +121,8 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     dist_all, obj_all = [], []
     X_ = jnp.array(indices) if indices is not None else X
     for _ in range(n_restarts):
-        y_sampled = obtain_samples(rng_key, model, X, batch_size, n, **kwargs)
+        y_sampled = obtain_samples(
+            rng_key, model, X, batch_size, n, noiseless, **kwargs)
         mean, var = y_sampled.mean(1), y_sampled.var(1)
         delta = jnp.sqrt(beta * var)
         if maximize:
@@ -136,12 +143,13 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
 
 def obtain_samples(rng_key: jnp.ndarray, model: Type[ExactGP],
                    X: jnp.ndarray, batch_size: int = 4,
-                   n: int = 500, **kwargs) -> jnp.ndarray:
+                   n: int = 500, noiseless: bool = False,
+                   **kwargs) -> jnp.ndarray:
     posterior_samples = model.get_samples()
     idx = onp.arange(0, len(posterior_samples["k_length"]))
     onp.random.shuffle(idx)
     idx = idx[:batch_size]
     samples = {k: v[idx] for (k, v) in posterior_samples.items()}
     _, y_sampled = model.predict_in_batches(
-        rng_key, X, kwargs.get("xbatch_size", 500), samples, n)
+        rng_key, X, kwargs.get("xbatch_size", 500), samples, n, noiseless=noiseless)
     return y_sampled
