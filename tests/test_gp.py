@@ -209,11 +209,11 @@ def test_fit_predict(kernel):
 
 
 @pytest.mark.parametrize("n", [1, 10])
-def test_fit_predict_in_batches(kernel, n):
+def test_fit_predict_in_batches(n):
     rng_keys = get_keys()
     X, y = get_dummy_data()
     X_test, _ = get_dummy_data()
-    m = ExactGP(1, kernel)
+    m = ExactGP(1, 'RBF')
     m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
     y_pred, y_sampled = m.predict_in_batches(rng_keys[1], X_test, batch_size=4, n=n)
     assert isinstance(y_pred, jnp.ndarray)
