@@ -233,6 +233,10 @@ class ExactGP:
             samples: optional posterior samples
             n: number of samples from Multivariate Normal posterior for each MCMC sample with GP hyperaparameters
             filter_nans: filter out samples containing NaN values (if any)
+            noiseless:
+                Noise-free prediction. It is set to False by default as new/unseen data is assumed
+                to follow the same distribution as the training data. Hence, since we introduce a model noise
+                for the training data, we also want to include that noise in our prediction.
 
         Returns:
             Center of the mass of sampled means and all the sampled predictions

@@ -214,6 +214,10 @@ class viDKL(ExactGP):
             rng_key: random number generator key
             X_new: New ('test') data
             params: Tuple with neural network weigths and kernel parameters(optional)
+            noiseless:
+                Noise-free prediction. It is set to False by default as new/unseen data is assumed
+                to follow the same distribution as the training data. Hence, since we introduce a model noise
+                for the training data, we also want to include that noise in our prediction.
 
         Returns:
             Predictive mean and variance
@@ -256,6 +260,10 @@ class viDKL(ExactGP):
             step_size: step size schedule for Adam optimizer
             n_models: number of models in the ensemble (defaults to 1)
             batch_size: prediction batch size (to avoid memory overflows)
+            noiseless:
+                Noise-free prediction. It is set to False by default as new/unseen data is assumed
+                to follow the same distribution as the training data. Hence, since we introduce a model noise
+                for the training data, we also want to include that noise in our prediction.
             print_summary: print summary at the end of sampling
             progress_bar: show progress bar (works only for scalar outputs)
 
