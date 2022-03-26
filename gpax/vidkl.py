@@ -149,6 +149,7 @@ class viDKL(ExactGP):
                           X_new: jnp.ndarray,
                           nn_params: Dict[str, jnp.ndarray],
                           k_params: Dict[str, jnp.ndarray],
+                          noiseless: bool = False
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns predictive mean and covariance at new points
@@ -156,13 +157,14 @@ class viDKL(ExactGP):
         given a single set of DKL hyperparameters
         """
         noise = k_params["noise"]
+        noise_p = noise * jnp.array(noiseless, int)
         # embed data into the latent space
         z_train = self.nn_module.apply(
             nn_params, jax.random.PRNGKey(0), X_train)
         z_test = self.nn_module.apply(
             nn_params, jax.random.PRNGKey(0), X_new)
         # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(z_test, z_test, k_params, noise)
+        k_pp = get_kernel(self.kernel)(z_test, z_test, k_params, noise_p)
         k_pX = get_kernel(self.kernel)(z_test, z_train, k_params, jitter=0.0)
         k_XX = get_kernel(self.kernel)(z_train, z_train, k_params, noise)
         # compute the predictive covariance and mean
@@ -172,25 +174,28 @@ class viDKL(ExactGP):
         return mean, cov
 
     def sample_from_posterior(self, rng_key: jnp.ndarray,
-                              X_new: jnp.ndarray, n: int = 1000
+                              X_new: jnp.ndarray, n: int = 1000,
+                              noiseless: bool = False
                               ) -> Tuple[jnp.ndarray]:
         """
         Samples from the DKL posterior at X_new points
         """
         y_mean, K = self.get_mvn_posterior(
-            self.X_train, self.y_train, X_new, self.nn_params, self.kernel_params)
+            self.X_train, self.y_train, X_new,
+            self.nn_params, self.kernel_params, noiseless)
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
 
     def predict_in_batches(self, rng_key: jnp.ndarray,
-                           X_new: jnp.ndarray,  batch_size: int = 100
+                           X_new: jnp.ndarray,  batch_size: int = 100,
+                           noiseless: bool = False
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new with sampled DKL hyperparameters
         by spitting the input array into chunks ("batches") and running
         self.predict on each of them one-by-one to avoid a memory overflow
         """
-        predict_fn = lambda xi: self.predict(rng_key, xi)
+        predict_fn = lambda xi: self.predict(rng_key, xi, noiseless=noiseless)
         cat_dim = 1 if self.X_train.ndim == len(self.data_dim) + 2 else 0
         mean, var = self._predict_in_batches(
             rng_key, X_new, batch_size, cat_dim, predict_fn=predict_fn)
@@ -200,15 +205,19 @@ class viDKL(ExactGP):
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 params: Optional[Tuple[Dict[str, jnp.ndarray]]] = None,
-                *args) -> Tuple[jnp.ndarray, jnp.ndarray]:
+                noiseless: bool = False, *args
+                ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using a trained DKL model(s)
 
         Args:
             rng_key: random number generator key
             X_new: New ('test') data
-            nn_params: neural network weigths (optional)
-            kernel_params: kernel posterior parameters (optional)
+            params: Tuple with neural network weigths and kernel parameters(optional)
+            noiseless:
+                Noise-free prediction. It is set to False by default as new/unseen data is assumed
+                to follow the same distribution as the training data. Hence, since we introduce a model noise
+                for the training data, we also want to include that noise in our prediction.
 
         Returns:
             Predictive mean and variance
@@ -216,7 +225,7 @@ class viDKL(ExactGP):
 
         def single_predict(x_train_i, y_train_i, x_new_i, nnpar_i, kpar_i):
             mean, cov = self.get_mvn_posterior(
-                x_train_i, y_train_i, x_new_i, nnpar_i, kpar_i)
+                x_train_i, y_train_i, x_new_i, nnpar_i, kpar_i, noiseless)
             return mean, cov.diagonal()
 
         if params is None:
@@ -235,8 +244,8 @@ class viDKL(ExactGP):
 
     def fit_predict(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
                     X_new: jnp.ndarray, num_steps: int = 1000, step_size: float = 5e-3,
-                    n_models: int = 1, batch_size: int = 100, print_summary: bool = True,
-                    progress_bar=True
+                    n_models: int = 1, batch_size: int = 100, noiseless: bool = False,
+                    print_summary: bool = True, progress_bar=True
                     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Run SVI to learn DKL model(s) parameters and make a prediction with
@@ -251,6 +260,10 @@ class viDKL(ExactGP):
             step_size: step size schedule for Adam optimizer
             n_models: number of models in the ensemble (defaults to 1)
             batch_size: prediction batch size (to avoid memory overflows)
+            noiseless:
+                Noise-free prediction. It is set to False by default as new/unseen data is assumed
+                to follow the same distribution as the training data. Hence, since we introduce a model noise
+                for the training data, we also want to include that noise in our prediction.
             print_summary: print summary at the end of sampling
             progress_bar: show progress bar (works only for scalar outputs)
 
@@ -261,7 +274,7 @@ class viDKL(ExactGP):
         def single_fit_predict(key):
             self.fit(key, X, y, num_steps, step_size,
                      print_summary, progress_bar)
-            mean, var = self.predict_in_batches(key, X_new, batch_size)
+            mean, var = self.predict_in_batches(key, X_new, batch_size, noiseless)
             return mean, var
 
         keys = jax.random.split(rng_key, num=n_models)

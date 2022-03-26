@@ -4,7 +4,7 @@ import numpy as onp
 import jax.numpy as jnp
 import jax
 import numpyro
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_array_equal
 
 sys.path.append("../../../")
 
@@ -123,6 +123,24 @@ def test_get_mvn_posterior():
     assert_equal(cov.shape, (X_test.shape[0], X_test.shape[0]))
 
 
+def test_get_mvn_posterior_noiseless():
+    X, y = get_dummy_data(unsqueeze=True)
+    X_test, _ = get_dummy_data(unsqueeze=True)
+    params = {"k_length": jnp.array([1.0]),
+              "k_scale": jnp.array(1.0),
+              "noise": jnp.array(0.1)}
+    m = ExactGP(1, 'RBF')
+    m.X_train = X
+    m.y_train = y
+    mean1, cov1 = m.get_mvn_posterior(X_test, params, noiseless=False)
+    mean1_, cov1_ = m.get_mvn_posterior(X_test, params, noiseless=False)
+    mean2, cov2 = m.get_mvn_posterior(X_test, params, noiseless=True)
+    assert_array_equal(mean1, mean1_)
+    assert_array_equal(cov1, cov1_)
+    assert_array_equal(mean1, mean2)
+    assert onp.count_nonzero(cov1 - cov2) > 0
+
+
 def test_single_sample_prediction():
     rng_key = get_keys()[0]
     X, y = get_dummy_data(unsqueeze=True)
@@ -159,6 +177,22 @@ def test_prediction(unsqueeze, n):
     assert_equal(y_sampled.shape, (100, n, X_test.shape[0]))
 
 
+def test_noiseless_prediction():
+    rng_keys = get_keys()
+    X, y = get_dummy_data(unsqueeze=True)
+    X_test, _ = get_dummy_data(unsqueeze=True)
+    samples = {"k_length": jax.random.normal(rng_keys[0], shape=(100, 1)),
+               "k_scale": jax.random.normal(rng_keys[0], shape=(100,)),
+               "noise": jax.random.normal(rng_keys[0], shape=(100,))}
+    m = ExactGP(1, 'RBF')
+    m.X_train = X
+    m.y_train = y
+    y_mean1, y_sampled1 = m.predict(rng_keys[1], X_test, samples, n=1, noiseless=True)
+    y_mean2, y_sampled2 = m.predict(rng_keys[1], X_test, samples, n=1, noiseless=False)
+    assert_array_equal(y_mean1, y_mean2)
+    assert onp.count_nonzero(y_sampled1 - y_sampled2) > 0
+
+
 @pytest.mark.parametrize("kernel", ['RBF', 'Matern', 'Periodic'])
 def test_fit_predict(kernel):
     rng_keys = get_keys()
@@ -175,12 +209,11 @@ def test_fit_predict(kernel):
 
 
 @pytest.mark.parametrize("n", [1, 10])
-@pytest.mark.parametrize("kernel", ['RBF', 'Matern', 'Periodic'])
-def test_fit_predict_in_batches(kernel, n):
+def test_fit_predict_in_batches(n):
     rng_keys = get_keys()
     X, y = get_dummy_data()
     X_test, _ = get_dummy_data()
-    m = ExactGP(1, kernel)
+    m = ExactGP(1, 'RBF')
     m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
     y_pred, y_sampled = m.predict_in_batches(rng_keys[1], X_test, batch_size=4, n=n)
     assert isinstance(y_pred, jnp.ndarray)
@@ -188,6 +221,19 @@ def test_fit_predict_in_batches(kernel, n):
     assert_equal(y_pred.shape, X_test.squeeze().shape)
     print(y_sampled.shape)
     assert_equal(y_sampled.shape, (100, n, X_test.shape[0]))
+
+
+@pytest.mark.parametrize("n", [1, 10])
+def test_fit_noiseless_predict_in_batches(n):
+    rng_keys = get_keys()
+    X, y = get_dummy_data()
+    X_test, _ = get_dummy_data()
+    m = ExactGP(1, 'RBF')
+    m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
+    y_mean1, y_sampled1 = m.predict_in_batches(rng_keys[1], X_test, batch_size=4, n=n, noiseless=True)
+    y_mean2, y_sampled2 = m.predict_in_batches(rng_keys[1], X_test, batch_size=4, n=n, noiseless=False)
+    assert_array_equal(y_mean1, y_mean2)
+    assert onp.count_nonzero(y_sampled1 - y_sampled2) > 0
 
 
 @pytest.mark.parametrize("jax_ndarray", [True, False])

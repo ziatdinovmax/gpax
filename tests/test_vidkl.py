@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import jax
 import haiku as hk
 import numpyro
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_array_equal
 
 sys.path.append("../../../")
 
@@ -92,6 +92,25 @@ def test_get_mvn_posterior():
     assert isinstance(cov, jnp.ndarray)
     assert_equal(mean.shape, (X_test.shape[0],))
     assert_equal(cov.shape, (X_test.shape[0], X_test.shape[0]))
+
+
+def test_get_mvn_posterior_noiseless():
+    rng_key = get_keys()[0]
+    X, y = get_dummy_data()
+    X_test, _ = get_dummy_data()
+    net = hk.transform(lambda x: MLP()(x))
+    nn_params = net.init(rng_key, X)
+    kernel_params = {"k_length": jnp.array([1.0]),
+                     "k_scale": jnp.array(1.0),
+                     "noise": jnp.array(0.1)}
+    m = viDKL(X.shape[-1])
+    mean1, cov1 = m.get_mvn_posterior(X, y, X_test, nn_params, kernel_params, noiseless=False)
+    mean1_, cov1_ = m.get_mvn_posterior(X, y, X_test, nn_params, kernel_params, noiseless=False)
+    mean2, cov2 = m.get_mvn_posterior(X, y, X_test, nn_params, kernel_params, noiseless=True)
+    assert_array_equal(mean1, mean1_)
+    assert_array_equal(cov1, cov1_)
+    assert_array_equal(mean1, mean2)
+    assert onp.count_nonzero(cov1 - cov2) > 0
 
 
 def test_fit_scalar_target():

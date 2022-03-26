@@ -125,19 +125,21 @@ class ExactGP:
 
     @partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
-                          X_new: jnp.ndarray, params: Dict[str, jnp.ndarray]
+                          X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
+                          noiseless: bool = False
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of GP hyperparameters
         """
         noise = params["noise"]
+        noise_p = noise * jnp.array(noiseless, int)
         y_residual = self.y_train
         if self.mean_fn is not None:
             args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
             y_residual -= self.mean_fn(*args).squeeze()
         # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise)
+        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise_p)
         k_pX = get_kernel(self.kernel)(X_new, self.X_train, params, jitter=0.0)
         k_XX = get_kernel(self.kernel)(self.X_train, self.X_train, params, noise)
         # compute the predictive covariance and mean
@@ -150,11 +152,11 @@ class ExactGP:
         return mean, cov
 
     def _predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
-                 params: Dict[str, jnp.ndarray], n: int
+                 params: Dict[str, jnp.ndarray], n: int, noiseless: bool = False
                  ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Prediction with a single sample of GP hyperparameters"""
         # Get the predictive mean and covariance
-        y_mean, K = self.get_mvn_posterior(X_new, params)
+        y_mean, K = self.get_mvn_posterior(X_new, params, noiseless)
         # draw samples from the posterior predictive for a given set of hyperparameters
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
@@ -179,11 +181,12 @@ class ExactGP:
                             batch_dim: int = 0,
                             samples: Optional[Dict[str, jnp.ndarray]] = None,
                             n: int = 1, filter_nans: bool = False,
-                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None
+                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
+                            noiseless: bool = False
                             ) -> Tuple[jnp.ndarray, jnp.ndarray]:
 
         if predict_fn is None:
-            predict_fn = lambda xi:  self.predict(rng_key, xi, samples, n, filter_nans)
+            predict_fn = lambda xi:  self.predict(rng_key, xi, samples, n, filter_nans, noiseless)
 
         def predict_batch(Xi):
             out1, out2 = predict_fn(Xi)
@@ -202,8 +205,8 @@ class ExactGP:
                            X_new: jnp.ndarray,  batch_size: int = 100,
                            samples: Optional[Dict[str, jnp.ndarray]] = None,
                            n: int = 1, filter_nans: bool = False,
-                           predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None
-                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+                           predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
+                           noiseless: bool = False) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new with sampled GP hyperparameters
         by spitting the input array into chunks ("batches") and running
@@ -211,14 +214,15 @@ class ExactGP:
         to avoid a memory overflow
         """
         y_pred, y_sampled = self._predict_in_batches(
-            rng_key, X_new, batch_size, 0, samples, n, filter_nans, predict_fn)
+            rng_key, X_new, batch_size, 0, samples, n,
+            filter_nans, predict_fn, noiseless)
         y_pred = jnp.concatenate(y_pred, 0)
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
-                n: int = 1, filter_nans: bool = False
+                n: int = 1, filter_nans: bool = False, noiseless: bool = False
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using sampled GP hyperparameters
@@ -229,6 +233,10 @@ class ExactGP:
             samples: optional posterior samples
             n: number of samples from Multivariate Normal posterior for each MCMC sample with GP hyperaparameters
             filter_nans: filter out samples containing NaN values (if any)
+            noiseless:
+                Noise-free prediction. It is set to False by default as new/unseen data is assumed
+                to follow the same distribution as the training data. Hence, since we introduce a model noise
+                for the training data, we also want to include that noise in our prediction.
 
         Returns:
             Center of the mass of sampled means and all the sampled predictions
@@ -239,7 +247,7 @@ class ExactGP:
         num_samples = samples["k_length"].shape[0]
         vmap_args = (jra.split(rng_key, num_samples), samples)
         predictive = jax.vmap(
-            lambda params: self._predict(params[0], X_new, params[1], n))
+            lambda params: self._predict(params[0], X_new, params[1], n, noiseless))
         y_means, y_sampled = predictive(vmap_args)
         if filter_nans:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
