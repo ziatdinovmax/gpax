@@ -21,16 +21,12 @@ In the [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exac
 ```python3
 y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test)
 ```
-For 1-dimensional data, we can plot the GP prediction using the standard approach where the uncertainty in predictions - represented by a standard deviation in ```y_sampled``` - is depicted as a shaded area around the mean value. See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb).
-```python3
-import matplotlib.pyplot as plt
 
-plt.scatter(X, y, marker='x', c='k', label="Noisy observations", alpha=0.7)
-plt.plot(X_test, y_pred, lw=1.5, c='b', label='Sampled means (CoM)')
-plt.fill_between(X_test, y_pred - y_sampled.std(0), y_pred + y_sampled.std(0),
-                 color='r', alpha=0.3, label="Model uncertainty")
-plt.legend()
-```
+![image](https://user-images.githubusercontent.com/34245227/160265815-bacc8f3f-2c97-4ecb-995f-08d6a9e3e296.png)
+
+For 1-dimensional data, we can plot the GP prediction using the standard approach where the uncertainty in predictions - represented by a standard deviation in ```y_sampled``` - is depicted as a shaded area around the mean value. See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb).
+![image](https://user-images.githubusercontent.com/34245227/160265858-ba6160e4-df2f-4c75-b81f-316c62d5730d.png)
+
 ### Structured GP
 The limitation of the standard GP is that it does not usually allow for the incorporation of prior domain knowledge and can be biased toward a trivial interpolative solution. Recently, we [introduced](https://arxiv.org/abs/2108.10280) a structured Gaussian Process (sGP), where a classical GP is augmented by a structured probabilistic model of the expected system’s behavior. This approach allows us to [balance](https://towardsdatascience.com/unknown-knowns-bayesian-inference-and-structured-gaussian-processes-why-domain-scientists-know-4659b7e924a4) the flexibility of the non-parametric GP approach with a rigid structure of prior (physical) knowledge encoded into the parametric model.
 Implementation-wise, we substitute a constant/zero prior mean function in GP with a probabilistic model of the expected system's behavior.
