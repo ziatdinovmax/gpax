@@ -74,7 +74,7 @@ class vExactGP(ExactGP):
                            noiseless: bool = False
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
-        noise_p = noise * jnp.array(not noiseless, int)
+        noise_p = noise * (1 - jnp.array(noiseless, int))
         y_residual = y_train
         if m_X is not None:
             y_residual -= m_X
