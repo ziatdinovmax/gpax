@@ -316,6 +316,7 @@ class viDKL(ExactGP):
 
 
 class MLP(hk.Module):
+    """Simple MLP"""
     def __init__(self, embedim=2):
         super().__init__()
         self._embedim = embedim
