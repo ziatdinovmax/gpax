@@ -91,7 +91,11 @@ next_point_idx = obj.argmax()
 
 # Perform measurement in next_point_idx, update trainning data, etc.
 ```
-The full example is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viDKL_plasmons.ipynb). Note that in viDKL, we use a simple MLP as a default feature extractor. However, you can easily write a custom DNN using [haiku](https://github.com/deepmind/dm-haiku) and pass it to the viDKL initializer
+Below we show a result of a simple DKL-based search for regions of the nano-plasmonic array that [host edge plasmons](https://arxiv.org/abs/2108.03290). The full example is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viDKL_plasmons.ipynb). 
+
+![image](https://user-images.githubusercontent.com/34245227/160270568-147fa21b-91f3-48b8-8dd2-c33eb4b497b4.png)
+
+Note that in viDKL, we use a simple MLP as a default feature extractor. However, you can easily write a custom DNN using [haiku](https://github.com/deepmind/dm-haiku) and pass it to the viDKL initializer
 ```python3
 import haiku as hk
 
