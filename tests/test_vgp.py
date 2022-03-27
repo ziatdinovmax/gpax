@@ -6,7 +6,7 @@ import jax
 import numpyro
 from numpy.testing import assert_equal, assert_array_equal
 
-sys.path.append("../../../")
+sys.path.insert(0, "../gpax/")
 
 from gpax.vgp import vExactGP
 from gpax.utils import get_keys

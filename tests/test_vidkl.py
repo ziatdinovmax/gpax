@@ -7,7 +7,7 @@ import haiku as hk
 import numpyro
 from numpy.testing import assert_equal, assert_array_equal
 
-sys.path.append("../../../")
+sys.path.insert(0, "../gpax/")
 
 from gpax.vidkl import viDKL, MLP
 from gpax.utils import get_keys

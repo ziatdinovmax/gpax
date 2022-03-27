@@ -4,7 +4,7 @@ import numpy as onp
 import jax.numpy as jnp
 from numpy.testing import assert_equal
 
-sys.path.append("../../../")
+sys.path.insert(0, "../gpax/")
 
 from gpax.gp import ExactGP
 from gpax.dkl import DKL
