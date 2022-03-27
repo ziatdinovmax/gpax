@@ -21,11 +21,11 @@ In the [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exac
 ```python3
 y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test)
 ```
-
-![image](https://user-images.githubusercontent.com/34245227/160265815-bacc8f3f-2c97-4ecb-995f-08d6a9e3e296.png)
+<img src = "https://user-images.githubusercontent.com/34245227/160270151-2ba75d9e-1565-4c1a-865e-13bd20029e20.jpg" height="46%" width="46%">
 
 For 1-dimensional data, we can plot the GP prediction using the standard approach where the uncertainty in predictions - represented by a standard deviation in ```y_sampled``` - is depicted as a shaded area around the mean value. See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb).
-![image](https://user-images.githubusercontent.com/34245227/160265858-ba6160e4-df2f-4c75-b81f-316c62d5730d.png)
+
+<img src = "https://user-images.githubusercontent.com/34245227/160270198-7ad52aeb-49b1-49b8-9e53-eb422737ad34.jpg" height="46%" width="46%">
 
 ### Structured GP
 The limitation of the standard GP is that it does not usually allow for the incorporation of prior domain knowledge and can be biased toward a trivial interpolative solution. Recently, we [introduced](https://arxiv.org/abs/2108.10280) a structured Gaussian Process (sGP), where a classical GP is augmented by a structured probabilistic model of the expected system’s behavior. This approach allows us to [balance](https://towardsdatascience.com/unknown-knowns-bayesian-inference-and-structured-gaussian-processes-why-domain-scientists-know-4659b7e924a4) the flexibility of the non-parametric GP approach with a rigid structure of prior (physical) knowledge encoded into the parametric model.
@@ -64,12 +64,11 @@ sgp_model.fit(rng_key, X, y)
 # Get GP prediction on new/test data
 y_pred, y_sampled = sgp_model.predict(rng_key_predict, X_test)
 ```
-<img src="https://user-images.githubusercontent.com/34245227/160266406-f5aa5819-89f5-496e-9ac9-d6600a719333.png">
-
+<img src="https://user-images.githubusercontent.com/34245227/160270279-6cf19148-2d8f-4ae3-964d-2483fade8118.jpg" height="94%" width="94%">
 
 The probabilistic model reflects our prior knowledge about the system, but it does not have to be precise, that is, the model can have a different functional form, as long as it captures general or partial trends in the data. The full example including the active learning part is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb).
 
-<img align="top" src="https://user-images.githubusercontent.com/34245227/160266416-d556aa33-0695-4b1a-8b74-f96bcf129f8d.png" height="46%" width="46%">
+<img src="https://user-images.githubusercontent.com/34245227/160270354-1811ed45-1bfe-45cf-91b5-27e13496d5f8.jpg" height="46%" width="46%">
 
 ### Deep kernel learning
 Deep kernel learning (DKL), initially [introduced](https://arxiv.org/abs/1511.02222) by Andrew Gordon Wilson, can be understood as a hybrid of deep neural network (DNN) and GP. The DNN serves as a feature extractor that allows reducing the complex high-dimensional features to low-dimensional descriptors on which a standard GP kernel operates. The parameters of DNN and of GP kernel are inferred jointly in an end-to-end fashion. Practically, the DKL training inputs are usually patches from an (easy-to-acquire) structural image, and training targets represent a physical property of interest derived from the (hard-to-acquire) spectra measured in those patches. The DKL output on the new inputs (image patches for which there are no measured spectra) is the expected property value and associated uncertainty, which can be used to derive the next measurement point in the automated experiment. 
