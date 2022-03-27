@@ -9,7 +9,6 @@ from jax import jit
 
 from .gp import ExactGP
 from .kernels import get_kernel
-from .utils import split_in_batches
 
 
 class vExactGP(ExactGP):
