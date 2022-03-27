@@ -157,7 +157,7 @@ class viDKL(ExactGP):
         given a single set of DKL hyperparameters
         """
         noise = k_params["noise"]
-        noise_p = noise * jnp.array(noiseless, int)
+        noise_p = noise * jnp.array(not noiseless, int)
         # embed data into the latent space
         z_train = self.nn_module.apply(
             nn_params, jax.random.PRNGKey(0), X_train)

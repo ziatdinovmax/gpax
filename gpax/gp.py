@@ -133,7 +133,7 @@ class ExactGP:
         for a single sample of GP hyperparameters
         """
         noise = params["noise"]
-        noise_p = noise * jnp.array(noiseless, int)
+        noise_p = noise * jnp.array(not noiseless, int)
         y_residual = self.y_train
         if self.mean_fn is not None:
             args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
