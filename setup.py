@@ -32,8 +32,9 @@ if __name__ == "__main__":
             'matplotlib>=3.1'
         ],
         classifiers=['Programming Language :: Python',
-                     'Development Status :: 2 - Pre-Alpha',
+                     'Development Status :: 3 - Alpha',
                      'Intended Audience :: Science/Research',
-                     'Operating System :: Linux',
+                     'Operating System :: POSIX :: Linux',
+                     'Operating System :: MacOS :: MacOS X',
                      'Topic :: Scientific/Engineering']
     )
