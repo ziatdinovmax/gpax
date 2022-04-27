@@ -48,7 +48,7 @@ class viDKL(ExactGP):
         self.kernel_params = None
         self.nn_params = None
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
+    def model(self, X: jnp.ndarray, y: jnp.ndarray = None) -> None:
         """DKL probabilistic model"""
         # NN part
         feature_extractor = random_haiku_module(

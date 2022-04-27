@@ -37,7 +37,7 @@ class DKL(vExactGP):
         self.kernel_dim = z_dim
         self.latent_prior = latent_prior
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
+    def model(self, X: jnp.ndarray, y: jnp.ndarray = None) -> None:
         """DKL probabilistic model"""
         task_dim = X.shape[0]
         # BNN part

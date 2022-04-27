@@ -33,7 +33,7 @@ class vExactGP(ExactGP):
         args = (input_dim, kernel, mean_fn,  kernel_prior, mean_fn_prior, noise_prior)
         super(vExactGP, self).__init__(*args)
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
+    def model(self, X: jnp.ndarray, y: jnp.ndarray = None) -> None:
         """GP probabilistic model with inputs X and vector-valued targets y"""
         task_dim = X.shape[0]
         # Initialize mean function at zeros
