@@ -7,7 +7,7 @@ import jax.random as jra
 import numpyro
 import numpyro.distributions as dist
 from jax import jit
-from numpyro.infer import MCMC, NUTS, init_to_median
+from numpyro.infer import MCMC, NUTS, init_to_median, Predictive
 
 from .kernels import get_kernel
 from .utils import split_in_batches
@@ -49,7 +49,7 @@ class ExactGP:
         self.y_train = None
         self.mcmc = None
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray) -> None:
+    def model(self, X: jnp.ndarray, y: jnp.ndarray = None) -> None:
         """GP probabilistic model with inputs X and targets y"""
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
@@ -253,6 +253,12 @@ class ExactGP:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
             y_sampled = jnp.array(y_sampled_)
         return y_means.mean(0), y_sampled
+
+    def sample_from_mvn_prior(self, rng_key: jnp.ndarray,
+                              X: jnp.ndarray, num_samples: int = 10):
+        prior_predictive = Predictive(self.model, num_samples=10)
+        prior_params = prior_predictive(rng_key, X)
+        return prior_params['y']
 
     def _set_data(self,
                   X: jnp.ndarray,
