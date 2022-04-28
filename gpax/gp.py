@@ -254,7 +254,7 @@ class ExactGP:
             y_sampled = jnp.array(y_sampled_)
         return y_means.mean(0), y_sampled
 
-    def sample_from_mvn_prior(self, rng_key: jnp.ndarray,
+    def sample_from_prior(self, rng_key: jnp.ndarray,
                               X: jnp.ndarray, num_samples: int = 10):
         X = self._set_data(X)
         prior_predictive = Predictive(self.model, num_samples=10)
