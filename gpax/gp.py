@@ -255,11 +255,14 @@ class ExactGP:
         return y_means.mean(0), y_sampled
 
     def sample_from_prior(self, rng_key: jnp.ndarray,
-                              X: jnp.ndarray, num_samples: int = 10):
+                          X: jnp.ndarray, num_samples: int = 10):
+        """
+        Samples from prior predictive distribution at X
+        """
         X = self._set_data(X)
-        prior_predictive = Predictive(self.model, num_samples=10)
-        prior_params = prior_predictive(rng_key, X)
-        return prior_params['y']
+        prior_predictive = Predictive(self.model, num_samples=num_samples)
+        samples = prior_predictive(rng_key, X)
+        return samples['y']
 
     def _set_data(self,
                   X: jnp.ndarray,

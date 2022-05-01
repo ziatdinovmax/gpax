@@ -279,3 +279,11 @@ def test_fit_predict_with_prob_mean_fn():
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_pred.shape, X_test.squeeze().shape)
     assert_equal(y_sampled.shape, (100, 1, X_test.shape[0]))
+
+
+def test_sample_from_prior():
+    rng_key, _ = get_keys()
+    X, _ = get_dummy_data()
+    m = ExactGP(1, 'RBF')
+    prior_pred = m.sample_from_prior(rng_key, X, num_samples=8)
+    assert_equal(prior_pred.shape, (8, X.shape[0]))
