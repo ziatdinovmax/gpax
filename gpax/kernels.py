@@ -1,9 +1,11 @@
-from typing import Union, Dict
+from typing import Union, Dict, Callable
 
 import math
 
 import jax.numpy as jnp
 from jax import jit
+
+kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray],  jnp.ndarray]
 
 
 def _sqrt(x, eps=1e-12):
@@ -103,17 +105,17 @@ def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
     return k
 
 
-def get_kernel(kernel: str = 'RBF'):
-    """Utility function for selecting kernel based on provided string argument"""
+def get_kernel(kernel: Union[str, kernel_fn_type] = 'RBF'):
     kernel_book = {
         'RBF': RBFKernel,
         'Matern': MaternKernel,
         'Periodic': PeriodicKernel
     }
-    try:
-        kernel = kernel_book[kernel]
-    except KeyError:
-        print('Select one of the currently available kernels:',
-              *kernel_book.keys())
-        raise
+    if isinstance(kernel, str):
+        try:
+            kernel = kernel_book[kernel]
+        except KeyError:
+            print('Select one of the currently available kernels:',
+                  *kernel_book.keys())
+            raise
     return kernel
