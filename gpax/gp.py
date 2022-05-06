@@ -24,12 +24,74 @@ class ExactGP:
     Gaussian process class
 
     Args:
-        input_dim: number of input dimensions
-        kernel: type of kernel ('RBF', 'Matern', 'Periodic')
-        mean_fn: optional deterministic mean function (use 'mean_fn_priors' to make it probabilistic)
-        kernel_prior: optional custom priors over kernel hyperparameters (uses LogNormal(0,1) by default)
-        mean_fn_prior: optional priors over mean function parameters
-        noise_prior: optional custom prior for observation noise
+        input_dim:
+            Number of input dimensions
+        kernel:
+            Kernel function ('RBF', 'Matern', 'Periodic', or custom function)
+        mean_fn:
+            Optional deterministic mean function (use 'mean_fn_priors' to make it probabilistic)
+        kernel_prior:
+            Optional custom priors over kernel hyperparameters; uses LogNormal(0,1) by default
+        mean_fn_prior:
+            Optional priors over mean function parameters
+        noise_prior:
+            Optional custom prior for observation noise; uses LogNormal(0,1) by default.
+
+    Examples:
+
+        Regular GP for sparse noisy obervations
+
+        >>> # Get random number generator keys for training and prediction
+        >>> rng_key, rng_key_predict = gpax.utils.get_keys()
+        >>> # Initialize model
+        >>> gp_model = gpax.ExactGP(input_dim=1, kernel='Matern')
+        >>> # Run MCMC to obtain posterior samples for the GP model parameters
+        >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
+        >>> # Make a noiseless prediction on new inputs
+        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
+
+        GP for noiseless observations
+
+        >>> # Initialize model
+        >>> gp_model = gpax.ExactGP(
+        >>>     input_dim=1, kernel='RBF',
+        >>>     noise_prior = lambda: numpyro.deterministic("noise", 0) # zero observational noise
+        >>> )
+        >>> # Run MCMC to obtain posterior samples for the GP model parameters
+        >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
+        >>> # Make prediction on new inputs
+        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new)
+
+        GP with custom noise prior
+        
+        >>> gp_model = gpax.ExactGP(
+        >>>     input_dim=1, kernel='RBF',
+        >>>     noise_prior = lambda: numpyro.sample("noise", numpyro.distributions.HalfNormal(.1))
+        >>> )
+        >>> # Run MCMC to obtain posterior samples for the GP model parameters
+        >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
+        >>> # Make a noiselsess prediction on new inputs
+        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
+
+        GP with custom probabilistic model as its mean function
+        
+        >>> # Define a deterministic mean function
+        >>> mean_fn = lambda x, param: param["a"]*x + param["b"]
+        >>>
+        >>> # Define priors over the mean function parameters (to make it probabilistic)
+        >>> def mean_fn_prior():
+        >>>     a = numpyro.sample("a", numpyro.distributions.Normal(3, 1))
+        >>>     b = numpyro.sample("b", numpyro.distributions.Normal(0, 1))
+        >>>     return {"a": a, "b": b}
+        >>>
+        >>> # Initialize structural GP model
+        >>> sgp_model = gpax.ExactGP(
+                input_dim=1, kernel='Matern',
+                mean_fn=mean_fn, mean_fn_prior=mean_fn_prior)
+        >>> # Run MCMC to obtain posterior samples for the GP model parameters
+        >>> sgp_model.fit(rng_key, X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
+        >>> Make a noiselsess prediction on new inputs
+        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
     """
 
     def __init__(self, input_dim: int, kernel: str,
