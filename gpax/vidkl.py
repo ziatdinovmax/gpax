@@ -21,13 +21,36 @@ class viDKL(ExactGP):
     Implementation of the variational infernece-based deep kernel learning
 
     Args:
-        input_dim: number of input dimensions
-        z_dim: latent space dimensionality
-        kernel: type of kernel ('RBF', 'Matern', 'Periodic')
-        kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
-        nn: Custom neural network (optional)
-        latent_prior: Optional prior over the latent space (NN embedding)
-        guide: auto-guide option, use 'delta' (default) or 'normal'
+        input_dim:
+            Number of input dimensions
+        z_dim:
+            Latent space dimensionality (defaults to 2)
+        kernel:
+            Kernel function ('RBF', 'Matern', 'Periodic', or custom function)
+        kernel_prior:
+            Optional priors over kernel hyperparameters; uses LogNormal(0,1) by default
+        nn:
+            Custom neural network ('feature extractor'); uses a 3-layer MLP
+            with ReLU activations by default
+        latent_prior:
+            Optional prior over the latent space (NN embedding); uses none by default
+        guide:
+            Auto-guide option, use 'delta' (default) or 'normal'
+    
+    Examples:
+
+        vi-DKL with image patches as inputs and a 1-d vector as targets
+
+        >>> # Get random number generator keys for training and prediction
+        >>> key1, key2 = gpax.utils.get_keys()
+        >>> input data dimensions are (n, height*width*channels)
+        >>> data_dim = X.shape[-1]
+        >>> # Initialize vi-DKL model with 2 latent dimensions
+        >>> dkl = gpax.viDKL(input_dim=data_dim, z_dim=2, kernel='RBF')
+        >>> Train a model
+        >>> dkl.fit(rng_key, X_train, y_train, num_steps=1000, step_size=0.005)
+        >>> # Obtain posterior mean and variance ('uncertainty') at new inputs
+        >>> y_mean, y_var = dkl.predict(key2, X_new)
     """
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
