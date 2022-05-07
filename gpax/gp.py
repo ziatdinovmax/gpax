@@ -1,3 +1,12 @@
+"""
+gp.py
+=======
+
+Fully Bayesian implementation of Gaussian process regression
+
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
+"""
+
 from functools import partial
 from typing import Callable, Dict, Optional, Tuple, Union
 

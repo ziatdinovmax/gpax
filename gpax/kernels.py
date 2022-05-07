@@ -1,3 +1,12 @@
+"""
+kernels.py
+==========
+
+Kernel functions
+
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
+"""
+
 from typing import Union, Dict, Callable
 
 import math
