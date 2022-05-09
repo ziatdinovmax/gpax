@@ -118,7 +118,7 @@ class sPM:
         return samples['y']
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
-                samples: Optional[Dict[str, jnp.ndarray]],
+                samples: Optional[Dict[str, jnp.ndarray]] = None,
                 filter_nans: bool = False) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using sampled GP hyperparameters
@@ -138,6 +138,9 @@ class sPM:
             self.model, posterior_samples=samples, parallel=True)
         y_pred = predictive(rng_key, X_new)
         y_pred, y_sampled = y_pred["mu"], y_pred["y"]
+        if filter_nans:
+            y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
+            y_sampled = jnp.array(y_sampled_)
         return y_pred.mean(0), y_sampled
 
     def _print_summary(self):
