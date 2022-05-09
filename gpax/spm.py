@@ -69,7 +69,7 @@ class sPM:
 
         Args:
             rng_key: random number generator key
-            X: 2D 'feature vector' with :math:`n x num_features` dimensions
+            X: 1D or 2D 'feature vector' with :math:`(n,)` or :math:`n x num_features` dimensions
             y: 1D 'target vector' with :math:`(n,)` dimensions
             num_warmup: number of MCMC warmup states
             num_samples: number of MCMC samples
