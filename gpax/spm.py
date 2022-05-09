@@ -43,7 +43,7 @@ class sPM:
         self._model = model
         self.model_prior = model_prior
         if noise_prior is None:
-            self.noise_prior = lambda: numpyro.sample("sig", dist.LogNormal(1))
+            self.noise_prior = lambda: numpyro.sample("sig", dist.LogNormal(0, 1))
         else:
             self.noise_prior = noise_prior
 
@@ -78,9 +78,6 @@ class sPM:
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
         """
-        X, y = self._set_data(X, y)
-        self.X_train = X
-        self.y_train = y
 
         init_strategy = init_to_median(num_samples=10)
         kernel = NUTS(self.model, init_strategy=init_strategy)
@@ -101,12 +98,21 @@ class sPM:
         """Get posterior samples (after running the MCMC chains)"""
         return self.mcmc.get_samples(group_by_chain=chain_dim)
 
+    def get_param_means(self):
+        """
+        Returns mean value for each probabilistic parameter in the model
+        """
+        samples = self.get_samples()
+        param_means = {
+            k: v.mean(0).item() for (k, v) in samples.items() if k != 'mu'
+        }
+        return param_means
+
     def sample_from_prior(self, rng_key: jnp.ndarray,
                           X: jnp.ndarray, num_samples: int = 10):
         """
         Samples from prior predictive distribution at X
         """
-        X = self._set_data(X)
         prior_predictive = Predictive(self.model, num_samples=num_samples)
         samples = prior_predictive(rng_key, X)
         return samples['y']
@@ -135,5 +141,4 @@ class sPM:
         return y_pred.mean(0), y_sampled
 
     def _print_summary(self):
-        samples = self.get_samples(1)
-        numpyro.diagnostics.print_summary(samples)
+        self.mcmc.print_summary()
