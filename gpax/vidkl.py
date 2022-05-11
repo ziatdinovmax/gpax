@@ -1,3 +1,12 @@
+"""
+vidkl.py
+========
+
+Variational inference-based implementation of deep kernel learning
+
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
+"""
+
 from functools import partial
 from typing import Callable, Dict, Optional, Tuple
 
@@ -21,13 +30,36 @@ class viDKL(ExactGP):
     Implementation of the variational infernece-based deep kernel learning
 
     Args:
-        input_dim: number of input dimensions
-        z_dim: latent space dimensionality
-        kernel: type of kernel ('RBF', 'Matern', 'Periodic')
-        kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
-        nn: Custom neural network (optional)
-        latent_prior: Optional prior over the latent space (NN embedding)
-        guide: auto-guide option, use 'delta' (default) or 'normal'
+        input_dim:
+            Number of input dimensions
+        z_dim:
+            Latent space dimensionality (defaults to 2)
+        kernel:
+            Kernel function ('RBF', 'Matern', 'Periodic', or custom function)
+        kernel_prior:
+            Optional priors over kernel hyperparameters; uses LogNormal(0,1) by default
+        nn:
+            Custom neural network ('feature extractor'); uses a 3-layer MLP
+            with ReLU activations by default
+        latent_prior:
+            Optional prior over the latent space (NN embedding); uses none by default
+        guide:
+            Auto-guide option, use 'delta' (default) or 'normal'
+    
+    Examples:
+
+        vi-DKL with image patches as inputs and a 1-d vector as targets
+
+        >>> # Get random number generator keys for training and prediction
+        >>> key1, key2 = gpax.utils.get_keys()
+        >>> input data dimensions are (n, height*width*channels)
+        >>> data_dim = X.shape[-1]
+        >>> # Initialize vi-DKL model with 2 latent dimensions
+        >>> dkl = gpax.viDKL(input_dim=data_dim, z_dim=2, kernel='RBF')
+        >>> Train a model
+        >>> dkl.fit(rng_key, X_train, y_train, num_steps=1000, step_size=0.005)
+        >>> # Obtain posterior mean and variance ('uncertainty') at new inputs
+        >>> y_mean, y_var = dkl.predict(key2, X_new)
     """
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
@@ -245,6 +277,7 @@ class viDKL(ExactGP):
     def fit_predict(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
                     X_new: jnp.ndarray, num_steps: int = 1000, step_size: float = 5e-3,
                     n_models: int = 1, batch_size: int = 100, noiseless: bool = False,
+                    ensemble_method: str = 'vectorized',
                     print_summary: bool = True, progress_bar=True
                     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
@@ -264,6 +297,7 @@ class viDKL(ExactGP):
                 Noise-free prediction. It is set to False by default as new/unseen data is assumed
                 to follow the same distribution as the training data. Hence, since we introduce a model noise
                 for the training data, we also want to include that noise in our prediction.
+            ensemble_method: 'vectorized' (single GPU) or 'parallel' (multiple GPUs)
             print_summary: print summary at the end of sampling
             progress_bar: show progress bar (works only for scalar outputs)
 
@@ -277,10 +311,14 @@ class viDKL(ExactGP):
             mean, var = self.predict_in_batches(key, X_new, batch_size, noiseless)
             return mean, var
 
+        if n_models > 1 and ensemble_method not in ["vectorized", "parallel"]:
+            raise ValueError(
+                "For the ensemble_method, select between 'vectorized and 'parallel'.")
         keys = jax.random.split(rng_key, num=n_models)
         if n_models > 1:
+            pstrategy = jax.vmap if ensemble_method == 'vectorized' else jax.pmap
             print_summary = progress_bar = 0
-            mean, var = jax.vmap(single_fit_predict)(keys)
+            mean, var = pstrategy(single_fit_predict)(keys)
         else:
             mean, var = single_fit_predict(keys[0])
 

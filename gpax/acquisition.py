@@ -1,3 +1,12 @@
+"""
+acquisition.py
+==============
+
+Acquisition functions
+
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
+"""
+
 from typing import Type, Tuple, Optional
 
 import jax.numpy as jnp

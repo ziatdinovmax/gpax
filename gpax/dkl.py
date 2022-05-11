@@ -1,3 +1,12 @@
+"""
+dkl.py
+=======
+
+Fully Bayesian implementation of deep kernel learning
+
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
+"""
+
 from functools import partial
 from typing import Callable, Dict, Optional, Tuple, Union
 
@@ -16,13 +25,37 @@ class DKL(vExactGP):
     Fully Bayesian implementation of deep kernel learning
 
     Args:
-        input_dim: number of input dimensions
-        z_dim: latent space dimensionality
-        kernel: type of kernel ('RBF', 'Matern', 'Periodic')
-        kernel_prior: optional priors over kernel hyperparameters (uses LogNormal(0,1) by default)
-        nn: Custom MLP
-        nn_prior: Bayesian priors over the weights and biases in 'nn'
-        latent_prior: Optional prior over the latent space (BNN embedding)
+        input_dim:
+            Number of input dimensions
+        z_dim:
+            Latent space dimensionality (defaults to 2)
+        kernel:
+            Kernel function ('RBF', 'Matern', 'Periodic', or custom function)
+        kernel_prior:
+            Optional priors over kernel hyperparameters; uses LogNormal(0,1) by default
+        nn:
+            Custom neural network ('feature extractor'); uses a 3-layer MLP
+            with hyperbolic tangent activations by default
+        nn_prior:
+            Priors over the weights and biases in 'nn'; uses normal priors by default
+        latent_prior:
+            Optional prior over the latent space (BNN embedding); uses none by default
+
+    Examples:
+
+        DKL with image patches as inputs and a 1-d vector as targets
+
+        >>> # Get random number generator keys for training and prediction
+        >>> key1, key2 = gpax.utils.get_keys()
+        >>> input data dimensions are (n, height*width*channels)
+        >>> data_dim = X.shape[-1]
+        >>> # Initialize DKL model with 2 latent dimensions
+        >>> dkl = gpax.DKL(data_dim, z_dim=2, kernel='RBF')
+        >>> # Train model by parallelizing MCMC chains on a single GPU
+        >>> dkl.fit(key1, X, y, num_warmup=333, num_samples=333, num_chains=3, chain_method='vectorized')
+        >>> # Obtain posterior mean and samples from DKL posterior at new inputs
+        >>> # using batches to avoid memory overflow
+        >>> y_pred, y_samples = dkl.predict_in_batches(key2, X_new)
     """
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
