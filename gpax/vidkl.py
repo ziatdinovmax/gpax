@@ -277,6 +277,7 @@ class viDKL(ExactGP):
     def fit_predict(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
                     X_new: jnp.ndarray, num_steps: int = 1000, step_size: float = 5e-3,
                     n_models: int = 1, batch_size: int = 100, noiseless: bool = False,
+                    ensemble_method: str = 'vectorized',
                     print_summary: bool = True, progress_bar=True
                     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
@@ -296,6 +297,7 @@ class viDKL(ExactGP):
                 Noise-free prediction. It is set to False by default as new/unseen data is assumed
                 to follow the same distribution as the training data. Hence, since we introduce a model noise
                 for the training data, we also want to include that noise in our prediction.
+            ensemble_method: 'vectorized' (single GPU) or 'parallel' (multiple GPUs)
             print_summary: print summary at the end of sampling
             progress_bar: show progress bar (works only for scalar outputs)
 
@@ -309,10 +311,14 @@ class viDKL(ExactGP):
             mean, var = self.predict_in_batches(key, X_new, batch_size, noiseless)
             return mean, var
 
+        if n_models > 1 and ensemble_method not in ["vectorized", "parallel"]:
+            raise ValueError(
+                "For the ensemble_method, select between 'vectorized and 'parallel'.")
         keys = jax.random.split(rng_key, num=n_models)
         if n_models > 1:
+            pstrategy = jax.vmap if ensemble_method == 'vectorized' else jax.pmap
             print_summary = progress_bar = 0
-            mean, var = jax.vmap(single_fit_predict)(keys)
+            mean, var = pstrategy(single_fit_predict)(keys)
         else:
             mean, var = single_fit_predict(keys[0])
 
