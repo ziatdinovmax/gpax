@@ -45,12 +45,13 @@ def piecewise(x: jnp.ndarray, params: Dict[str, float]) -> jnp.ndarray:
 where ```jnp``` corresponds to jax.numpy module. This function is deterministic. To make it probabilistic, we put priors over its parameters with the help of [NumPyro](https://github.com/pyro-ppl/numpyro)
 ```python3
 import numpyro
+from numpyro import distributions
 
 def piecewise_priors():
     # Sample model parameters
-    t = numpyro.sample("t", numpyro.distributions.Uniform(0.5, 2.5))
-    beta1 = numpyro.sample("beta1", numpyro.distributions.Normal(3, 1))
-    beta2 = numpyro.sample("beta2", numpyro.distributions.Normal(3, 1))
+    t = numpyro.sample("t", distributions.Uniform(0.5, 2.5))
+    beta1 = numpyro.sample("beta1", distributions.Normal(3, 1))
+    beta2 = numpyro.sample("beta2", distributions.Normal(3, 1))
     # Return sampled parameters as a dictionary
     return {"t": t, "beta1": beta1, "beta2": beta2}
 ```
