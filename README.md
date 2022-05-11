@@ -18,15 +18,16 @@ gp_model = gpax.ExactGP(1, kernel='Matern')
 # Run MCMC to obtain posterior samples for the GP model parameters
 gp_model.fit(rng_key, X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
 ```
-In the [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a pair of predictive mean and covariance for each MCMC sample containing the GP parameters (in this case, the Matern kernel hyperparameters and model noise). Hence, a prediction on new inputs with a trained GP model returns the center of the mass of the sampled means (```y_pred```) and samples from the multivariate normal distributions associated with MCMC samples (```y_sampled```)
+In the [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a pair of predictive mean and covariance for each MCMC sample containing the GP parameters (in this case, the Matern kernel hyperparameters and model noise). Hence, a prediction on new inputs with a trained GP model returns the center of the mass of all the predictive means (```y_pred```) and a sample (or an average of multiple samples) from a multivariate normal distribution for each pair of predictive mean and covariance (```y_sampled```).
 ```python3
-y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test)
+y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test, n=1)  # n controls the number of MVN samples for each pair of predictive mean and covariance
 ```
-<img src = "https://user-images.githubusercontent.com/34245227/160270151-2ba75d9e-1565-4c1a-865e-13bd20029e20.jpg" height="60%" width="60%">
+
+<img src = "https://user-images.githubusercontent.com/34245227/167945293-8cb5b88a-1f64-4f7d-95ab-26863b90d1e5.jpg" height="60%" width="60%">
 
 For 1-dimensional data, we can plot the GP prediction using the standard approach where the uncertainty in predictions - represented by a standard deviation in ```y_sampled``` - is depicted as a shaded area around the mean value. See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb).
 
-<img src = "https://user-images.githubusercontent.com/34245227/160270198-7ad52aeb-49b1-49b8-9e53-eb422737ad34.jpg" height="60%" width="60%">
+<img src = "https://user-images.githubusercontent.com/34245227/167945487-05068084-86cb-4104-a792-d39d2f834151.jpg" height="60%" width="60%">
 
 ### Structured GP
 The limitation of the standard GP is that it does not usually allow for the incorporation of prior domain knowledge and can be biased toward a trivial interpolative solution. Recently, we [introduced](https://arxiv.org/abs/2108.10280) a structured Gaussian Process (sGP), where a classical GP is augmented by a structured probabilistic model of the expected system’s behavior. This approach allows us to [balance](https://towardsdatascience.com/unknown-knowns-bayesian-inference-and-structured-gaussian-processes-why-domain-scientists-know-4659b7e924a4) the flexibility of the non-parametric GP approach with a rigid structure of prior (physical) knowledge encoded into the parametric model.
@@ -66,11 +67,12 @@ sgp_model.fit(rng_key, X, y)
 # Get GP prediction on new/test data
 y_pred, y_sampled = sgp_model.predict(rng_key_predict, X_test)
 ```
-<img src="https://user-images.githubusercontent.com/34245227/160270279-6cf19148-2d8f-4ae3-964d-2483fade8118.jpg">
+
+<img src="https://user-images.githubusercontent.com/34245227/167949916-ca79005e-7fa0-4de1-917c-d191f9dae512.jpg">
 
 The probabilistic model reflects our prior knowledge about the system, but it does not have to be precise, that is, the model can have a different functional form, as long as it captures general or partial trends in the data. The full example including the active learning part is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb).
 
-<img src="https://user-images.githubusercontent.com/34245227/160270354-1811ed45-1bfe-45cf-91b5-27e13496d5f8.jpg" height="50%" width="50%">
+<img src="https://user-images.githubusercontent.com/34245227/167950935-98681279-414c-4af0-8afb-8acfb127b6bf.jpg" height="50%" width="50%">
 
 
 ### Active learning and Bayesian optimization
@@ -82,20 +84,20 @@ gp_model.fit(rng_key, X_measured, y_measured)  # A
 
 # Compute the upper confidence bound (UCB) acquisition function to derive the next measurement point
 acq = gpax.acquisition.UCB(rng_key_predict, gp_model, X_unmeasured, beta=4, maximize=True, noiseless=True)  # B
-next_point_idx = acq.argmax()
-next_point = X_unmeasured[next_point_idx]
+next_point_idx = acq.argmax()  # C
+next_point = X_unmeasured[next_point_idx]  # D
 
-# Perform measurement in next_point, update measured & unmeasured data arrays, and re-run steps A and B.
+# Perform measurement in next_point, update measured & unmeasured data arrays, and re-run steps A-D.
 ```
 
 In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and acquisiton function. Here, the posterior mean values indicate that the maximum of a "black box" function describing a behaviour of interest is around x=8.5. At the same time, there is a high dispersion in the samples from the psoterior predictive distribution between x=2.5 and x=7.5. These regions are referred to as regions with high uncertainty. The acquisition function is computed as a function of both predictive mean and uncertainty and its maximum corresponds to the next measurement point in the active learning setup. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈3.7 where potentially a true maximum is located.
 
-![acqfn_figure](https://user-images.githubusercontent.com/34245227/167929734-9bf1973f-d6e8-402d-a14f-f2614feb9ab8.jpg)
+<img src="https://user-images.githubusercontent.com/34245227/167929734-9bf1973f-d6e8-402d-a14f-f2614feb9ab8.jpg">
 
 ### Hypothesis learning
 The structured GP can be also used for hypothesis learning in automated experiments. The [hypothesis learning](https://arxiv.org/abs/2112.06649) is based on the idea that in active learning, the correct model of the system’s behavior leads to a faster decrease in the overall Bayesian uncertainty about the system under study. In the hypothesis learning setup, probabilistic models of the possible system’s behaviors (hypotheses) are wrapped into structured GPs, and a basic reinforcement learning policy is used to select a correct model from several competing hypotheses. The example of hypothesis learning on toy data is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/hypoAL.ipynb).
 
-![HypoAL](https://user-images.githubusercontent.com/34245227/167936394-52f5ffd5-a47c-425d-b8a7-0727938dfab2.gif)
+<img src="https://user-images.githubusercontent.com/34245227/167936394-52f5ffd5-a47c-425d-b8a7-0727938dfab2.gif">
 
 
 ### Deep kernel learning
@@ -109,19 +111,19 @@ import gpax
 rng_key, rng_key_predict = gpax.utils.get_keys()
 
 # Obtain/update DKL posterior; input data dimensions are (n, h*w*c)
-dkl = gpax.viDKL(input_dim=X.shape[-1], z_dim=2, kernel='RBF')
-dkl.fit(rng_key, X_train, y_train, num_steps=100, step_size=0.05)
+dkl = gpax.viDKL(input_dim=X.shape[-1], z_dim=2, kernel='RBF')  # A
+dkl.fit(rng_key, X_train, y_train, num_steps=100, step_size=0.05)  # B
 
 # Compute UCB acquisition function
-obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)
+obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)  # C
 # Select next point to measure (assuming grid data)
-next_point_idx = obj.argmax()
+next_point_idx = obj.argmax()  # D
 
-# Perform measurement in next_point_idx, update trainning data, etc.
+# Perform measurement in next_point_idx, update measured & unmeasured data arrays, and re-run steps A-D.
 ```
 Below we show a result of a simple DKL-based search for regions of the nano-plasmonic array that [host edge plasmons](https://arxiv.org/abs/2108.03290). The full example is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viDKL_plasmons.ipynb). 
 
-![image](https://user-images.githubusercontent.com/34245227/160270568-147fa21b-91f3-48b8-8dd2-c33eb4b497b4.png)
+<img src="https://user-images.githubusercontent.com/34245227/160270568-147fa21b-91f3-48b8-8dd2-c33eb4b497b4.png">
 
 Note that in viDKL, we use a simple MLP as a default feature extractor. However, you can easily write a custom DNN using [haiku](https://github.com/deepmind/dm-haiku) and pass it to the viDKL initializer
 ```python3
