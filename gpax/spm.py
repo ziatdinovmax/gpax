@@ -46,6 +46,7 @@ class sPM:
             self.noise_prior = lambda: numpyro.sample("sig", dist.LogNormal(0, 1))
         else:
             self.noise_prior = noise_prior
+        self.mcmc = None
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray = None) -> None:
         """
