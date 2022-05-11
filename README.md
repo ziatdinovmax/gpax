@@ -71,8 +71,27 @@ The probabilistic model reflects our prior knowledge about the system, but it do
 
 <img src="https://user-images.githubusercontent.com/34245227/160270354-1811ed45-1bfe-45cf-91b5-27e13496d5f8.jpg" height="50%" width="50%">
 
+
+### Active learning and Bayesian optimization
+Both GP and sGP can be used for active learning to reconstruct the entire data distribution from sparse observations or to localize the behavior of interest with a minimal number of measurements (the latter is usually referred to as [Bayesian optimization](https://ieeexplore.ieee.org/abstract/document/7352306))
+
+```python3
+# Train a GP model (it can be sGP or vanilla GP)
+gp_model.fit(rng_key, X_measured, y_measured)  # A
+
+# Compute the upper confidence bound (UCB) acquisition function to derive the next measurement point
+acq = gpax.acquisition.UCB(rng_key_predict, gp_model, X_unmeasured, beta=4, maximize=True, noiseless=True)  # B
+next_point_idx = acq.argmax()
+next_point = X_unmeasured[next_point_idx]
+
+# Perform measurement in next_point, update measured & unmeasured data arrays, and re-run steps A and B.
+```
+
+In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and acquisiton function. Here, the posterior mean values indicate that the maximum of a "black box" function describing a behaviour of interest is around x=8.5. At the same time, there is a high dispersion in the samples from the psoterior predictive distribution between x=2.5 and x=7.5. These regions are referred to as regions with high uncertainty. The acquisition function is computed as a function of both predictive mean and uncertainty and its maximum corresponds to the next measurement point in the active learning setup. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈3.7 where potentially a true maximum is located
+![acqfn_figure](https://user-images.githubusercontent.com/34245227/167929734-9bf1973f-d6e8-402d-a14f-f2614feb9ab8.jpg)
+
 ### Hypothesis learning
-The structured GP can be used for hypothesis learning in automated experiments. The [hypothesis learning](https://arxiv.org/abs/2112.06649) is based on the idea that in active learning, the correct model of the system’s behavior leads to a faster decrease in the overall Bayesian uncertainty about the system under study. In the hypothesis learning setup, probabilistic models of the possible system’s behaviors (hypotheses) are wrapped into structured GPs, and a basic reinforcement learning policy is used to select a correct model from several competing hypotheses. The example of hypothesis learning on toy data is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/hypoAL.ipynb).
+The structured GP can be also used for hypothesis learning in automated experiments. The [hypothesis learning](https://arxiv.org/abs/2112.06649) is based on the idea that in active learning, the correct model of the system’s behavior leads to a faster decrease in the overall Bayesian uncertainty about the system under study. In the hypothesis learning setup, probabilistic models of the possible system’s behaviors (hypotheses) are wrapped into structured GPs, and a basic reinforcement learning policy is used to select a correct model from several competing hypotheses. The example of hypothesis learning on toy data is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/hypoAL.ipynb).
 
 ### Deep kernel learning
 [Deep kernel learning (DKL)](https://arxiv.org/abs/1511.02222) can be understood as a hybrid of deep neural network (DNN) and GP. The DNN serves as a feature extractor that allows reducing the complex high-dimensional features to low-dimensional descriptors on which a standard GP kernel operates. The parameters of DNN and of GP kernel are inferred jointly in an end-to-end fashion. Practically, the DKL training inputs are usually patches from an (easy-to-acquire) structural image, and training targets represent a physical property of interest derived from the (hard-to-acquire) spectra measured in those patches. The DKL output on the new inputs (image patches for which there are no measured spectra) is the expected property value and associated uncertainty, which can be used to derive the next measurement point in the automated experiment. 
