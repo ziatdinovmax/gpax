@@ -64,6 +64,8 @@ class viDKL(ExactGP):
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 gp_mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
+                 gp_mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None,
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None,
                  guide: str = 'delta'
@@ -76,6 +78,8 @@ class viDKL(ExactGP):
         self.kernel_dim = z_dim
         self.data_dim = (input_dim,) if isinstance(input_dim, int) else input_dim
         self.latent_prior = latent_prior
+        self.gp_mean_fn = gp_mean_fn
+        self.gp_mean_fn_prior = gp_mean_fn_prior
         self.guide_type = AutoNormal if guide == 'normal' else AutoDelta
         self.kernel_params = None
         self.nn_params = None
@@ -87,6 +91,13 @@ class viDKL(ExactGP):
             "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim),
             prior=(lambda name, shape: dist.Cauchy() if name.startswith("b") else dist.Normal()))
         z = feature_extractor(X)
+        # Add GP prior mean function (if any)
+        f_loc = jnp.zeros(z.shape[0])
+        if self.gp_mean_fn is not None:
+            args = [z]
+            if self.gp_mean_fn_prior is not None:
+                args += [self.gp_mean_fn_prior()]
+            f_loc += self.gp_mean_fn(*args).squeeze()
         if self.latent_prior:  # Sample latent variable
             z = self.latent_prior(z)
         # Sample GP kernel parameters
@@ -96,8 +107,6 @@ class viDKL(ExactGP):
             kernel_params = self._sample_kernel_params()
         # Sample noise
         noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
-        # GP's mean function
-        f_loc = jnp.zeros(z.shape[0])
         # compute kernel
         k = get_kernel(self.kernel)(
             z, z,
@@ -195,6 +204,11 @@ class viDKL(ExactGP):
             nn_params, jax.random.PRNGKey(0), X_train)
         z_test = self.nn_module.apply(
             nn_params, jax.random.PRNGKey(0), X_new)
+        # Mean function
+        y_residual = self.y_train
+        if self.gp_mean_fn is not None:
+            args = [z_train, k_params] if self.gp_mean_fn_prior else [z_train]
+            y_residual -= self.gp_mean_fn(*args).squeeze()
         # compute kernel matrices for train and test data
         k_pp = get_kernel(self.kernel)(z_test, z_test, k_params, noise_p)
         k_pX = get_kernel(self.kernel)(z_test, z_train, k_params, jitter=0.0)
@@ -202,7 +216,10 @@ class viDKL(ExactGP):
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
-        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_train))
+        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
+        if self.gp_mean_fn is not None:
+            args = [z_test, k_params] if self.gp_mean_fn_prior else [z_test]
+            mean += self.gp_mean_fn(*args).squeeze()
         return mean, cov
 
     def sample_from_posterior(self, rng_key: jnp.ndarray,
