@@ -224,7 +224,7 @@ class viDKL(ExactGP):
         z_test = self.nn_module.apply(
             nn_params, jax.random.PRNGKey(0), X_new)
         # Mean function
-        y_residual = self.y_train
+        y_residual = y_train
         if self.gp_mean_fn is not None:
             args = [z_train, k_params] if self.gp_mean_fn_prior else [z_train]
             y_residual -= self.gp_mean_fn(*args).squeeze()
