@@ -16,7 +16,7 @@ import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import SVI, Trace_ELBO
 from numpyro.infer.autoguide import AutoDelta, AutoNormal
-from numpyro.contrib.module import random_haiku_module
+from numpyro.contrib.module import haiku_module, random_haiku_module
 from jax import jit
 import haiku as hk
 
@@ -66,7 +66,7 @@ class viDKL(ExactGP):
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  gp_mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  gp_mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None,
+                 nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None, nn_prior: bool = True,
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None,
                  guide: str = 'delta'
                  ) -> None:
@@ -81,15 +81,23 @@ class viDKL(ExactGP):
         self.gp_mean_fn = gp_mean_fn
         self.gp_mean_fn_prior = gp_mean_fn_prior
         self.guide_type = AutoNormal if guide == 'normal' else AutoDelta
+        self.nn_prior = nn_prior
         self.kernel_params = None
         self.nn_params = None
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray = None) -> None:
         """DKL probabilistic model"""
         # NN part
-        feature_extractor = random_haiku_module(
-            "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim),
-            prior=(lambda name, shape: dist.Cauchy() if name.startswith("b") else dist.Normal()))
+        if self.nn_prior:
+            prior = (lambda name, shape: dist.Cauchy()
+                     if name.startswith("b") else dist.Normal())
+            feature_extractor = random_haiku_module(
+                "feature_extractor", self.nn_module,
+                input_shape=(1, *self.data_dim), prior=prior)
+        else:
+            feature_extractor = haiku_module(
+                "feature_extractor", self.nn_module,
+                input_shape=(1, *self.data_dim))
         z = feature_extractor(X)
         # Add GP prior mean function (if any)
         f_loc = jnp.zeros(z.shape[0])
@@ -136,14 +144,22 @@ class viDKL(ExactGP):
             X=X,
             y=y,
         )
-        params, _, losses = svi.run(rng_key, num_steps, progress_bar=progress_bar)
+        params, _, losses = svi.run(
+            rng_key, num_steps, progress_bar=progress_bar)
         # Get DKL parameters from the guide
-        params_map = svi.guide.median(params)
-        # Get NN weights
-        nn_params = get_haiku_dict(params_map)
-        # Get GP kernel hyperparmeters
-        kernel_params = {k: v for (k, v) in params_map.items()
-                         if not k.startswith("feature_extractor")}
+        if self.nn_prior:
+            # Get all MAP estimates
+            params_map = svi.guide.median(params)
+            # Get NN weights
+            nn_params = get_haiku_dict(params_map)
+            # Get GP kernel hyperparmeters
+            kernel_params = {k: v for (k, v) in params_map.items()
+                             if not k.startswith("feature_extractor")}
+        else:
+            # Get NN weights
+            nn_params = params["feature_extractor$params"]
+            # Get GP kernel hyperparmeters
+            kernel_params = svi.guide.median(params)
         return nn_params, kernel_params, losses
 
     def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
