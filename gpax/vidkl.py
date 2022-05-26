@@ -41,11 +41,14 @@ class viDKL(ExactGP):
         nn:
             Custom neural network ('feature extractor'); uses a 3-layer MLP
             with ReLU activations by default
+        nn_prior:
+            Put standard Normal and Cauchy priors over the nn weights
+            and biases, respectively (Default: True)
         latent_prior:
             Optional prior over the latent space (NN embedding); uses none by default
         guide:
             Auto-guide option, use 'delta' (default) or 'normal'
-    
+
     Examples:
 
         vi-DKL with image patches as inputs and a 1-d vector as targets
