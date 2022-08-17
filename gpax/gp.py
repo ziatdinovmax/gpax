@@ -161,7 +161,8 @@ class ExactGP:
             num_warmup: int = 2000, num_samples: int = 2000,
             num_chains: int = 1, chain_method: str = 'sequential',
             progress_bar: bool = True, print_summary: bool = True,
-            device: str = None) -> None:
+            device: Type[jaxlib.xla_extension.Device] = None
+            ) -> None:
         """
         Run MCMC to infer the GP model parameters
 
@@ -175,7 +176,9 @@ class ExactGP:
             chain_method: 'sequential', 'parallel' or 'vectorized'
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
-            device: optionally specify a cpu or gpu device on which to run the inference
+            device:
+                optionally specify a cpu or gpu device on which to run the inference;
+                e.g., ```device=jax.devices("cpu")[0]``` 
         """
         X, y = self._set_data(X, y)
         if device:
@@ -321,7 +324,9 @@ class ExactGP:
                 Noise-free prediction. It is set to False by default as new/unseen data is assumed
                 to follow the same distribution as the training data. Hence, since we introduce a model noise
                 for the training data, we also want to include that noise in our prediction.
-            device: optionally specify a cpu or gpu device on which to make a prediction
+            device:
+                optionally specify a cpu or gpu device on which to make a prediction;
+                e.g., ```device=jax.devices("gpu")[0]```
 
         Returns:
             Center of the mass of sampled means and all the sampled predictions
