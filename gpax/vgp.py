@@ -8,9 +8,10 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
 from functools import partial
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Tuple, Union, Type
 
 import jax
+import jaxlib
 import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
@@ -145,7 +146,8 @@ class vExactGP(ExactGP):
                            samples: Optional[Dict[str, jnp.ndarray]] = None,
                            n: int = 1, filter_nans: bool = False,
                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
-                           noiseless: bool = False
+                           noiseless: bool = False,
+                           device: Type[jaxlib.xla_extension.Device] = None
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new with sampled GP hyperparameters
@@ -156,7 +158,7 @@ class vExactGP(ExactGP):
         X_new = self._set_data(X_new)
         y_pred, y_sampled = self._predict_in_batches(
             rng_key, X_new, batch_size, 1, samples, n,
-            filter_nans, predict_fn, noiseless)
+            filter_nans, predict_fn, noiseless, device)
         y_pred = jnp.concatenate(y_pred, -1)
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled

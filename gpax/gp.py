@@ -8,9 +8,10 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
 from functools import partial
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Tuple, Type, Union
 
 import jax
+import jaxlib
 import jax.numpy as jnp
 import jax.random as jra
 import numpyro
@@ -159,7 +160,8 @@ class ExactGP:
     def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
             num_warmup: int = 2000, num_samples: int = 2000,
             num_chains: int = 1, chain_method: str = 'sequential',
-            progress_bar: bool = True, print_summary: bool = True) -> None:
+            progress_bar: bool = True, print_summary: bool = True,
+            device: str = None) -> None:
         """
         Run MCMC to infer the GP model parameters
 
@@ -173,8 +175,12 @@ class ExactGP:
             chain_method: 'sequential', 'parallel' or 'vectorized'
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
+            device: optionally specify a cpu or gpu device on which to run the inference
         """
         X, y = self._set_data(X, y)
+        if device:
+            X = jax.device_put(X, device)
+            y = jax.device_put(y, device)
         self.X_train = X
         self.y_train = y
 
@@ -256,11 +262,12 @@ class ExactGP:
                             samples: Optional[Dict[str, jnp.ndarray]] = None,
                             n: int = 1, filter_nans: bool = False,
                             predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
-                            noiseless: bool = False
+                            noiseless: bool = False,
+                            device: Type[jaxlib.xla_extension.Device] = None
                             ) -> Tuple[jnp.ndarray, jnp.ndarray]:
 
         if predict_fn is None:
-            predict_fn = lambda xi:  self.predict(rng_key, xi, samples, n, filter_nans, noiseless)
+            predict_fn = lambda xi:  self.predict(rng_key, xi, samples, n, filter_nans, noiseless, device)
 
         def predict_batch(Xi):
             out1, out2 = predict_fn(Xi)
@@ -280,7 +287,9 @@ class ExactGP:
                            samples: Optional[Dict[str, jnp.ndarray]] = None,
                            n: int = 1, filter_nans: bool = False,
                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
-                           noiseless: bool = False) -> Tuple[jnp.ndarray, jnp.ndarray]:
+                           noiseless: bool = False,
+                           device: Type[jaxlib.xla_extension.Device] = None
+                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new with sampled GP hyperparameters
         by spitting the input array into chunks ("batches") and running
@@ -289,14 +298,15 @@ class ExactGP:
         """
         y_pred, y_sampled = self._predict_in_batches(
             rng_key, X_new, batch_size, 0, samples, n,
-            filter_nans, predict_fn, noiseless)
+            filter_nans, predict_fn, noiseless, device)
         y_pred = jnp.concatenate(y_pred, 0)
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
-                n: int = 1, filter_nans: bool = False, noiseless: bool = False
+                n: int = 1, filter_nans: bool = False, noiseless: bool = False,
+                device: Type[jaxlib.xla_extension.Device] = None
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using sampled GP hyperparameters
@@ -311,6 +321,7 @@ class ExactGP:
                 Noise-free prediction. It is set to False by default as new/unseen data is assumed
                 to follow the same distribution as the training data. Hence, since we introduce a model noise
                 for the training data, we also want to include that noise in our prediction.
+            device: optionally specify a cpu or gpu device on which to make a prediction
 
         Returns:
             Center of the mass of sampled means and all the sampled predictions
@@ -318,6 +329,10 @@ class ExactGP:
         X_new = self._set_data(X_new)
         if samples is None:
             samples = self.get_samples(chain_dim=False)
+        if device:
+            self._set_training_data(device=device)
+            X_new = jax.device_put(X_new, device)
+            samples = jax.device_put(samples, device)
         num_samples = samples["k_length"].shape[0]
         vmap_args = (jra.split(rng_key, num_samples), samples)
         predictive = jax.vmap(
@@ -346,6 +361,19 @@ class ExactGP:
         if y is not None:
             return X, y.squeeze()
         return X
+
+    def _set_training_data(self,
+                           X_train_new: jnp.ndarray = None,
+                           y_train_new: jnp.ndarray = None,
+                           device: Type[jaxlib.xla_extension.Device] = None
+                           ) -> None:
+        X_train = self.X_train if X_train_new is None else X_train_new
+        y_train = self.y_train if y_train_new is None else y_train_new
+        if device:
+            X_train = jax.device_put(X_train, device)
+            y_train = jax.device_put(y_train, device)
+        self.X_train = X_train
+        self.y_train = y_train
 
     def _print_summary(self):
         samples = self.get_samples(1)
