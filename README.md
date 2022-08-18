@@ -7,6 +7,8 @@ GPax is a small Python package for physics-based Gaussian processes (GPs) built 
 
 ## How to use
 ### Simple GP
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb)
+
 The code snippet below shows how to use vanilla GP in a fully Bayesian mode. First, we infer GP model parameters from the available training data
 ```python3
 import gpax
@@ -30,6 +32,8 @@ For 1-dimensional data, we can plot the GP prediction using the standard approac
 <img src = "https://user-images.githubusercontent.com/34245227/167945487-05068084-86cb-4104-a792-d39d2f834151.jpg" height="60%" width="60%">
 
 ### Structured GP
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb)
+
 The limitation of the standard GP is that it does not usually allow for the incorporation of prior domain knowledge and can be biased toward a trivial interpolative solution. Recently, we [introduced](https://arxiv.org/abs/2108.10280) a structured Gaussian Process (sGP), where a classical GP is augmented by a structured probabilistic model of the expected system’s behavior. This approach allows us to [balance](https://towardsdatascience.com/unknown-knowns-bayesian-inference-and-structured-gaussian-processes-why-domain-scientists-know-4659b7e924a4) the flexibility of the non-parametric GP approach with a rigid structure of prior (physical) knowledge encoded into the parametric model.
 Implementation-wise, we substitute a constant/zero prior mean function in GP with a probabilistic model of the expected system's behavior.
 
@@ -95,12 +99,16 @@ In the figure below we illustrate the connection between the (s)GP posterior pre
 <img src="https://user-images.githubusercontent.com/34245227/167929734-9bf1973f-d6e8-402d-a14f-f2614feb9ab8.jpg">
 
 ### Hypothesis learning
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/hypoAL.ipynb)
+
 The structured GP can be also used for hypothesis learning in automated experiments. The [hypothesis learning](https://arxiv.org/abs/2112.06649) is based on the idea that in active learning, the correct model of the system’s behavior leads to a faster decrease in the overall Bayesian uncertainty about the system under study. In the hypothesis learning setup, probabilistic models of the possible system’s behaviors (hypotheses) are wrapped into structured GPs, and a basic reinforcement learning policy is used to select a correct model from several competing hypotheses. The example of hypothesis learning on toy data is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/hypoAL.ipynb).
 
 <img src="https://user-images.githubusercontent.com/34245227/167936394-52f5ffd5-a47c-425d-b8a7-0727938dfab2.gif">
 
 
 ### Deep kernel learning
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viDKL_plasmons.ipynb)
+
 [Deep kernel learning (DKL)](https://arxiv.org/abs/1511.02222) can be understood as a hybrid of deep neural network (DNN) and GP. The DNN serves as a feature extractor that allows reducing the complex high-dimensional features to low-dimensional descriptors on which a standard GP kernel operates. The parameters of DNN and of GP kernel are inferred jointly in an end-to-end fashion. Practically, the DKL training inputs are usually patches from an (easy-to-acquire) structural image, and training targets represent a physical property of interest derived from the (hard-to-acquire) spectra measured in those patches. The DKL output on the new inputs (image patches for which there are no measured spectra) is the expected property value and associated uncertainty, which can be used to derive the next measurement point in the automated experiment. 
 
 GPax package has the fully Bayesian DKL (weights of neural network and GP hyperparameters are inferred using Hamiltonian Monte Carlo) and the Variational Inference approximation of DKL, viDKL. The fully Bayesian DKL can provide an asymptotically exact solution but is too slow for most automated experiments. Hence, for the latter, one may use the viDKL
