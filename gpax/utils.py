@@ -7,11 +7,14 @@ Utility functions
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
-from typing import Union, Dict
+from typing import Union, Dict, Type
 
 import jax
 import jax.numpy as jnp
 import numpy as onp
+
+import numpyro
+
 
 def enable_x64():
     """Use double (x64) precision for jax arrays"""
@@ -67,3 +70,26 @@ def get_haiku_dict(kernel_params: Dict[str, jnp.ndarray]) -> Dict[str, Dict[str,
     for (k, v1), (_, v2) in zip(all_weights.items(), all_biases.items()):
         nn_params[k] = {"w": v1, "b": v2}
     return nn_params
+
+
+def dviz(d: Type[numpyro.distributions.Distribution]) -> None:
+    """
+    Utility function for visualizing numpyro distributions
+
+    Args:
+        d: numpyro distribution; e.g. numpyro.distributions.Gamma(2, 2)
+    """
+    try:
+        import seaborn as sns  # noqa: F401
+    except ImportError as e:
+        raise ImportError(
+            "You need to install `seaborn` to be able to use this feature. "
+            "It can be installed with `pip install seaborn`."
+        ) from e
+    import matplotlib.pyplot as plt
+
+    with numpyro.handlers.seed(rng_seed=0):
+        samples = d.sample(jax.random.PRNGKey(0), sample_shape=(10000,))
+    plt.figure(dpi=100)
+    sns.histplot(samples, kde=True, fill=False)
+    plt.show()
