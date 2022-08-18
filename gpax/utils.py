@@ -72,12 +72,13 @@ def get_haiku_dict(kernel_params: Dict[str, jnp.ndarray]) -> Dict[str, Dict[str,
     return nn_params
 
 
-def dviz(d: Type[numpyro.distributions.Distribution]) -> None:
+def dviz(d: Type[numpyro.distributions.Distribution], samples: int = 1000) -> None:
     """
     Utility function for visualizing numpyro distributions
 
     Args:
         d: numpyro distribution; e.g. numpyro.distributions.Gamma(2, 2)
+        samples: number of samples
     """
     try:
         import seaborn as sns  # noqa: F401
@@ -89,7 +90,7 @@ def dviz(d: Type[numpyro.distributions.Distribution]) -> None:
     import matplotlib.pyplot as plt
 
     with numpyro.handlers.seed(rng_seed=0):
-        samples = d.sample(jax.random.PRNGKey(0), sample_shape=(10000,))
+        samples = d.sample(jax.random.PRNGKey(0), sample_shape=(samples,))
     plt.figure(dpi=100)
     sns.histplot(samples, kde=True, fill=False)
     plt.show()
