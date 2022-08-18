@@ -16,11 +16,11 @@ import gpax
 # Get random number generator keys for training and prediction
 rng_key, rng_key_predict = gpax.utils.get_keys()
 # Initialize model
-gp_model = gpax.ExactGP(1, kernel='Matern')
+gp_model = gpax.ExactGP(1, kernel='RBF')
 # Run MCMC to obtain posterior samples for the GP model parameters
 gp_model.fit(rng_key, X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
 ```
-In the [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a pair of predictive mean and covariance for each MCMC sample containing the GP parameters (in this case, the Matern kernel hyperparameters and model noise). Hence, a prediction on new inputs with a trained GP model returns the center of the mass of all the predictive means (```y_pred```) and a sample (or an average of multiple samples) from a multivariate normal distribution for each pair of predictive mean and covariance (```y_sampled```).
+In the [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a pair of predictive mean and covariance for each MCMC sample containing the GP parameters (in this case, the RBF kernel hyperparameters and model noise). Hence, a prediction on new inputs with a trained GP model returns the center of the mass of all the predictive means (```y_pred```) and a sample (or an average of multiple samples) from a multivariate normal distribution for each pair of predictive mean and covariance (```y_sampled```).
 ```python3
 y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test, n=1)  # n controls the number of MVN samples for each pair of predictive mean and covariance
 ```
