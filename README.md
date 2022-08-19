@@ -82,7 +82,7 @@ The probabilistic model reflects our prior knowledge about the system, but it do
 ### Active learning and Bayesian optimization
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_GPBO.ipynb)
 
-Both GP and sGP can be used for active learning to reconstruct the entire data distribution from sparse observations or to localize the behavior of interest with a minimal number of measurements (the latter is usually referred to as [Bayesian optimization](https://ieeexplore.ieee.org/abstract/document/7352306))
+Both GP and sGP can be used for active learning to reconstruct the entire data distribution from sparse observations or to localize regions of the parameter space where a particular physical behavior is maximized or minimized with as few measurements as possible (the latter is usually referred to as [Bayesian optimization](https://ieeexplore.ieee.org/abstract/document/7352306)).
 
 ```python3
 # Train a GP model (it can be sGP or vanilla GP)
@@ -96,7 +96,7 @@ next_point = X_unmeasured[next_point_idx]  # D
 # Perform measurement in next_point, update measured & unmeasured data arrays, and re-run steps A-D.
 ```
 
-In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and acquisiton function. Here, the posterior mean values indicate that the minimum of a "black box" function describing a behaviour of interest is around x=0.7. At the same time, there is a large dispersion in the samples from the posterior predictive distribution between x=-0.5 and x=0.5, resulting in a high uncertainty in that region. The acquisition function is computed as a function of both predictive mean and uncertainty and its minimum corresponds to the next measurement point in the active learning setup. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈0 where potentially a true minimum is located.
+In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and the acquisiton function used to derive the next measurement points. Here, the posterior mean values indicate that the minimum of a "black box" function describing a behaviour of interest is around x=0.7. At the same time, there is a large dispersion in the samples from the posterior predictive distribution between x=-0.5 and x=0.5, resulting in a high uncertainty in that region. The acquisition function is computed as a function of both predictive mean and uncertainty and its minimum corresponds to the next measurement point in the active learning / Bayesian optimization setup. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈0 where potentially a true minimum is located.
 
 <img src="https://user-images.githubusercontent.com/34245227/185658311-1106f709-eba8-475e-9d3c-3d9f1c2a30d1.png">
 
