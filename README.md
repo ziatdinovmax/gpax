@@ -17,12 +17,12 @@ import gpax
 rng_key, rng_key_predict = gpax.utils.get_keys()
 # Initialize model
 gp_model = gpax.ExactGP(1, kernel='RBF')
-# Run MCMC to obtain posterior samples for the GP model parameters
+# Run Hamiltonian Monte Carlo to obtain posterior samples for the GP model parameters
 gp_model.fit(rng_key, X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
 ```
-In the [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a pair of predictive mean and covariance for each MCMC sample containing the GP parameters (in this case, the RBF kernel hyperparameters and model noise). Hence, a prediction on new inputs with a trained GP model returns the center of the mass of all the predictive means (```y_pred```) and a sample (or an average of multiple samples) from a multivariate normal distribution for each pair of predictive mean and covariance (```y_sampled```).
+In the [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a pair of predictive mean and covariance for each Hamiltonian Monte Carlo sample containing the GP parameters (in this case, the RBF kernel hyperparameters and model noise). Hence, a prediction on new inputs with a trained GP model returns the center of the mass of all the predictive means (```y_pred```) and samples from multivariate normal distributions for all the pairs of predictive means and covariances (```y_sampled```).
 ```python3
-y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test, n=1)  # n controls the number of MVN samples for each pair of predictive mean and covariance
+y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test)
 ```
 
 <img src = "https://user-images.githubusercontent.com/34245227/167945293-8cb5b88a-1f64-4f7d-95ab-26863b90d1e5.jpg" height="60%" width="60%">
@@ -80,6 +80,8 @@ The probabilistic model reflects our prior knowledge about the system, but it do
 
 
 ### Active learning and Bayesian optimization
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_GPBO.ipynb)
+
 Both GP and sGP can be used for active learning to reconstruct the entire data distribution from sparse observations or to localize the behavior of interest with a minimal number of measurements (the latter is usually referred to as [Bayesian optimization](https://ieeexplore.ieee.org/abstract/document/7352306))
 
 ```python3
@@ -87,16 +89,17 @@ Both GP and sGP can be used for active learning to reconstruct the entire data d
 gp_model.fit(rng_key, X_measured, y_measured)  # A
 
 # Compute the upper confidence bound (UCB) acquisition function to derive the next measurement point
-acq = gpax.acquisition.UCB(rng_key_predict, gp_model, X_unmeasured, beta=4, maximize=True, noiseless=True)  # B
-next_point_idx = acq.argmax()  # C
+acq = gpax.acquisition.UCB(rng_key_predict, gp_model, X_unmeasured, beta=4, maximize=False, noiseless=True)  # B
+next_point_idx = acq.argmin()  # C
 next_point = X_unmeasured[next_point_idx]  # D
 
 # Perform measurement in next_point, update measured & unmeasured data arrays, and re-run steps A-D.
 ```
 
-In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and acquisiton function. Here, the posterior mean values indicate that the maximum of a "black box" function describing a behaviour of interest is around x=8.5. At the same time, there is a high dispersion in the samples from the psoterior predictive distribution between x=2.5 and x=7.5. These regions are referred to as regions with high uncertainty. The acquisition function is computed as a function of both predictive mean and uncertainty and its maximum corresponds to the next measurement point in the active learning setup. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈3.7 where potentially a true maximum is located.
+In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and acquisiton function. Here, the posterior mean values indicate that the minimum of a "black box" function describing a behaviour of interest is around x=0.7. At the same time, there is a large dispersion in the samples from the posterior predictive distribution between x=-0.5 and x=0.5, resulting in a high uncertainty in that region. The acquisition function is computed as a function of both predictive mean and uncertainty and its minimum corresponds to the next measurement point in the active learning setup. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈0 where potentially a true minimum is located.
 
-<img src="https://user-images.githubusercontent.com/34245227/167929734-9bf1973f-d6e8-402d-a14f-f2614feb9ab8.jpg">
+<img src="https://user-images.githubusercontent.com/34245227/185658311-1106f709-eba8-475e-9d3c-3d9f1c2a30d1.png">
+
 
 ### Hypothesis learning
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/hypoAL.ipynb)
