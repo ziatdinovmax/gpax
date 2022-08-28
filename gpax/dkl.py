@@ -95,8 +95,8 @@ class DKL(vExactGP):
         f_loc = jnp.zeros(z.shape[:2])
         # compute kernel(s)
         jitter = jnp.array(jitter).repeat(task_dim)
-        k_args = (z, z, kernel_params, noise, jitter)
-        k = jax.vmap(get_kernel(self.kernel))(*k_args)
+        k_args = (z, z, kernel_params, noise)
+        k = jax.vmap(get_kernel(self.kernel))(*k_args, jitter=jitter)
         # Sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
