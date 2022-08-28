@@ -58,7 +58,7 @@ class ExactGP:
         >>> rng_key, rng_key_predict = gpax.utils.get_keys()
         >>> # Initialize model
         >>> gp_model = gpax.ExactGP(input_dim=1, kernel='Matern')
-        >>> # Run MCMC to obtain posterior samples for the GP model parameters
+        >>> # Run HMC to obtain posterior samples for the GP model parameters
         >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
         >>> # Make a noiseless prediction on new inputs
         >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
@@ -70,7 +70,7 @@ class ExactGP:
         >>>     input_dim=1, kernel='RBF',
         >>>     noise_prior = lambda: numpyro.deterministic("noise", 0) # zero observational noise
         >>> )
-        >>> # Run MCMC to obtain posterior samples for the GP model parameters
+        >>> # Run HMC to obtain posterior samples for the GP model parameters
         >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
         >>> # Make prediction on new inputs
         >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new)
@@ -81,7 +81,7 @@ class ExactGP:
         >>>     input_dim=1, kernel='RBF',
         >>>     noise_prior = lambda: numpyro.sample("noise", numpyro.distributions.HalfNormal(.1))
         >>> )
-        >>> # Run MCMC to obtain posterior samples for the GP model parameters
+        >>> # Run HMC to obtain posterior samples for the GP model parameters
         >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
         >>> # Make a noiselsess prediction on new inputs
         >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
@@ -101,7 +101,7 @@ class ExactGP:
         >>> sgp_model = gpax.ExactGP(
                 input_dim=1, kernel='Matern',
                 mean_fn=mean_fn, mean_fn_prior=mean_fn_prior)
-        >>> # Run MCMC to obtain posterior samples for the GP model parameters
+        >>> # Run HMC to obtain posterior samples for the GP model parameters
         >>> sgp_model.fit(rng_key, X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
         >>> Make a noiselsess prediction on new inputs
         >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
@@ -170,15 +170,15 @@ class ExactGP:
             **kwargs: float
             ) -> None:
         """
-        Run MCMC to infer the GP model parameters
+        Run Hamiltonian Monter Carlo to infer the GP model parameters
 
         Args:
             rng_key: random number generator key
             X: 2D 'feature vector' with :math:`n x num_features` dimensions
             y: 1D 'target vector' with :math:`(n,)` dimensions
-            num_warmup: number of MCMC warmup states
-            num_samples: number of MCMC samples
-            num_chains: number of MCMC chains
+            num_warmup: number of HMC warmup states
+            num_samples: number of HMC samples
+            num_chains: number of HMC chains
             chain_method: 'sequential', 'parallel' or 'vectorized'
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
@@ -330,7 +330,7 @@ class ExactGP:
             rng_key: random number generator key
             X_new: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
             samples: optional posterior samples
-            n: number of samples from Multivariate Normal posterior for each MCMC sample with GP hyperaparameters
+            n: number of samples from Multivariate Normal posterior for each HMC sample with GP hyperaparameters
             filter_nans: filter out samples containing NaN values (if any)
             noiseless:
                 Noise-free prediction. It is set to False by default as new/unseen data is assumed

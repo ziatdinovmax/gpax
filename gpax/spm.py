@@ -66,15 +66,15 @@ class sPM:
             num_chains: int = 1, chain_method: str = 'sequential',
             progress_bar: bool = True, print_summary: bool = True) -> None:
         """
-        Run MCMC to infer parameters of the structured probabilistic model
+        Run HMC to infer parameters of the structured probabilistic model
 
         Args:
             rng_key: random number generator key
             X: 1D or 2D 'feature vector' with :math:`(n,)` or :math:`n x num_features` dimensions
             y: 1D 'target vector' with :math:`(n,)` dimensions
-            num_warmup: number of MCMC warmup states
-            num_samples: number of MCMC samples
-            num_chains: number of MCMC chains
+            num_warmup: number of HMC warmup states
+            num_samples: number of HMC samples
+            num_chains: number of HMC chains
             chain_method: 'sequential', 'parallel' or 'vectorized'
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
