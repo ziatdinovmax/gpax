@@ -124,7 +124,11 @@ class ExactGP:
         self.y_train = None
         self.mcmc = None
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray = None) -> None:
+    def model(self,
+              X: jnp.ndarray,
+              y: jnp.ndarray = None,
+              **kwargs: float
+              ) -> None:
         """GP probabilistic model with inputs X and targets y"""
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
@@ -148,7 +152,8 @@ class ExactGP:
         k = get_kernel(self.kernel)(
             X, X,
             kernel_params,
-            noise
+            noise,
+            **kwargs
         )
         # sample y according to the standard Gaussian process formula
         numpyro.sample(
@@ -161,7 +166,8 @@ class ExactGP:
             num_warmup: int = 2000, num_samples: int = 2000,
             num_chains: int = 1, chain_method: str = 'sequential',
             progress_bar: bool = True, print_summary: bool = True,
-            device: Type[jaxlib.xla_extension.Device] = None
+            device: Type[jaxlib.xla_extension.Device] = None,
+            **kwargs: float
             ) -> None:
         """
         Run MCMC to infer the GP model parameters
@@ -179,6 +185,9 @@ class ExactGP:
             device:
                 optionally specify a cpu or gpu device on which to run the inference;
                 e.g., ```device=jax.devices("cpu")[0]``` 
+            **jitter:
+                Small positive term added to the diagonal part of a covariance
+                matrix for numerical stability (Default: 1e-6)
         """
         X, y = self._set_data(X, y)
         if device:
@@ -198,7 +207,7 @@ class ExactGP:
             progress_bar=progress_bar,
             jit_model_args=False
         )
-        self.mcmc.run(rng_key, X, y)
+        self.mcmc.run(rng_key, X, y, **kwargs)
         if print_summary:
             self._print_summary()
 
@@ -209,7 +218,7 @@ class ExactGP:
     @partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
-                          noiseless: bool = False
+                          noiseless: bool = False, **kwargs: float
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
@@ -222,9 +231,9 @@ class ExactGP:
             args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
             y_residual -= self.mean_fn(*args).squeeze()
         # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise_p)
+        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise_p, **kwargs)
         k_pX = get_kernel(self.kernel)(X_new, self.X_train, params, jitter=0.0)
-        k_XX = get_kernel(self.kernel)(self.X_train, self.X_train, params, noise)
+        k_XX = get_kernel(self.kernel)(self.X_train, self.X_train, params, noise, **kwargs)
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
@@ -235,11 +244,11 @@ class ExactGP:
         return mean, cov
 
     def _predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
-                 params: Dict[str, jnp.ndarray], n: int, noiseless: bool = False
-                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+                 params: Dict[str, jnp.ndarray], n: int, noiseless: bool = False,
+                 **kwargs: float) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Prediction with a single sample of GP hyperparameters"""
         # Get the predictive mean and covariance
-        y_mean, K = self.get_mvn_posterior(X_new, params, noiseless)
+        y_mean, K = self.get_mvn_posterior(X_new, params, noiseless, **kwargs)
         # draw samples from the posterior predictive for a given set of hyperparameters
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
@@ -266,11 +275,13 @@ class ExactGP:
                             n: int = 1, filter_nans: bool = False,
                             predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
                             noiseless: bool = False,
-                            device: Type[jaxlib.xla_extension.Device] = None
+                            device: Type[jaxlib.xla_extension.Device] = None,
+                            **kwargs: float
                             ) -> Tuple[jnp.ndarray, jnp.ndarray]:
 
         if predict_fn is None:
-            predict_fn = lambda xi:  self.predict(rng_key, xi, samples, n, filter_nans, noiseless, device)
+            predict_fn = lambda xi:  self.predict(
+                rng_key, xi, samples, n, filter_nans, noiseless, device, **kwargs)
 
         def predict_batch(Xi):
             out1, out2 = predict_fn(Xi)
@@ -291,7 +302,8 @@ class ExactGP:
                            n: int = 1, filter_nans: bool = False,
                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
                            noiseless: bool = False,
-                           device: Type[jaxlib.xla_extension.Device] = None
+                           device: Type[jaxlib.xla_extension.Device] = None,
+                           **kwargs: float
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new with sampled GP hyperparameters
@@ -301,7 +313,7 @@ class ExactGP:
         """
         y_pred, y_sampled = self._predict_in_batches(
             rng_key, X_new, batch_size, 0, samples, n,
-            filter_nans, predict_fn, noiseless, device)
+            filter_nans, predict_fn, noiseless, device, **kwargs)
         y_pred = jnp.concatenate(y_pred, 0)
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
@@ -309,7 +321,7 @@ class ExactGP:
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
                 n: int = 1, filter_nans: bool = False, noiseless: bool = False,
-                device: Type[jaxlib.xla_extension.Device] = None
+                device: Type[jaxlib.xla_extension.Device] = None, **kwargs: float
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using sampled GP hyperparameters
@@ -327,6 +339,9 @@ class ExactGP:
             device:
                 optionally specify a cpu or gpu device on which to make a prediction;
                 e.g., ```device=jax.devices("gpu")[0]```
+            **jitter:
+                Small positive term added to the diagonal part of a covariance
+                matrix for numerical stability (Default: 1e-6)
 
         Returns:
             Center of the mass of sampled means and all the sampled predictions
@@ -341,7 +356,7 @@ class ExactGP:
         num_samples = samples["k_length"].shape[0]
         vmap_args = (jra.split(rng_key, num_samples), samples)
         predictive = jax.vmap(
-            lambda params: self._predict(params[0], X_new, params[1], n, noiseless))
+            lambda prms: self._predict(prms[0], X_new, prms[1], n, noiseless, **kwargs))
         y_means, y_sampled = predictive(vmap_args)
         if filter_nans:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
