@@ -25,6 +25,22 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
        noiseless: bool = False, **kwargs) -> jnp.ndarray:
     """
     Expected Improvement
+
+    Args:
+        rng_key: JAX random number generator key
+        model: trained model
+        X: new inputs
+        xi: coefficient balancing exploration-exploitation trade-off
+        maximize: If True, assumes that BO is solving maximization problem
+        n: number of samples drawn from each MVN distribution
+           (number of distributions is equal to the number of HMC samples)
+        noiseless:
+            Noise-free prediction. It is set to False by default as new/unseen data is assumed
+            to follow the same distribution as the training data. Hence, since we introduce a model noise
+            for the training data, we also want to include that noise in our prediction.
+        **jitter:
+            Small positive term added to the diagonal part of a covariance
+            matrix for numerical stability (Default: 1e-6)
     """
     if model.mcmc is not None:
         y_mean, y_sampled = model.predict(
@@ -50,6 +66,22 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         noiseless: bool = False, **kwargs) -> jnp.ndarray:
     """
     Upper confidence bound
+
+    Args:
+        rng_key: JAX random number generator key
+        model: trained model
+        X: new inputs
+        beta: coefficient balancing exploration-exploitation trade-off
+        maximize: If True, assumes that BO is solving maximization problem
+        n: number of samples drawn from each MVN distribution
+           (number of distributions is equal to the number of HMC samples)
+        noiseless:
+            Noise-free prediction. It is set to False by default as new/unseen data is assumed
+            to follow the same distribution as the training data. Hence, since we introduce a model noise
+            for the training data, we also want to include that noise in our prediction.
+        **jitter:
+            Small positive term added to the diagonal part of a covariance
+            matrix for numerical stability (Default: 1e-6)
     """
     if model.mcmc is not None:
         _, y_sampled = model.predict(
@@ -70,7 +102,23 @@ def UE(rng_key: jnp.ndarray,
        X: jnp.ndarray, n: int = 1,
        noiseless: bool = False,
        **kwargs) -> jnp.ndarray:
-    """Uncertainty-based exploration (aka kriging)"""
+    """
+    Uncertainty-based exploration
+
+    Args:
+        rng_key: JAX random number generator key
+        model: trained model
+        X: new inputs
+        n: number of samples drawn from each MVN distribution
+           (number of distributions is equal to the number of HMC samples)
+        noiseless:
+            Noise-free prediction. It is set to False by default as new/unseen data is assumed
+            to follow the same distribution as the training data. Hence, since we introduce a model noise
+            for the training data, we also want to include that noise in our prediction.
+        **jitter:
+            Small positive term added to the diagonal part of a covariance
+            matrix for numerical stability (Default: 1e-6)
+    """
     if model.mcmc is not None:
         _, y_sampled = model.predict(
             rng_key, X, n=n, noiseless=noiseless, **kwargs)
@@ -87,7 +135,22 @@ def Thompson(rng_key: jnp.ndarray,
              X: jnp.ndarray, n: int = 1,
              noiseless: bool = False,
              **kwargs) -> jnp.ndarray:
-    """Thompson sampling"""
+    """
+    Thompson sampling
+
+    Args:
+        rng_key: JAX random number generator key
+        model: trained model
+        X: new inputs
+        n: number of samples drawn from the randomly selected MVN distribution
+        noiseless:
+            Noise-free prediction. It is set to False by default as new/unseen data is assumed
+            to follow the same distribution as the training data. Hence, since we introduce a model noise
+            for the training data, we also want to include that noise in our prediction.
+        **jitter:
+            Small positive term added to the diagonal part of a covariance
+            matrix for numerical stability (Default: 1e-6)
+    """
     if model.mcmc is not None:
         posterior_samples = model.get_samples()
         idx = jra.randint(rng_key, (1,), 0, len(posterior_samples["k_length"]))
