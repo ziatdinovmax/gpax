@@ -51,7 +51,7 @@ class DKL(vExactGP):
         >>> data_dim = X.shape[-1]
         >>> # Initialize DKL model with 2 latent dimensions
         >>> dkl = gpax.DKL(data_dim, z_dim=2, kernel='RBF')
-        >>> # Train model by parallelizing MCMC chains on a single GPU
+        >>> # Train model by parallelizing HMC chains on a single GPU
         >>> dkl.fit(key1, X, y, num_warmup=333, num_samples=333, num_chains=3, chain_method='vectorized')
         >>> # Obtain posterior mean and samples from DKL posterior at new inputs
         >>> # using batches to avoid memory overflow
@@ -70,8 +70,13 @@ class DKL(vExactGP):
         self.kernel_dim = z_dim
         self.latent_prior = latent_prior
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray = None) -> None:
+    def model(self,
+              X: jnp.ndarray,
+              y: jnp.ndarray = None,
+              **kwargs: float
+              ) -> None:
         """DKL probabilistic model"""
+        jitter = kwargs.get("jitter", 1e-6)
         task_dim = X.shape[0]
         # BNN part
         bnn_params = self.nn_prior(task_dim)
@@ -89,9 +94,10 @@ class DKL(vExactGP):
         # GP's mean function
         f_loc = jnp.zeros(z.shape[:2])
         # compute kernel(s)
+        jitter = jnp.array(jitter).repeat(task_dim)
         k_args = (z, z, kernel_params, noise)
-        k = jax.vmap(get_kernel(self.kernel))(*k_args)
-        # sample y according to the standard Gaussian process formula
+        k = jax.vmap(get_kernel(self.kernel))(*k_args, jitter=jitter)
+        # Sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
             dist.MultivariateNormal(loc=f_loc, covariance_matrix=k),
@@ -102,7 +108,7 @@ class DKL(vExactGP):
     def _get_mvn_posterior(self,
                            X_train: jnp.ndarray, y_train: jnp.ndarray,
                            X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
-                           noiseless: bool = False
+                           noiseless: bool = False, **kwargs: float
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
@@ -110,9 +116,9 @@ class DKL(vExactGP):
         z_train = self.nn(X_train, params)
         z_new = self.nn(X_new, params)
         # compute kernel matrices for train and new ('test') data
-        k_pp = get_kernel(self.kernel)(z_new, z_new, params, noise_p)
+        k_pp = get_kernel(self.kernel)(z_new, z_new, params, noise_p, **kwargs)
         k_pX = get_kernel(self.kernel)(z_new, z_train, params, jitter=0.0)
-        k_XX = get_kernel(self.kernel)(z_train, z_train, params, noise)
+        k_XX = get_kernel(self.kernel)(z_train, z_train, params, noise, **kwargs)
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))

@@ -8,9 +8,10 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
 from functools import partial
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Tuple, Union, Type
 
 import jax
+import jaxlib
 import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
@@ -42,8 +43,13 @@ class vExactGP(ExactGP):
         args = (input_dim, kernel, mean_fn,  kernel_prior, mean_fn_prior, noise_prior)
         super(vExactGP, self).__init__(*args)
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray = None) -> None:
+    def model(self, 
+              X: jnp.ndarray,
+              y: jnp.ndarray = None, 
+              **kwargs: float
+              ) -> None:
         """GP probabilistic model with inputs X and vector-valued targets y"""
+        jitter = kwargs.get("jitter", 1e-6)
         task_dim = X.shape[0]
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[:2])
@@ -65,8 +71,9 @@ class vExactGP(ExactGP):
                 args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
         # Compute kernels for each task in parallel
+        jitter = jnp.array(jitter).repeat(task_dim)
         k_args = (X, X, kernel_params, noise)
-        k = jax.vmap(get_kernel(self.kernel))(*k_args)
+        k = jax.vmap(get_kernel(self.kernel))(*k_args, jitter=jitter)
         # Sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
@@ -80,7 +87,7 @@ class vExactGP(ExactGP):
                            X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
                            m_X: Optional[jnp.ndarray] = None,
                            m_p: Optional[jnp.ndarray] = None,
-                           noiseless: bool = False
+                           noiseless: bool = False, **kwargs: float
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
@@ -88,9 +95,9 @@ class vExactGP(ExactGP):
         if m_X is not None:
             y_residual -= m_X
         # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise_p)
+        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise_p, **kwargs)
         k_pX = get_kernel(self.kernel)(X_new, X_train, params, jitter=0.0)
-        k_XX = get_kernel(self.kernel)(X_train, X_train, params, noise)
+        k_XX = get_kernel(self.kernel)(X_train, X_train, params, noise, **kwargs)
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
@@ -101,12 +108,14 @@ class vExactGP(ExactGP):
 
     def get_mvn_posterior(self,
                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
-                          noiseless: bool = False
+                          noiseless: bool = False, **kwargs: float
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of GP hyperparameters. Wrapper over self._get_mvn_posterior.
         """
+        task_dim = X_new.shape[0]
+        jitter = kwargs.get("jitter", 1e-6)
         if self.mean_fn is not None:  # Compute mean function for training data and new data
             get_args = lambda x: [x, params] if self.mean_fn_prior else [x]
             m_X = self.mean_fn(*get_args(self.X_train)).squeeze()
@@ -119,8 +128,10 @@ class vExactGP(ExactGP):
                 self.X_train, self.y_train, X_new, params_unsqueezed, m_X, m_p)
         else:
             vmap_args = (self.X_train, self.y_train, X_new, params)
-        noiseless = jnp.array(noiseless, int).repeat(X_new.shape[0])
-        mean, cov = jax.vmap(self._get_mvn_posterior)(*vmap_args, noiseless=noiseless)
+        noiseless = jnp.array(noiseless, int).repeat(task_dim)
+        jitter = jnp.array(jitter).repeat(task_dim)
+        mean, cov = jax.vmap(
+            self._get_mvn_posterior)(*vmap_args, noiseless=noiseless, jitter=jitter)
         return mean, cov
 
     def _sample_kernel_params(self, task_dim: int = None) -> Dict[str, jnp.ndarray]:
@@ -145,7 +156,9 @@ class vExactGP(ExactGP):
                            samples: Optional[Dict[str, jnp.ndarray]] = None,
                            n: int = 1, filter_nans: bool = False,
                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
-                           noiseless: bool = False
+                           noiseless: bool = False,
+                           device: Type[jaxlib.xla_extension.Device] = None,
+                           **kwargs: float
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new with sampled GP hyperparameters
@@ -156,7 +169,7 @@ class vExactGP(ExactGP):
         X_new = self._set_data(X_new)
         y_pred, y_sampled = self._predict_in_batches(
             rng_key, X_new, batch_size, 1, samples, n,
-            filter_nans, predict_fn, noiseless)
+            filter_nans, predict_fn, noiseless, device, **kwargs)
         y_pred = jnp.concatenate(y_pred, -1)
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
