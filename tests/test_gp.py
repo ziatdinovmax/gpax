@@ -4,7 +4,7 @@ import numpy as onp
 import jax.numpy as jnp
 import jax
 import numpyro
-from numpy.testing import assert_equal, assert_array_equal
+from numpy.testing import assert_equal, assert_array_equal, assert_
 
 sys.path.insert(0, "../gpax/")
 
@@ -287,3 +287,35 @@ def test_sample_from_prior():
     m = ExactGP(1, 'RBF')
     prior_pred = m.sample_from_prior(rng_key, X, num_samples=8)
     assert_equal(prior_pred.shape, (8, X.shape[0]))
+
+
+def test_jitter_fit():
+    rng_key, _ = get_keys()
+    X, y = get_dummy_data()
+    m = ExactGP(1, 'RBF')
+    m.fit(rng_key, X, y, num_samples=50, num_warmup=50, jitter=1e-6)
+    samples1 = m.get_samples()
+    m = ExactGP(1, 'RBF')
+    m.fit(rng_key, X, y, num_samples=50, num_warmup=50, jitter=1e-6)
+    samples1a = m.get_samples()
+    m = ExactGP(1, 'RBF')
+    m.fit(rng_key, X, y, num_samples=50, num_warmup=50, jitter=1e-5)
+    samples2 = m.get_samples()
+    assert_(onp.count_nonzero(samples1["k_length"] - samples1a["k_length"]) == 0)
+    assert_(onp.count_nonzero(samples1["k_length"] - samples2["k_length"]) > 0)
+
+
+def test_jitter_predict():
+    rng_keys = get_keys()
+    X, y = get_dummy_data(unsqueeze=True)
+    X_test, _ = get_dummy_data(unsqueeze=True)
+    samples = {"k_length": jax.random.normal(rng_keys[0], shape=(100, 1)),
+               "k_scale": jax.random.normal(rng_keys[0], shape=(100,)),
+               "noise": jax.random.normal(rng_keys[0], shape=(100,))}
+    m = ExactGP(1, 'RBF')
+    m.X_train = X
+    m.y_train = y
+    y_mean1, y_sampled1 = m.predict(rng_keys[1], X_test, samples, n=1, jitter=1e-6)
+    y_mean2, y_sampled2 = m.predict(rng_keys[1], X_test, samples, n=1, jitter=1e-5)
+    assert_(onp.count_nonzero(y_sampled1 - y_sampled2) > 0)
+    assert_(onp.count_nonzero(y_mean1 - y_mean2) > 0)

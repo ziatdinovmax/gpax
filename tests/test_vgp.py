@@ -4,7 +4,7 @@ import numpy as onp
 import jax.numpy as jnp
 import jax
 import numpyro
-from numpy.testing import assert_equal, assert_array_equal
+from numpy.testing import assert_equal, assert_array_equal, assert_
 
 sys.path.insert(0, "../gpax/")
 
@@ -161,3 +161,19 @@ def test_fit_predict_in_batches_noiseless(n):
     y_mean2, y_sampled2 = m.predict_in_batches(rng_keys[1], X_test, batch_size=4, n=n, noiseless=False)
     assert_array_equal(y_mean1, y_mean2)
     assert onp.count_nonzero(y_sampled1 - y_sampled2) > 0
+
+
+def test_jitter_predict():
+    rng_keys = get_keys()
+    X, y = get_dummy_data(unsqueeze=True)
+    X_test, _ = get_dummy_data(unsqueeze=True)
+    samples = {"k_length": jax.random.normal(rng_keys[0], shape=(100, 3, 1)),
+               "k_scale": jax.random.normal(rng_keys[0], shape=(100, 3)),
+               "noise": jax.random.normal(rng_keys[0], shape=(100, 3))}
+    m = vExactGP(1, 'RBF')
+    m.X_train = X
+    m.y_train = y
+    y_mean1, y_sampled1 = m.predict(rng_keys[1], X_test, samples, n=1, jitter=1e-6)
+    y_mean2, y_sampled2 = m.predict(rng_keys[1], X_test, samples, n=1, jitter=1e-5)
+    assert_(onp.count_nonzero(y_sampled1 - y_sampled2) > 0)
+    assert_(onp.count_nonzero(y_mean1 - y_mean2) > 0)
