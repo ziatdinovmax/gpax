@@ -13,7 +13,7 @@ Welcome to GPax's documentation!
    :caption: Package Content
 
    models
-   acquisition functions
+   acquisition
    kernels
    utils
 
