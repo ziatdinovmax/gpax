@@ -49,8 +49,8 @@ def RBFKernel(X: jnp.ndarray, Z: jnp.ndarray,
     Radial basis function kernel
 
     Args:
-        X: 2D vector with :math:`n x num_features` dimension
-        Z: 2D vector with :math:`n x num_features` dimension
+        X: 2D vector with *(number of points, number of features)* dimension
+        Z: 2D vector with *(number of points, number of features)* dimension
         params: Dictionary with kernel hyperparameters 'k_length' and 'k_scale'
         noise: optional noise vector with dimension (n,)
 
@@ -72,8 +72,8 @@ def MaternKernel(X: jnp.ndarray, Z: jnp.ndarray,
     Matern52 kernel
 
     Args:
-        X: 2D vector with :math:`n x num_features` dimension
-        Z: 2D vector with :math:`n x num_features` dimension
+        X: 2D vector with *(number of points, number of features)* dimension
+        Z: 2D vector with *(number of points, number of features)* dimension
         params: Dictionary with kernel hyperparameters 'k_length' and 'k_scale'
         noise: optional noise vector with dimension (n,)
 
@@ -98,8 +98,8 @@ def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
     Periodic kernel
 
     Args:
-        X: 2D vector with :math:`n x num_features` dimension
-        Z: 2D vector with :math:`n x num_features` dimension
+        X: 2D vector with *(number of points, number of features)* dimension
+        Z: 2D vector with *(number of points, number of features)* dimension
         params: Dictionary with kernel hyperparameters 'k_length', 'k_scale', and 'period'
         noise: optional noise vector with dimension (n,)
 

@@ -174,8 +174,8 @@ class ExactGP:
 
         Args:
             rng_key: random number generator key
-            X: 2D 'feature vector' with :math:`n x num_features` dimensions
-            y: 1D 'target vector' with :math:`(n,)` dimensions
+            X: 2D feature vector with *(number of points, number of features)* dimensions
+            y: 1D target vector with *(n,)* dimensions
             num_warmup: number of HMC warmup states
             num_samples: number of HMC samples
             num_chains: number of HMC chains
@@ -184,7 +184,7 @@ class ExactGP:
             print_summary: print summary at the end of sampling
             device:
                 optionally specify a cpu or gpu device on which to run the inference;
-                e.g., ```device=jax.devices("cpu")[0]``` 
+                e.g., ``device=jax.devices("cpu")[0]`` 
             **jitter:
                 Small positive term added to the diagonal part of a covariance
                 matrix for numerical stability (Default: 1e-6)
@@ -328,7 +328,7 @@ class ExactGP:
 
         Args:
             rng_key: random number generator key
-            X_new: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
+            X_new: new inputs with *(number of points, number of features)* dimensions
             samples: optional posterior samples
             n: number of samples from Multivariate Normal posterior for each HMC sample with GP hyperaparameters
             filter_nans: filter out samples containing NaN values (if any)

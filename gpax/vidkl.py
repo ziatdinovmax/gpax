@@ -250,8 +250,8 @@ class viDKL(ExactGP):
 
         Args:
             rng_key: random number generator key
-            X_new: New ('test') data
-            params: Tuple with neural network weigths and kernel parameters(optional)
+            X_new: New inputs
+            params: Tuple with neural network weigths and kernel parameters (optional)
             noiseless:
                 Noise-free prediction. It is set to False by default as new/unseen data is assumed
                 to follow the same distribution as the training data. Hence, since we introduce a model noise
