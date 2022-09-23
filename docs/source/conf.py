@@ -14,8 +14,8 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../../'))
 
-autodoc_mock_imports = ['jax', 'jax.numpy', 'jax.random', 'numpyro',
-                        'numpyro.distributions', 'numpyro.infer', 'haiku', 'numpy']
+#autodoc_mock_imports = ['jax', 'jax.numpy', 'jax.random', 'numpyro', 'jaxlib',
+#                        'numpyro.distributions', 'numpyro.infer', 'haiku', 'numpy']
 
 # -- Project information -----------------------------------------------------
 
@@ -42,7 +42,8 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
     'recommonmark',
-    'sphinx.ext.viewcode'
+    'sphinx.ext.viewcode',
+    'sphinx.ext.mathjax'
 ]
 
 napoleon_use_ivar = True

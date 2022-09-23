@@ -1,8 +1,8 @@
 GPax models
 ===========
 
-Gaussian Process (Fully Bayesian Implementation)
-------------------------------------------------
+Gaussian Processes (Fully Bayesian Implementation)
+--------------------------------------------------
 .. autoclass:: gpax.gp.ExactGP
     :members:
     :inherited-members:

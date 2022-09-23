@@ -1,32 +1,12 @@
 Acquisition functions
 =====================
 
-.. autoclass:: gpax.acquisition.UCB
-    :members:
-    :undoc-members:
-    :member-order: bysource
-    :show-inheritance:
+.. autofunction:: gpax.acquisition.UCB
 
-.. autoclass:: gpax.acquisition.EI
-    :members:
-    :undoc-members:
-    :member-order: bysource
-    :show-inheritance:
+.. autofunction:: gpax.acquisition.EI
+  
+.. autofunction:: gpax.acquisition.Thompson
 
-.. autoclass:: gpax.acquisition.Thompson
-    :members:
-    :undoc-members:
-    :member-order: bysource
-    :show-inheritance:
-
-.. autoclass:: gpax.acquisition.UE
-    :members:
-    :undoc-members:
-    :member-order: bysource
-    :show-inheritance:
-
-.. autoclass:: gpax.acquisition.bUCB
-    :members:
-    :undoc-members:
-    :member-order: bysource
-    :show-inheritance:
+.. autofunction:: gpax.acquisition.UE
+  
+.. autofunction:: gpax.acquisition.bUCB
