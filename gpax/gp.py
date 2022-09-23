@@ -103,7 +103,7 @@ class ExactGP:
                 mean_fn=mean_fn, mean_fn_prior=mean_fn_prior)
         >>> # Run HMC to obtain posterior samples for the GP model parameters
         >>> sgp_model.fit(rng_key, X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
-        >>> Make a noiselsess prediction on new inputs
+        >>> # Make a noiselsess prediction on new inputs
         >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
     """
 
