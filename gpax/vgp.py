@@ -112,7 +112,7 @@ class vExactGP(ExactGP):
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
-        for a single sample of GP hyperparameters. Wrapper over self._get_mvn_posterior.
+        for a single sample of GP parameters. Wrapper over self._get_mvn_posterior.
         """
         task_dim = X_new.shape[0]
         jitter = kwargs.get("jitter", 1e-6)
@@ -161,7 +161,7 @@ class vExactGP(ExactGP):
                            **kwargs: float
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Make prediction at X_new with sampled GP hyperparameters
+        Make prediction at X_new with sampled GP parameters
         by spitting the input array into chunks ("batches") and running
         predict_fn (defaults to self.predict) on each of them one-by-one
         to avoid a memory overflow
