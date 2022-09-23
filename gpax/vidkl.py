@@ -190,7 +190,7 @@ class viDKL(ExactGP):
         """
         Returns predictive mean and covariance at new points
         (mean and cov, where cov.diagonal() is 'uncertainty')
-        given a single set of DKL hyperparameters
+        given a single set of DKL parameters
         """
         noise = k_params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
@@ -229,7 +229,7 @@ class viDKL(ExactGP):
                            **kwargs
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Make prediction at X_new with sampled DKL hyperparameters
+        Make prediction at X_new with sampled DKL parameters
         by spitting the input array into chunks ("batches") and running
         self.predict on each of them one-by-one to avoid a memory overflow
         """
@@ -250,8 +250,8 @@ class viDKL(ExactGP):
 
         Args:
             rng_key: random number generator key
-            X_new: New ('test') data
-            params: Tuple with neural network weigths and kernel parameters(optional)
+            X_new: New inputs
+            params: Tuple with neural network weigths and kernel parameters (optional)
             noiseless:
                 Noise-free prediction. It is set to False by default as new/unseen data is assumed
                 to follow the same distribution as the training data. Hence, since we introduce a model noise

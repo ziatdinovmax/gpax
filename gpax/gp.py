@@ -103,7 +103,7 @@ class ExactGP:
                 mean_fn=mean_fn, mean_fn_prior=mean_fn_prior)
         >>> # Run HMC to obtain posterior samples for the GP model parameters
         >>> sgp_model.fit(rng_key, X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
-        >>> Make a noiselsess prediction on new inputs
+        >>> # Make a noiselsess prediction on new inputs
         >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
     """
 
@@ -170,12 +170,12 @@ class ExactGP:
             **kwargs: float
             ) -> None:
         """
-        Run Hamiltonian Monter Carlo to infer the GP model parameters
+        Run Hamiltonian Monter Carlo to infer the GP parameters
 
         Args:
             rng_key: random number generator key
-            X: 2D 'feature vector' with :math:`n x num_features` dimensions
-            y: 1D 'target vector' with :math:`(n,)` dimensions
+            X: 2D feature vector with *(number of points, number of features)* dimensions
+            y: 1D target vector with *(n,)* dimensions
             num_warmup: number of HMC warmup states
             num_samples: number of HMC samples
             num_chains: number of HMC chains
@@ -184,7 +184,7 @@ class ExactGP:
             print_summary: print summary at the end of sampling
             device:
                 optionally specify a cpu or gpu device on which to run the inference;
-                e.g., ```device=jax.devices("cpu")[0]``` 
+                e.g., ``device=jax.devices("cpu")[0]`` 
             **jitter:
                 Small positive term added to the diagonal part of a covariance
                 matrix for numerical stability (Default: 1e-6)
@@ -222,7 +222,7 @@ class ExactGP:
                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
-        for a single sample of GP hyperparameters
+        for a single sample of GP parameters
         """
         noise = params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
@@ -246,10 +246,10 @@ class ExactGP:
     def _predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                  params: Dict[str, jnp.ndarray], n: int, noiseless: bool = False,
                  **kwargs: float) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """Prediction with a single sample of GP hyperparameters"""
+        """Prediction with a single sample of GP parameters"""
         # Get the predictive mean and covariance
         y_mean, K = self.get_mvn_posterior(X_new, params, noiseless, **kwargs)
-        # draw samples from the posterior predictive for a given set of hyperparameters
+        # draw samples from the posterior predictive for a given set of parameters
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
 
@@ -306,7 +306,7 @@ class ExactGP:
                            **kwargs: float
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Make prediction at X_new with sampled GP hyperparameters
+        Make prediction at X_new with sampled GP parameters
         by spitting the input array into chunks ("batches") and running
         predict_fn (defaults to self.predict) on each of them one-by-one
         to avoid a memory overflow
@@ -324,18 +324,18 @@ class ExactGP:
                 device: Type[jaxlib.xla_extension.Device] = None, **kwargs: float
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Make prediction at X_new points using sampled GP hyperparameters
+        Make prediction at X_new points using posterior samples for GP parameters
 
         Args:
             rng_key: random number generator key
-            X_new: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
-            samples: optional posterior samples
-            n: number of samples from Multivariate Normal posterior for each HMC sample with GP hyperaparameters
+            X_new: new inputs with *(number of points, number of features)* dimensions
+            samples: optional (different) samples with GP parameters
+            n: number of samples from Multivariate Normal posterior for each HMC sample with GP parameters
             filter_nans: filter out samples containing NaN values (if any)
             noiseless:
                 Noise-free prediction. It is set to False by default as new/unseen data is assumed
                 to follow the same distribution as the training data. Hence, since we introduce a model noise
-                for the training data, we also want to include that noise in our prediction.
+                by default for the training data, we also want to include that noise in our prediction.
             device:
                 optionally specify a cpu or gpu device on which to make a prediction;
                 e.g., ```device=jax.devices("gpu")[0]```
@@ -343,7 +343,7 @@ class ExactGP:
                 Small positive term added to the diagonal part of a covariance
                 matrix for numerical stability (Default: 1e-6)
 
-        Returns:
+        Returns
             Center of the mass of sampled means and all the sampled predictions
         """
         X_new = self._set_data(X_new)
