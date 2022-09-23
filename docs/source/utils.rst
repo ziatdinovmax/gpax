@@ -1,7 +1,12 @@
 Other utilities
 ================
 
-.. autofunction:: gpax.spm.sPM
+.. autoclass:: gpax.spm.sPM
+    :members:
+    :inherited-members:
+    :undoc-members:
+    :member-order: bysource
+    :show-inheritance:
 
 .. autofunction:: gpax.utils.dviz
 
