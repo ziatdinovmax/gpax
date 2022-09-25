@@ -25,7 +25,7 @@ In the fully Bayesian mode, we get a pair of predictive mean and covariance for 
 .. image:: imgs/GPax_Fig1.jpg
   :alt: GPax_GP1
 
-For 1-dimensional data, we can plot the GP prediction using the standard approach where the uncertainty in predictions - represented by a standard deviation in ```y_sampled``` - is depicted as a shaded area around the mean value.
+For 1-dimensional data, we can plot the GP prediction using the standard approach where the uncertainty in predictions - represented by a standard deviation in ``y_sampled`` - is depicted as a shaded area around the mean value.
 
 .. image:: imgs/GPax_Fig2.jpg
   :alt: GPax_GP2
@@ -84,3 +84,87 @@ The probabilistic model reflects our prior knowledge about the system, but it do
 .. image:: imgs/GPax_FIg4.jpg
   :scale: 13
   :alt: GPax_sGP2
+
+Active learning & Bayesian optimization
+---------------------------------------
+
+Both GP and sGP can be used for active learning to reconstruct the entire data distribution from sparse observations or to localize regions of the parameter space where a particular physical behavior is maximized or minimized with as few measurements as possible (the latter is usually referred to as Bayesian optimization)
+
+.. code:: python
+
+  # Train a GP model (it can be sGP or vanilla GP)
+  gp_model.fit(rng_key, X_measured, y_measured)  # A
+
+  # Compute the upper confidence bound (UCB) acquisition function to derive the next measurement point
+  acq = gpax.acquisition.UCB(rng_key_predict, gp_model, X_unmeasured, beta=4, maximize=False, noiseless=True)  # B
+  next_point_idx = acq.argmin()  # C
+  next_point = X_unmeasured[next_point_idx]  # D
+
+  # Perform measurement in next_point, update measured & unmeasured data arrays, and re-run steps A-D.
+
+In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and the acquisiton function used to derive the next measurement points. Here, the posterior mean values indicate that the minimum of a "black box" function describing a behaviour of interest is around x=0.7. At the same time, there is a large dispersion in the samples from the posterior predictive distribution between x=-0.5 and x=0.5, resulting in a high uncertainty in that region. The acquisition function is computed as a function of both predictive mean and uncertainty and its minimum corresponds to the next measurement point in the active learning / Bayesian optimization setup. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈0 where potentially a true minimum is located.
+
+.. image:: imgs/BO.png
+  :alt: GPax_BO
+
+Hypothesis learning
+-------------------
+
+The structured GP can be also used for hypothesis learning in automated experiments. The `hypothesis learning <https://arxiv.org/abs/2112.06649>`_ is based on the idea that in active learning, the correct model of the system’s behavior leads to a faster decrease in the overall Bayesian uncertainty about the system under study. In the hypothesis learning setup, probabilistic models of the possible system’s behaviors (hypotheses) are wrapped into structured GPs, and a basic reinforcement learning policy is used to select a correct model from several competing hypotheses. A full example is available `here <https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/hypoAL.ipynb>`_.
+
+.. image:: imgs/HypoAL.gif
+  :alt: GPax_HypoAL
+
+Deep Kernel Learning
+--------------------
+
+`Deep Kernel Learning <https://arxiv.org/abs/1511.02222>`_ can be understood as a hybrid of deep neural network (DNN) and GP. The DNN serves as a feature extractor that allows reducing the complex high-dimensional features to low-dimensional descriptors on which a standard GP kernel operates. The parameters of DNN and of GP kernel are inferred jointly in an end-to-end fashion. Practically, the DKL training inputs are usually patches from an (easy-to-acquire) structural image, and training targets represent a physical property of interest derived from the (hard-to-acquire) spectra measured in those patches. The DKL output on the new inputs (image patches for which there are no measured spectra) is the expected property value and associated uncertainty, which can be used to derive the next measurement point in the automated experiment.
+
+.. code:: python
+  
+  import gpax
+
+  # Get random number generator keys for training and prediction
+  rng_key, rng_key_predict = gpax.utils.get_keys()
+
+  # Obtain/update DKL posterior; input data dimensions are (n, h*w*c)
+  dkl = gpax.viDKL(input_dim=X.shape[-1], z_dim=2, kernel='RBF')  # A
+  dkl.fit(rng_key, X_train, y_train, num_steps=100, step_size=0.05)  # B
+
+  # Compute UCB acquisition function
+  obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)  # C
+  # Select next point to measure (assuming grid data)
+  next_point_idx = obj.argmax()  # D
+
+  # Perform measurement in next_point_idx, update measured & unmeasured data arrays, and re-run steps A-D.
+
+Below we show a result of a simple DKL-based search for regions of the nano-plasmonic array that host a specific plasmon mode
+
+.. image:: imgs/DKL_STEM.png
+  :alt: GPax_DKL
+
+Note that in viDKL, we use a simple MLP as a default feature extractor. However, you can easily write a custom DNN using `haiku <https://github.com/deepmind/dm-haiku>`_ and pass it to the viDKL initializer
+
+.. code:: python
+
+  import haiku as hk
+
+  class ConvNet(hk.Module):
+      def __init__(self, embedim=2):
+          super().__init__()
+          self._embedim = embedim   
+
+      def __call__(self, x):
+          x = hk.Conv2D(32, 3)(x)
+          x = jax.nn.relu(x)
+          x = hk.MaxPool(2, 2, 'SAME')(x)
+          x = hk.Conv2D(64, 3)(x)
+          x = jax.nn.relu(x)
+          x = hk.Flatten()(x)
+          x = hk.Linear(self._embedim)(x)
+          return x
+
+  dkl = gpax.viDKL(X.shape[1:], 2, kernel='RBF', nn=ConvNet)  # input data dimensions are (n,h,w,c)
+  dkl.fit(rng_key, X_train, y_train, num_steps=100, step_size=0.05)
+  obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)
+  next_point_idx = obj.argmax()
