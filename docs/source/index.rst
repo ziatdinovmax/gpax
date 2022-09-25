@@ -15,7 +15,7 @@ GPax is a small Python package for physics-based Gaussian processes (GPs) built 
    USAGE.rst
 
 .. toctree::
-   :maxdepth: 3
+   :glob:
    :caption: Package Content
 
    models
