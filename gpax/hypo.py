@@ -7,9 +7,10 @@ Utility functions for hypothesis learning based on arXiv:2112.06649
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
-from typing import Type, Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Union
 
 import jax.numpy as jnp
+import numpy as np
 import numpyro
 
 from .gp import ExactGP
@@ -17,7 +18,7 @@ from .spm import sPM
 from .utils import get_keys
 
 
-def step(model: Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray], 
+def step(model: Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray],
          model_prior: Callable[[], Dict[str, jnp.ndarray]],
          X_measured: jnp.ndarray, y_measured: jnp.ndarray,
          X_unmeasured: Optional[jnp.ndarray] = None,
@@ -32,7 +33,7 @@ def step(model: Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray],
          print_summary: Optional[bool] = True):
     """
     Compute model posterior and use it to derive acqusition function
-    
+
     Args:
         model:
             Parametric model in jax.numpy
@@ -96,3 +97,60 @@ def step(model: Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray],
         mean, samples = model.predict(rng_key, X_unmeasured)
         obj = samples.squeeze().var(0)
     return obj, model
+
+
+def sample_next(rewards: Union[np.array, jnp.array],
+                method: Optional[str] = 'softmax',
+                temperature: Optional[float] = 1.0,
+                eps: Optional[float] = 0.4) -> int:
+    """
+    Sample model or input channel based on softmax or epsilon-greedy policy
+
+    Args:
+        rewards:
+            Array of shape (N,) with running rewards
+        method:
+            Selection policy, choose between 'softmax' and 'epsilon-greedy'
+        temperature:
+            Optional temperature parameter for softmax selection policy
+        eps:
+            Optional epsilon parameter for epsilon-greedy policy
+
+    Returns:
+        The index of model or input channel to sample next
+    """
+    if method not in ['softmax', 'eps-greedy']:
+        raise NotImplementedError(
+            "The currently implemented samplong methods are 'softmax' and 'eps-greedy'")
+    if rewards.ndim != 1:
+        raise AttributeError("Pass rewards as 1-dimensional array")
+    if 'softmax':
+        idx = softmax(rewards, temperature)
+    else:
+        idx = eps_greedy(rewards, eps)
+    return idx
+
+
+def softmax(logits: Union[np.array, jnp.array],
+            temperature: Optional[float] = 1.0) -> int:
+    """
+    Softmax selection policy. Based on
+    Zai, A., Brown, B. (2020). Deep reinforcement learning in action. Manning Publications
+    """
+    probs = np.exp(logits / temperature) / np.sum(np.exp(logits / temperature))
+    x = np.arange(len(logits))
+    idx = np.random.choice(x, p=probs)
+    return idx
+
+
+def eps_greedy(rewards: Union[np.array, jnp.array],
+               eps: Optional[float] = 0.4) -> int:
+    """
+    Epsilon-greedy selection policy. Based on
+    Zai, A., Brown, B. (2020). Deep reinforcement learning in action. Manning Publications
+    """
+    if np.random.random() > eps:
+        idx = rewards.argmax()
+    else:
+        idx = np.random.randint(len(rewards))
+    return idx
