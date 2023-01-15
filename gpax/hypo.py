@@ -77,26 +77,26 @@ def step(model: Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray],
         rng_key, rng_key_predict = get_keys(i)
         # Get/update model posterior
         if gp_wrap:  # wrap model into a gaussian process (gives more flexibility)
-            model = ExactGP(
+            model_ = ExactGP(
                 gp_input_dim, gp_kernel, model,
                 gp_kernel_prior, model_prior, noise_prior)
-            model.fit(
+            model_.fit(
                 rng_key, X_measured, y_measured, num_warmup,
                 num_samples, num_chains, print_summary=verbose)
         else:  # use a standalone model
-            model = sPM(model, model_prior, noise_prior)
-            model.fit(
+            model_ = sPM(model, model_prior, noise_prior)
+            model_.fit(
                 rng_key, X_measured, y_measured, num_warmup,
                 num_samples, num_chains, print_summary=verbose)
-        rhats = [sgr(v).item() for (k,v) in model.get_samples(1).items() if k != 'mu']
+        rhats = [sgr(v).item() for (k,v) in model_.get_samples(1).items() if k != 'mu']
         if max(rhats) < 1.1:
             break
     # compute predictive uncertainty for the unmeasured part of the parameter space
     obj = 0
     if X_unmeasured is not None:
-        mean, samples = model.predict(rng_key, X_unmeasured)
+        mean, samples = model_.predict(rng_key, X_unmeasured)
         obj = samples.squeeze().var(0)
-    return obj, model
+    return obj, model_
 
 
 def sample_next(rewards: Union[np.array, jnp.array],
