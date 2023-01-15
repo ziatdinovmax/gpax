@@ -32,7 +32,7 @@ def step(model: Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray],
          num_restarts: Optional[int] = 1,
          print_summary: Optional[bool] = True):
     """
-    Compute model posterior and use it to derive acqusition function
+    Compute model posterior and use it to derive predictive uncertainty
 
     Args:
         model:
