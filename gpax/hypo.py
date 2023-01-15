@@ -154,3 +154,14 @@ def eps_greedy(rewards: Union[np.array, jnp.array],
     else:
         idx = np.random.randint(len(rewards))
     return idx
+
+
+def update_record(record: np.array, action: int, r: Union[int, float]) -> np.array:
+    """
+    Update the reward record. Based on
+    Zai, A., Brown, B. (2020). Deep reinforcement learning in action. Manning Publications
+    """
+    new_r = (record[action, 0] * record[action, 1] + r) / (record[action, 0] + 1)
+    record[action, 0] += 1
+    record[action, 1] = new_r
+    return record
