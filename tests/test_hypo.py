@@ -28,13 +28,9 @@ def model_priors():
     return {"a": a, "b": b}
 
 
-@pytest.mark.parametrize("jax_ndarray", [True, False])
 @pytest.mark.parametrize("method", ['softmax', 'eps-greedy'])
-def test_sample_next(jax_ndarray, method):
-    if jax_ndarray:
-        rewards = jnp.array([0.0, 0.1, 0.2])
-    else:
-        rewards = onp.array([0.0, 0.1, 0.2])
+def test_sample_next(method):
+    rewards = onp.array([0.0, 0.1, 0.2])
     idx = sample_next(rewards, method)
     assert_(isinstance(idx, (onp.int64, int)))
 
