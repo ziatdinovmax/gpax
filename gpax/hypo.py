@@ -124,7 +124,7 @@ def sample_next(rewards: Union[np.array, jnp.array],
             "The currently implemented samplong methods are 'softmax' and 'eps-greedy'")
     if rewards.ndim != 1:
         raise AttributeError("Pass rewards as 1-dimensional array")
-    if 'softmax':
+    if method == 'softmax':
         idx = softmax(rewards, temperature)
     else:
         idx = eps_greedy(rewards, eps)
