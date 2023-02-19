@@ -120,7 +120,8 @@ class sPM:
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
-                filter_nans: bool = False) -> Tuple[jnp.ndarray, jnp.ndarray]:
+                filter_nans: bool = False, take_point_predictions_mean: bool = True
+                ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using sampled GP hyperparameters
 
@@ -129,9 +130,10 @@ class sPM:
             X_new: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
             samples: optional posterior samples
             filter_nans: filter out samples containing NaN values (if any)
+            take_point_predictions_mean: take a mean of point predictions (without sampling from the normal distribution)
 
         Returns:
-            Center of the mass of sampled means and all the sampled predictions
+            Point predictions (or their mean) and posterior predictive distribution
         """
         if samples is None:
             samples = self.get_samples(chain_dim=False)
@@ -142,7 +144,9 @@ class sPM:
         if filter_nans:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
             y_sampled = jnp.array(y_sampled_)
-        return y_pred.mean(0), y_sampled
+        if take_point_predictions_mean:
+            y_pred = y_pred.mean(0)
+        return y_pred, y_sampled
 
     def _print_summary(self):
         self.mcmc.print_summary()
