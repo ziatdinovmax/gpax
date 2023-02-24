@@ -27,7 +27,7 @@ if __name__ == "__main__":
         zip_safe=False,
         install_requires=[
             'jax>=0.2.21',
-            'numpyro>=0.8.0',
+            'numpyro>=0.8.0,<0.11.0',
             'dm-haiku>=0.0.5',
             'matplotlib>=3.1'
         ],
