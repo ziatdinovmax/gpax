@@ -23,15 +23,7 @@ from .kernels import get_kernel
 from .utils import split_in_batches
 
 
-if jax.__version__ < '0.2.26':
-    clear_cache = jax.interpreters.xla._xla_callable.cache_clear
-else:
-    from jax._src import dispatch
-    try:
-        clear_cache = dispatch._xla_callable.cache_clear
-    except AttributeError:
-        clear_cache = dispatch.xla_callable.cache_clear
-
+clear_cache = jax._src.dispatch.xla_primitive_callable.cache_clear
 
 
 class ExactGP:
