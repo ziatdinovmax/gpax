@@ -26,8 +26,8 @@ if __name__ == "__main__":
         packages=find_packages(),
         zip_safe=False,
         install_requires=[
-            'jax>=0.2.21',
-            'numpyro>=0.8.0,<0.11.0',
+            'jax>=0.4.8',
+            'numpyro>=0.11.0',
             'dm-haiku>=0.0.5',
             'matplotlib>=3.1'
         ],
