@@ -14,7 +14,7 @@ with open(os.path.join(module_dir, 'gpax/__version__.py')) as f:
 if __name__ == "__main__":
     setup(
         name='gpax',
-        python_requires='>=3.7',
+        python_requires='>=3.8',
         version=__version__,
         description='Gaussian processes in NumPyro and JAX',
         long_description=open(os.path.join(module_dir, 'README.md')).read(),
@@ -26,8 +26,8 @@ if __name__ == "__main__":
         packages=find_packages(),
         zip_safe=False,
         install_requires=[
-            'jax>=0.2.21',
-            'numpyro>=0.8.0,<0.11.0',
+            'jax>=0.4.8',
+            'numpyro>=0.11.0',
             'dm-haiku>=0.0.5',
             'matplotlib>=3.1'
         ],
