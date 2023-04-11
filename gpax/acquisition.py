@@ -165,9 +165,9 @@ def Thompson(rng_key: jnp.ndarray,
     return tsample
 
 
-def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
+def qUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
          X: jnp.ndarray, indices: Optional[jnp.ndarray] = None,
-         batch_size: int = 4, alpha: float = 1.0, beta: float = .25,
+         qbatch_size: int = 4, alpha: float = 1.0, beta: float = .25,
          maximize: bool = True, n: int = 500,
          n_restarts: int = 20, noiseless: bool = False,
          **kwargs) -> jnp.ndarray:
@@ -184,7 +184,7 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         indices: indices of data points in X array. For example, if
             each data point is an image patch, the indices should
             correspond to their (x, y) coordinates in the original image.
-        batch_size: desired number of sampled points (default: 4)
+        qbatch_size: desired number of sampled points (default: 4)
         alpha: coefficient before mean prediction term (default: 1.0)
         beta: coefficient before variance term (default: 0.25)
         maximize: sign of variance term (+/- if True/False)
@@ -194,8 +194,8 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         noiseless: noise-free prediction for new/test data (default: False)
 
     Returns:
-        Computed acquisition function with batch x features
-        or task x batch x features dimensions
+        Computed acquisition function with qbatch x features
+        or task x qbatch x features dimensions
     """
     if model.mcmc is None:
         raise NotImplementedError(
@@ -204,7 +204,7 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     X_ = jnp.array(indices) if indices is not None else jnp.array(X)
     for _ in range(n_restarts):
         y_sampled = obtain_samples(
-            rng_key, model, X, batch_size, n, noiseless, **kwargs)
+            rng_key, model, X, qbatch_size, n, noiseless, **kwargs)
         mean, var = y_sampled.mean(1), y_sampled.var(1)
         delta = jnp.sqrt(beta * var)
         if maximize:
@@ -224,18 +224,18 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
 
 
 def obtain_samples(rng_key: jnp.ndarray, model: Type[ExactGP],
-                   X: jnp.ndarray, batch_size: int = 4,
+                   X: jnp.ndarray, qbatch_size: int = 4,
                    n: int = 500, noiseless: bool = False,
                    **kwargs) -> jnp.ndarray:
     xbatch_size = kwargs.get("xbatch_size", 100)
     posterior_samples = model.get_samples()
     idx = onp.arange(0, len(posterior_samples["k_length"]))
     onp.random.shuffle(idx)
-    idx = idx[:batch_size]
+    idx = idx[:qbatch_size]
     samples = {k: v[idx] for (k, v) in posterior_samples.items()}
     if X.shape[0] > xbatch_size:
         _, y_sampled = model.predict(
-            rng_key, X, samples, n, 
+            rng_key, X, samples, n,
             noiseless=noiseless, **kwargs)
     else:
         _, y_sampled = model.predict_in_batches(
