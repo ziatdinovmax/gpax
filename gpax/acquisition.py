@@ -201,7 +201,7 @@ def bUCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         raise NotImplementedError(
             "Currently supports only ExactGP and DKL with MCMC inference")
     dist_all, obj_all = [], []
-    X_ = jnp.array(indices) if indices is not None else X
+    X_ = jnp.array(indices) if indices is not None else jnp.array(X)
     for _ in range(n_restarts):
         y_sampled = obtain_samples(
             rng_key, model, X, batch_size, n, noiseless, **kwargs)
@@ -227,12 +227,18 @@ def obtain_samples(rng_key: jnp.ndarray, model: Type[ExactGP],
                    X: jnp.ndarray, batch_size: int = 4,
                    n: int = 500, noiseless: bool = False,
                    **kwargs) -> jnp.ndarray:
+    xbatch_size = kwargs.get("xbatch_size", 100)
     posterior_samples = model.get_samples()
     idx = onp.arange(0, len(posterior_samples["k_length"]))
     onp.random.shuffle(idx)
     idx = idx[:batch_size]
     samples = {k: v[idx] for (k, v) in posterior_samples.items()}
-    _, y_sampled = model.predict_in_batches(
-        rng_key, X, kwargs.get("xbatch_size", 500), samples, n,
-        noiseless=noiseless, **kwargs)
+    if X.shape[0] > xbatch_size:
+        _, y_sampled = model.predict(
+            rng_key, X, samples, n, 
+            noiseless=noiseless, **kwargs)
+    else:
+        _, y_sampled = model.predict_in_batches(
+            rng_key, X, xbatch_size, samples, n,
+            noiseless=noiseless, **kwargs)
     return y_sampled
