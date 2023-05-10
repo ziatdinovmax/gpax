@@ -220,7 +220,7 @@ class ExactGP:
         """
         noise = params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
-        y_residual = self.y_train
+        y_residual = self.y_train.copy()
         if self.mean_fn is not None:
             args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
             y_residual -= self.mean_fn(*args).squeeze()
