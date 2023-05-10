@@ -89,6 +89,7 @@ class viGP(ExactGP):
             loss=Trace_ELBO(),
             X=X,
             y=y,
+            **kwargs
         )
 
         self.kernel_params = self.svi.run(
@@ -104,7 +105,6 @@ class viGP(ExactGP):
     def predict_in_batches(self, rng_key: jnp.ndarray,
                            X_new: jnp.ndarray,  batch_size: int = 100,
                            samples: Optional[Dict[str, jnp.ndarray]] = None,
-                           n: int = 1, filter_nans: bool = False,
                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
                            noiseless: bool = False,
                            device: Type[jaxlib.xla_extension.Device] = None,
@@ -117,15 +117,18 @@ class viGP(ExactGP):
         to avoid a memory overflow
         """
         predict_fn = lambda xi:  self.predict(
-                rng_key, xi, noiseless=noiseless, **kwargs)
+                rng_key, xi, samples, noiseless, **kwargs)
         y_pred, y_sampled = self._predict_in_batches(
-            rng_key, X_new, batch_size, predict_fn=predict_fn,
-            noiseless=noiseless, **kwargs)
+            rng_key, X_new, batch_size, 0, samples,
+            predict_fn=predict_fn, noiseless=noiseless,
+            device=device, **kwargs)
         y_pred = jnp.concatenate(y_pred, 0)
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
 
-    def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray, noiseless: bool = False,
+    def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
+                samples: Optional[Dict[str, jnp.ndarray]] = None,
+                noiseless: bool = False,
                 device: Type[jaxlib.xla_extension.Device] = None, **kwargs: float
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
@@ -152,8 +155,9 @@ class viGP(ExactGP):
         if device:
             self._set_training_data(device=device)
             X_new = jax.device_put(X_new, device)
-        params = self.get_samples()
-        mean, cov = self.get_mvn_posterior(X_new, params, noiseless, **kwargs)
+        if samples is None:
+            samples = self.get_samples()
+        mean, cov = self.get_mvn_posterior(X_new, samples, noiseless, **kwargs)
         return mean, cov.diagonal()
 
     def _print_summary(self) -> None:
