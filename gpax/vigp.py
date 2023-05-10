@@ -13,7 +13,6 @@ import jax
 import jaxlib
 import jax.numpy as jnp
 import numpyro
-import numpyro.distributions as dist
 from numpyro.infer import SVI, Trace_ELBO
 from numpyro.infer.autoguide import AutoDelta
 
