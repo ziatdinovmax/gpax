@@ -183,7 +183,7 @@ def test_fit_predict_with_prob_mean_fn():
     X, y = get_dummy_data()
     X_test, _ = get_dummy_data()
     m = viGP(1, 'RBF', mean_fn=dummy_mean_fn, mean_fn_prior=dummy_mean_fn_priors)
-    m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
+    m.fit(rng_keys[0], X, y, num_steps=100)
     y_pred, y_var = m.predict(rng_keys[1], X_test)
     assert isinstance(y_pred, jnp.ndarray)
     assert isinstance(y_var, jnp.ndarray)
