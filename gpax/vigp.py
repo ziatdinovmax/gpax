@@ -14,7 +14,7 @@ import jaxlib
 import jax.numpy as jnp
 import numpyro
 from numpyro.infer import SVI, Trace_ELBO
-from numpyro.infer.autoguide import AutoDelta
+from numpyro.infer.autoguide import AutoDelta, AutoNormal
 
 from .gp import ExactGP
 
@@ -42,12 +42,13 @@ class viGP(ExactGP):
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
-                 ) -> None:
+                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 guide: str = 'delta') -> None:
         args = input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, noise_prior
         super(viGP, self).__init__(*args)
         self.X_train = None
         self.y_train = None
+        self.guide_type = AutoNormal if guide == 'normal' else AutoDelta
         self.svi = None
 
     def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
@@ -84,7 +85,7 @@ class viGP(ExactGP):
         optim = numpyro.optim.Adam(step_size=step_size, b1=0.5)
         self.svi = SVI(
             self.model,
-            guide=AutoDelta(self.model),
+            guide=self.guide_type(self.model),
             optim=optim,
             loss=Trace_ELBO(),
             X=X,
