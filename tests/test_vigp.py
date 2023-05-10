@@ -9,7 +9,9 @@ from numpy.testing import assert_equal, assert_array_equal, assert_
 sys.path.insert(0, "../gpax/")
 
 from gpax.vigp import viGP
-from gpax.utils import get_keys
+from gpax.utils import get_keys, enable_x64
+
+enable_x64()
 
 
 def get_dummy_data(jax_ndarray=True, unsqueeze=False):
@@ -202,15 +204,15 @@ def test_sample_from_prior():
 def test_jitter_fit():
     rng_key, _ = get_keys()
     X, y = get_dummy_data()
-    m = viGP(1, 'RBF')
-    m.fit(rng_key, X, y, num_steps=100, jitter=1e-6)
-    samples1 = m.get_samples()
-    m = viGP(1, 'RBF')
-    m.fit(rng_key, X, y, num_steps=100, jitter=1e-6)
-    samples1a = m.get_samples()
-    m = viGP(1, 'RBF')
-    m.fit(rng_key, X, y, num_steps=100, jitter=1e-5)
-    samples2 = m.get_samples()
+    m1 = viGP(1, 'RBF')
+    m1.fit(rng_key, X, y, num_steps=100, jitter=1e-6)
+    samples1 = m1.get_samples()
+    m2 = viGP(1, 'RBF')
+    m2.fit(rng_key, X, y, num_steps=100, jitter=1e-6)
+    samples1a = m2.get_samples()
+    m3 = viGP(1, 'RBF')
+    m3.fit(rng_key, X, y, num_steps=100, jitter=1e-4)
+    samples2 = m3.get_samples()
     assert_(samples1["k_length"] - samples1a["k_length"] == 0)
     assert_(samples1["k_length"] - samples2["k_length"] != 0)
 
@@ -226,6 +228,22 @@ def test_jitter_predict():
     m.X_train = X
     m.y_train = y
     y_mean1, y_var1 = m.predict(rng_keys[1], X_test, samples, jitter=1e-6)
-    y_mean2, y_var2 = m.predict(rng_keys[1], X_test, samples, jitter=1e-5)
+    y_mean2, y_var2 = m.predict(rng_keys[1], X_test, samples, jitter=1e-4)
     assert_(onp.count_nonzero(y_var1 - y_var2) > 0)
     assert_(onp.count_nonzero(y_mean1 - y_mean2) > 0)
+
+
+def test_guide_type():
+    rng_key, _ = get_keys()
+    X, y = get_dummy_data()
+    m = viGP(1, 'RBF',  guide='delta')
+    m.fit(rng_key, X, y, num_steps=100,)
+    samples1 = m.get_samples()
+    m = viGP(1, 'RBF',  guide='delta')
+    m.fit(rng_key, X, y, num_steps=100)
+    samples1a = m.get_samples()
+    m = viGP(1, 'RBF',  guide='normal')
+    m.fit(rng_key, X, y, num_steps=100)
+    samples2 = m.get_samples()
+    assert_(samples1["k_length"] - samples1a["k_length"] == 0)
+    assert_(samples1["k_length"] - samples2["k_length"] != 0)
