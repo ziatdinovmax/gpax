@@ -3,7 +3,7 @@ from .gp import ExactGP
 from .vgp import vExactGP
 from .dkl import DKL
 from .vidkl import viDKL
-from vigp import viGP
+from .vigp import viGP
 from .spm import sPM
 from .hypo import sample_next
 
