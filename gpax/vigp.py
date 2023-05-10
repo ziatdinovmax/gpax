@@ -125,9 +125,7 @@ class viGP(ExactGP):
         y_sampled = jnp.concatenate(y_sampled, -1)
         return y_pred, y_sampled
 
-    def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
-                samples: Optional[Dict[str, jnp.ndarray]] = None,
-                n: int = 1, filter_nans: bool = False, noiseless: bool = False,
+    def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray, noiseless: bool = False,
                 device: Type[jaxlib.xla_extension.Device] = None, **kwargs: float
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
