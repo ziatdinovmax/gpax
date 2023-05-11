@@ -21,7 +21,7 @@ from .gp import ExactGP
 
 class viGP(ExactGP):
     """
-    Gaussian process class
+    Variational inference based Gaussian process
 
     Args:
         input_dim:
@@ -36,6 +36,21 @@ class viGP(ExactGP):
             Optional priors over mean function parameters
         noise_prior:
             Optional custom prior for observation noise; uses LogNormal(0,1) by default.
+        guide:
+            Auto-guide option, use 'delta' (default) or 'normal'
+
+    Examples:
+
+        Use viGP to reconstruct data from sparse noisy obervations
+
+        >>> # Get random number generator keys
+        >>> rng_key, rng_key_predict = gpax.utils.get_keys()
+        >>> # Initialize model
+        >>> gp_model = gpax.viGP(input_dim=1, kernel='Matern')
+        >>> # Run variational inference to obtain a MAP estimate for the GP model parameters
+        >>> gp_model.fit(rng_key, X, y, num_steps=1000)  # X and y are arrays with dimensions (n, 1) and (n,)
+        >>> # Make a noiseless prediction on new inputs
+        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
     """
 
     def __init__(self, input_dim: int, kernel: str,
@@ -58,7 +73,7 @@ class viGP(ExactGP):
             **kwargs: float
             ) -> None:
         """
-        Run variational inferece to obtain the GP parameters
+        Run variational inference to learn GP (hyper)parameters
 
         Args:
             rng_key: random number generator key
