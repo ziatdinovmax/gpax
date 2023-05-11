@@ -178,7 +178,7 @@ class viGP(ExactGP):
 
     def _print_summary(self) -> None:
         params_map = self.get_samples()
-        print('\nInferred GP kernel parameters')
+        print('\nInferred GP parameters')
         for (k, vals) in params_map.items():
             spaces = " " * (15 - len(k))
             print(k, spaces, jnp.around(vals, 4))
