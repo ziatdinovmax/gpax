@@ -68,7 +68,7 @@ class viDKL(ExactGP):
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None,
                  guide: str = 'delta'
                  ) -> None:
-        super(viDKL, self).__init__(input_dim, kernel, kernel_prior)
+        super(viDKL, self).__init__(input_dim, kernel, None, kernel_prior)
         if guide not in ['delta', 'normal']:
             raise NotImplementedError("Select guide between 'delta' and 'normal'")
         nn_module = nn if nn else MLP

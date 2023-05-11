@@ -64,7 +64,7 @@ class DKL(vExactGP):
                  nn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None
                  ) -> None:
-        super(DKL, self).__init__(input_dim, kernel, kernel_prior)
+        super(DKL, self).__init__(input_dim, kernel, None, kernel_prior)
         self.nn = nn if nn else mlp
         self.nn_prior = nn_prior if nn_prior else mlp_prior(input_dim, z_dim)
         self.kernel_dim = z_dim
