@@ -7,6 +7,7 @@ GPax is a small Python package for physics-based Gaussian processes (GPs) built 
 
 ## How to use
 ### Simple GP
+#### *1D Example*
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb)
 
 The code snippet below shows how to use vanilla GP in a fully Bayesian mode. First, we infer GP model parameters from the available training data
@@ -30,6 +31,27 @@ y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test)
 For 1-dimensional data, we can plot the GP prediction using the standard approach where the uncertainty in predictions - represented by a standard deviation in ```y_sampled``` - is depicted as a shaded area around the mean value. See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb).
 
 <img src = "https://user-images.githubusercontent.com/34245227/167945487-05068084-86cb-4104-a792-d39d2f834151.jpg" height="60%" width="60%">
+
+#### *Sparse Image Reconstruction*
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viGP.ipynb)
+
+One can also use GP for sparse image reconstruction. The fully Bayesian GP is typically too slow for this purpose and it makes sense to use a variational inference approximation (viGP) instead. Code-wise, the applciation of viGP in GPax is very similar to that of the fully Bayesian GP. One difference is that instead of num_samples we have num_steps. We can control the learning rate by specifying a ```step_size```. 
+```python3
+# Get training inputs/targets and full image indices from sparse image data
+X_train, y_train, X_full = gpax.utils.preprocess_sparse_image(sparse_img) # sparse_img is a 2D numpy array
+
+# Initialize and train a variational inference GP model
+gp_model = gpax.viGP(2, kernel='Matern', guide='delta')
+gp_model.fit(rng_key, X_train, y_train, num_steps=250, step_size=0.05)
+```
+
+When we run the ```.predict()``` method, the output is predictive mean and variance computed from a learned single estimate of the GP model parameters:
+```python3
+y_pred, y_var = gp_model.predict(rng_key_predict, X_full)
+```
+<img src = "https://github.com/ziatdinovmax/gpax/assets/34245227/4c5036ee-4358-420d-b4d8-285b3ee81c09.jpg" height="75%" width="75%">
+
+See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viGP.ipynb).
 
 ### Structured GP
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb)
