@@ -4,6 +4,7 @@ sphinx>=3.0.0
 sphinx_autodoc_typehints>=1.11.0
 recommonmark>=0.6.0
 sphinx_rtd_theme>=0.5.0
+typing-extensions>=4.4.0
 jax>=0.4.8
 numpyro>=0.11.0
 dm-haiku>=0.0.5
