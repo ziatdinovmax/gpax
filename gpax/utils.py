@@ -94,3 +94,23 @@ def dviz(d: Type[numpyro.distributions.Distribution], samples: int = 1000) -> No
     plt.figure(dpi=100)
     sns.histplot(samples, kde=True, fill=False)
     plt.show()
+
+
+def preprocess_sparse_image(sparse_image):
+    """
+    Creates GP inputs from sparse image data where missing values are represented by zeros.
+    If your actual data contains zeros, you will need to (re-)normalize it.
+    Otherwise, those elements will be interpreted as missng values. The function returns
+    two arrays of the shapes (N, D) and (N,) that are used as training inputs and targets in GP
+    and an array of full indices of the shape (N_full, D) for reconstructing the full image. D is
+    the image dimensionality (D=2 for a 2D image)
+    """
+    # Find non-zero element indices
+    non_zero_indices = onp.nonzero(sparse_image)
+    # Create the GP input using the indices
+    gp_input = onp.column_stack(non_zero_indices)
+    # Extract non-zero values (targets) from the sparse image
+    targets = sparse_image[non_zero_indices]
+    # Generate indices for the entire image
+    full_indices = onp.array(onp.meshgrid(*[onp.arange(dim) for dim in sparse_image.shape])).T.reshape(-1, sparse_image.ndim)
+    return gp_input, targets, full_indices
