@@ -14,7 +14,7 @@ with open(os.path.join(module_dir, 'gpax/__version__.py')) as f:
 if __name__ == "__main__":
     setup(
         name='gpax',
-        python_requires='>=3.8',
+        python_requires='>=3.9',
         version=__version__,
         description='Gaussian processes in NumPyro and JAX',
         long_description=open(os.path.join(module_dir, 'README.md')).read(),
