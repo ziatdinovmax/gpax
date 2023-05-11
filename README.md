@@ -35,7 +35,7 @@ For 1-dimensional data, we can plot the GP prediction using the standard approac
 #### *Sparse Image Reconstruction*
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viGP.ipynb)
 
-One can also use GP for sparse image reconstruction. The fully Bayesian GP is typically too slow for this purpose and it makes sense to use a stochastic variational inference approximation (viGP) instead. Code-wise, the application of viGP in GPax is almost the same as that of the fully Bayesian GP. One difference is that instead of ```num_samples``` we have ```num_steps```. We can also control the learning rate by specifying a ```step_size```. 
+One can also use GP for sparse image reconstruction. The fully Bayesian GP is typically too slow for this purpose and it makes sense to use a stochastic variational inference approximation (viGP) instead. Code-wise, the usage of viGP in GPax is almost the same as that of the fully Bayesian GP. One difference is that instead of ```num_samples``` we have ```num_steps```. We can also control the learning rate by specifying a ```step_size```. 
 ```python3
 # Get training inputs/targets and full image indices from sparse image data
 X_train, y_train, X_full = gpax.utils.preprocess_sparse_image(sparse_img) # sparse_img is a 2D numpy array
