@@ -10,8 +10,10 @@ in handy for comparisons between predicitons of GP and classical Bayesian models
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Optional, Tuple, Type, Dict
 
+import jax
+import jaxlib
 import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
@@ -64,7 +66,8 @@ class sPM:
     def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
             num_warmup: int = 2000, num_samples: int = 2000,
             num_chains: int = 1, chain_method: str = 'sequential',
-            progress_bar: bool = True, print_summary: bool = True) -> None:
+            progress_bar: bool = True, print_summary: bool = True,
+            device: Type[jaxlib.xla_extension.Device] = None) -> None:
         """
         Run HMC to infer parameters of the structured probabilistic model
 
@@ -78,8 +81,13 @@ class sPM:
             chain_method: 'sequential', 'parallel' or 'vectorized'
             progress_bar: show progress bar
             print_summary: print summary at the end of sampling
+            device:
+                optionally specify a cpu or gpu device on which to run the inference;
+                e.g., ``device=jax.devices("cpu")[0]`` 
         """
-
+        if device:
+            X = jax.device_put(X, device)
+            y = jax.device_put(y, device)
         init_strategy = init_to_median(num_samples=10)
         kernel = NUTS(self.model, init_strategy=init_strategy)
         self.mcmc = MCMC(
@@ -120,7 +128,8 @@ class sPM:
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
-                filter_nans: bool = False, take_point_predictions_mean: bool = True
+                filter_nans: bool = False, take_point_predictions_mean: bool = True,
+                device: Type[jaxlib.xla_extension.Device] = None
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using sampled GP hyperparameters
@@ -131,12 +140,18 @@ class sPM:
             samples: optional posterior samples
             filter_nans: filter out samples containing NaN values (if any)
             take_point_predictions_mean: take a mean of point predictions (without sampling from the normal distribution)
+            device:
+                optionally specify a cpu or gpu device on which to make a prediction;
+                e.g., ```device=jax.devices("gpu")[0]```
 
         Returns:
             Point predictions (or their mean) and posterior predictive distribution
         """
         if samples is None:
             samples = self.get_samples(chain_dim=False)
+        if device:
+            X_new = jax.device_put(X_new, device)
+            samples = jax.device_put(samples, device)
         predictive = Predictive(
             self.model, posterior_samples=samples, parallel=True)
         y_pred = predictive(rng_key, X_new)
