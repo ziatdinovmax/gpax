@@ -22,8 +22,7 @@ from .vidkl import viDKL
 def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
        X: jnp.ndarray, xi: float = 0.01,
        maximize: bool = False, n: int = 1,
-       noiseless: bool = False, last_point: jnp.ndarray = None,
-       lambda_penalty: float = 0.1, indices: jnp.ndarray = None,
+       noiseless: bool = False,
        **kwargs) -> jnp.ndarray:
     """
     Expected Improvement
@@ -32,7 +31,6 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
         rng_key: JAX random number generator key
         model: trained model
         X: new inputs
-        xi: coefficient balancing exploration-exploitation trade-off
         maximize: If True, assumes that BO is solving maximization problem
         n: number of samples drawn from each MVN distribution
            (number of distributions is equal to the number of HMC samples)
@@ -40,14 +38,6 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
-        last_point : An optional array representing the coordinates of last point evaluated.
-        lambda_penalty :
-            A parameter that controls the strength of the penalty if the last_point is provided.
-            (Defaults to 0.1)
-        indices:
-            indices of data points in X array for penalty term calculation.
-            For example, if each data point is an image patch, the indices should correspond
-            to their (x, y) coordinates in the original image.
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
@@ -58,31 +48,26 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             rng_key, X, n=n, noiseless=noiseless, **kwargs)
         y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
         mean, sigma = y_sampled.mean(0), y_sampled.std(0)
-        u = (mean - y_mean.max() - xi) / sigma
+        best_f = y_mean.max() if maximize else y_mean.min()
     else:
         mean, var = model.predict(
             rng_key, X, noiseless=noiseless, **kwargs)
         sigma = jnp.sqrt(var)
-        u = (mean - mean.max() - xi) / sigma
-    u = -u if not maximize else u
+        best_f = mean.max() if maximize else mean.min()
+    u = (mean - best_f) / sigma
+    if not maximize:
+        u = -u
     normal = dist.Normal(jnp.zeros_like(u), jnp.ones_like(u))
     ucdf = normal.cdf(u)
     updf = jnp.exp(normal.log_prob(u))
     acq = sigma * (updf + u * ucdf)
-    if last_point is not None:  # Add the distance penalty term
-        last_point = last_point[None] if last_point.ndim < 2 else last_point
-        X_ = jnp.array(indices) if indices is not None else jnp.array(X)
-        distance = jnp.linalg.norm(X_ - last_point, axis=1)
-        penalty = 1 / distance
-        acq -= lambda_penalty * penalty
     return acq
 
 
 def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         X: jnp.ndarray, beta: float = .25,
         maximize: bool = False, n: int = 1,
-        noiseless: bool = False, last_point: jnp.ndarray = None,
-        lambda_penalty: float = 0.1, indices: jnp.ndarray = None,
+        noiseless: bool = False,
         **kwargs) -> jnp.ndarray:
     """
     Upper confidence bound
@@ -99,14 +84,6 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
-        last_point : An optional array representing the coordinates of last point evaluated.
-        lambda_penalty :
-            A parameter that controls the strength of the penalty if the last_point is provided.
-            (Defaults to 0.1)
-        indices:
-            indices of data points in X array for penalty term calculation.
-            For example, if each data point is an image patch, the indices should correspond
-            to their (x, y) coordinates in the original image.
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
@@ -121,14 +98,10 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         mean, var = model.predict(
             rng_key, X, noiseless=noiseless, **kwargs)
     delta = jnp.sqrt(beta * var)
-    s = 1 if maximize else -1
-    acq = mean + s * delta
-    if last_point is not None:  # Add the distance penalty term
-        last_point = last_point[None] if last_point.ndim < 2 else last_point
-        X_ = jnp.array(indices) if indices is not None else jnp.array(X)
-        distance = jnp.linalg.norm(X_ - last_point, axis=1)
-        penalty = 1 / distance
-        acq -= lambda_penalty * penalty
+    if maximize:
+        acq = mean + delta
+    else:
+        acq = delta - mean  # we return a negative acq for argmax in BO
     return acq
 
 
