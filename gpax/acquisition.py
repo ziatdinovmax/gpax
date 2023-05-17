@@ -23,7 +23,8 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
        X: jnp.ndarray, xi: float = 0.01,
        maximize: bool = False, n: int = 1,
        noiseless: bool = False, last_point: jnp.ndarray = None,
-       lambda_penalty: float = 0.1, **kwargs) -> jnp.ndarray:
+       lambda_penalty: float = 0.1, indices: jnp.ndarray = None,
+       **kwargs) -> jnp.ndarray:
     """
     Expected Improvement
 
@@ -43,6 +44,10 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
         lambda_penalty :
             A parameter that controls the strength of the penalty if the last_point is provided.
             (Defaults to 0.1)
+        indices:
+            indices of data points in X array for penalty term calculation.
+            For example, if each data point is an image patch, the indices should correspond
+            to their (x, y) coordinates in the original image.
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
@@ -66,7 +71,8 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
     acq = sigma * (updf + u * ucdf)
     if last_point is not None:  # Add the distance penalty term
         last_point = last_point[None] if last_point.ndim < 2 else last_point
-        distance = jnp.linalg.norm(X - last_point, axis=1)
+        X_ = jnp.array(indices) if indices is not None else jnp.array(X)
+        distance = jnp.linalg.norm(X_ - last_point, axis=1)
         penalty = 1 / distance
         acq -= lambda_penalty * penalty
     return acq
@@ -76,7 +82,8 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         X: jnp.ndarray, beta: float = .25,
         maximize: bool = False, n: int = 1,
         noiseless: bool = False, last_point: jnp.ndarray = None,
-        lambda_penalty: float = 0.1, **kwargs) -> jnp.ndarray:
+        lambda_penalty: float = 0.1, indices: jnp.ndarray = None,
+        **kwargs) -> jnp.ndarray:
     """
     Upper confidence bound
 
@@ -96,6 +103,10 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         lambda_penalty :
             A parameter that controls the strength of the penalty if the last_point is provided.
             (Defaults to 0.1)
+        indices:
+            indices of data points in X array for penalty term calculation.
+            For example, if each data point is an image patch, the indices should correspond
+            to their (x, y) coordinates in the original image.
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
@@ -114,7 +125,8 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     acq = mean + s * delta
     if last_point is not None:  # Add the distance penalty term
         last_point = last_point[None] if last_point.ndim < 2 else last_point
-        distance = jnp.linalg.norm(X - last_point, axis=1)
+        X_ = jnp.array(indices) if indices is not None else jnp.array(X)
+        distance = jnp.linalg.norm(X_ - last_point, axis=1)
         penalty = 1 / distance
         acq -= lambda_penalty * penalty
     return acq
@@ -126,6 +138,7 @@ def UE(rng_key: jnp.ndarray,
        noiseless: bool = False,
        last_point: jnp.ndarray = None,
        lambda_penalty: float = 0.1,
+       indices: jnp.ndarray = None,
        **kwargs) -> jnp.ndarray:
     """
     Uncertainty-based exploration
@@ -144,6 +157,10 @@ def UE(rng_key: jnp.ndarray,
         lambda_penalty :
             A parameter that controls the strength of the penalty if the last_point is provided.
             (Defaults to 0.1)
+        indices:
+            indices of data points in X array for penalty term calculation.
+            For example, if each data point is an image patch, the indices should correspond
+            to their (x, y) coordinates in the original image.
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
@@ -159,7 +176,8 @@ def UE(rng_key: jnp.ndarray,
             rng_key, X, noiseless=noiseless, **kwargs)
     if last_point is not None:  # Add the distance penalty term
         last_point = last_point[None] if last_point.ndim < 2 else last_point
-        distance = jnp.linalg.norm(X - last_point, axis=1)
+        X_ = jnp.array(indices) if indices is not None else jnp.array(X)
+        distance = jnp.linalg.norm(X_ - last_point, axis=1)
         penalty = 1 / distance
         var -= lambda_penalty * penalty
     return var
