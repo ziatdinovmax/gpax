@@ -22,7 +22,8 @@ from .vidkl import viDKL
 def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
        X: jnp.ndarray, xi: float = 0.01,
        maximize: bool = False, n: int = 1,
-       noiseless: bool = False, **kwargs) -> jnp.ndarray:
+       noiseless: bool = False, last_point: jnp.ndarray = None,
+       lambda_penalty: float = 0.1, **kwargs) -> jnp.ndarray:
     """
     Expected Improvement
 
@@ -38,10 +39,15 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
+        last_point : An optional array representing the coordinates of last point evaluated.
+        lambda_penalty :
+            A parameter that controls the strength of the penalty if the last_point is provided.
+            (Defaults to 0.1)
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
+    X = X[:, None] if X.ndim < 2 else X
     if model.mcmc is not None:
         y_mean, y_sampled = model.predict(
             rng_key, X, n=n, noiseless=noiseless, **kwargs)
@@ -57,13 +63,20 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
     normal = dist.Normal(jnp.zeros_like(u), jnp.ones_like(u))
     ucdf = normal.cdf(u)
     updf = jnp.exp(normal.log_prob(u))
-    return sigma * (updf + u * ucdf)
+    acq = sigma * (updf + u * ucdf)
+    if last_point is not None:  # Add the distance penalty term
+        last_point = last_point[None] if last_point.ndim < 2 else last_point
+        distance = jnp.linalg.norm(X - last_point, axis=1)
+        penalty = 1 / distance
+        acq -= lambda_penalty * penalty
+    return acq
 
 
 def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         X: jnp.ndarray, beta: float = .25,
         maximize: bool = False, n: int = 1,
-        noiseless: bool = False, **kwargs) -> jnp.ndarray:
+        noiseless: bool = False, last_point: jnp.ndarray = None,
+        lambda_penalty: float = 0.1, **kwargs) -> jnp.ndarray:
     """
     Upper confidence bound
 
@@ -79,10 +92,15 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
+        last_point : An optional array representing the coordinates of last point evaluated.
+        lambda_penalty :
+            A parameter that controls the strength of the penalty if the last_point is provided.
+            (Defaults to 0.1)
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
+    X = X[:, None] if X.ndim < 2 else X
     if model.mcmc is not None:
         _, y_sampled = model.predict(
             rng_key, X, n=n, noiseless=noiseless, **kwargs)
@@ -92,15 +110,22 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         mean, var = model.predict(
             rng_key, X, noiseless=noiseless, **kwargs)
     delta = jnp.sqrt(beta * var)
-    if maximize:
-        return mean + delta
-    return mean - delta
+    s = 1 if maximize else -1
+    acq = mean + s * delta
+    if last_point is not None:  # Add the distance penalty term
+        last_point = last_point[None] if last_point.ndim < 2 else last_point
+        distance = jnp.linalg.norm(X - last_point, axis=1)
+        penalty = 1 / distance
+        acq -= lambda_penalty * penalty
+    return acq
 
 
 def UE(rng_key: jnp.ndarray,
        model: Type[ExactGP],
        X: jnp.ndarray, n: int = 1,
        noiseless: bool = False,
+       last_point: jnp.ndarray = None,
+       lambda_penalty: float = 0.1,
        **kwargs) -> jnp.ndarray:
     """
     Uncertainty-based exploration
@@ -115,10 +140,15 @@ def UE(rng_key: jnp.ndarray,
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
+        last_point : An optional array representing the coordinates of last point evaluated.
+        lambda_penalty :
+            A parameter that controls the strength of the penalty if the last_point is provided.
+            (Defaults to 0.1)
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
+    X = X[:, None] if X.ndim < 2 else X
     if model.mcmc is not None:
         _, y_sampled = model.predict(
             rng_key, X, n=n, noiseless=noiseless, **kwargs)
@@ -127,6 +157,11 @@ def UE(rng_key: jnp.ndarray,
     else:
         _, var = model.predict(
             rng_key, X, noiseless=noiseless, **kwargs)
+    if last_point is not None:  # Add the distance penalty term
+        last_point = last_point[None] if last_point.ndim < 2 else last_point
+        distance = jnp.linalg.norm(X - last_point, axis=1)
+        penalty = 1 / distance
+        var -= lambda_penalty * penalty
     return var
 
 

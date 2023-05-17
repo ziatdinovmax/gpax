@@ -2,7 +2,7 @@ import sys
 import pytest
 import numpy as onp
 import jax.numpy as jnp
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_
 
 sys.path.insert(0, "../gpax/")
 
@@ -37,3 +37,17 @@ def test_acq_dkl(acq):
     obj = acq(rng_keys[1], m, X_new)
     assert isinstance(obj, jnp.ndarray)
     assert_equal(obj.squeeze().shape, (len(X_new),))
+
+
+@pytest.mark.parametrize("acq", [EI, UCB, UE])
+def test_acq_penalty(acq):
+    rng_keys = get_keys()
+    X = onp.random.randn(8,)
+    X_new = onp.random.randn(12,)
+    y = 10 * X**2
+    m = ExactGP(1, 'RBF')
+    m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
+    obj1 = acq(rng_keys[1], m, X_new)
+    last_point = onp.array(X_new[3] - 0.02)
+    obj2 = acq(rng_keys[1], m, X_new, last_point=last_point)
+    assert_(onp.count_nonzero(obj1 - obj2) > 0)
