@@ -40,10 +40,10 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
         distance_penalty:
-            Modifies the acqusition function by penalizing points near the recent points
+            Modifies the acquisition function by penalizing points near the recent points
 
             .. math::
-                \alpha \coloneqq \alpha - \lambda \cdot \pi(X, r)
+                \alpha - \lambda \cdot \pi(X, r)
 
             where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points `r`, 
             :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the distance penalty. Defaults to None.
@@ -105,13 +105,13 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
         distance_penalty:
-            Modifies the acqusition function by penalizing points near the recent points
+            Modifies the acquisition function by penalizing points near the recent points
 
             .. math::
-                \text{{acq\_func}} -= \text{{distance\_penalty}} \cdot \text{{point\_penalty}}(X, \text{{recent\_points}})
+                \alpha - \lambda \cdot \pi(X, r)
 
-            where :math:`\text{{point\_penalty}}(X, \text{{recent\_points}})` computes a penalty for points in :math:`X`
-            based on their distance to `recent_points`. Defaults to None.
+            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points `r`, 
+            :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the distance penalty. Defaults to None.
         recent_points:
             An array of recently visited points [oldest, ..., newest] provided by user
         grid_indices:
@@ -151,7 +151,7 @@ def UE(rng_key: jnp.ndarray,
        recent_points: jnp.ndarray = None,
        grid_indices: jnp.ndarray = None,
        **kwargs) -> jnp.ndarray:
-    """
+    r"""
     Uncertainty-based exploration
 
     Args:
@@ -165,13 +165,13 @@ def UE(rng_key: jnp.ndarray,
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
         distance_penalty:
-            Modifies the acqusition function by penalizing points near the recent points
+            Modifies the uncertainty by penalizing points near the recent points
 
             .. math::
-                \text{{acq\_func}} -= \text{{distance\_penalty}} \cdot \text{{point\_penalty}}(X, \text{{recent\_points}})
+                \sigma - \lambda \cdot \pi(X, r)
 
-            where :math:`\text{{point\_penalty}}(X, \text{{recent\_points}})` computes a penalty for points in :math:`X`
-            based on their distance to `recent_points`. Defaults to None.
+            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points `r`, 
+            :math:`\sogma` represents the uncertainty, and :math:`\lambda` represents the distance penalty. Defaults to None.
         recent_points:
             An array of recently visited points [oldest, ..., newest] provided by user
         grid_indices:
