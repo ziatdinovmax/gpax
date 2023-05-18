@@ -40,7 +40,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
         distance_penalty:
-            Modifies the acquisition function by penalizing points near the recent points
+            Modifies the acquisition function by penalizing points near the recent points as
 
             .. math::
                 \alpha - \lambda \cdot \pi(X, r)
@@ -105,7 +105,7 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
         distance_penalty:
-            Modifies the acquisition function by penalizing points near the recent points
+            Modifies the acquisition function by penalizing points near the recent points as
 
             .. math::
                 \alpha - \lambda \cdot \pi(X, r)
@@ -165,13 +165,13 @@ def UE(rng_key: jnp.ndarray,
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
         distance_penalty:
-            Modifies the uncertainty by penalizing points near the recent points
+            Modifies the uncertainty by penalizing points near the recent points as
 
             .. math::
                 \sigma - \lambda \cdot \pi(X, r)
 
             where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points `r`, 
-            :math:`\sogma` represents the uncertainty, and :math:`\lambda` represents the distance penalty. Defaults to None.
+            :math:`\sigma` represents the uncertainty, and :math:`\lambda` represents the distance penalty. Defaults to None.
         recent_points:
             An array of recently visited points [oldest, ..., newest] provided by user
         grid_indices:
