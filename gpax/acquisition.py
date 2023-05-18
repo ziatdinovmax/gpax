@@ -43,7 +43,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             Modifies the acqusition function by penalizing points near the recent points
 
             .. math::
-                \text{acq_func} -= \text{distance_penalty} \cdot \text{point_penalty}(X, \text{recent_points})
+                \text{acq_func} \texttt{-=} \text{distance_penalty} \cdot \text{point_penalty}(X, \text{recent_points})
 
             where :math:`\text{point_penalty}(X, \text{recent_points})` computes a penalty for points in :math:`X`
             based on their distance to `recent_points`. Defaults to None.
