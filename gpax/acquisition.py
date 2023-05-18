@@ -43,7 +43,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             Modifies the acqusition function by penalizing points near the recent points
 
             .. math::
-                \alpha = \alpha - \lambda \cdot \pi(X, r)
+                \alpha \coloneqq \alpha - \lambda \cdot \pi(X, r)
 
             where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points `r`, 
             :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the distance penalty. Defaults to None.
