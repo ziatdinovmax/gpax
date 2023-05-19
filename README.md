@@ -112,15 +112,15 @@ gp_model.fit(rng_key, X_measured, y_measured)  # A
 
 # Compute the upper confidence bound (UCB) acquisition function to derive the next measurement point
 acq = gpax.acquisition.UCB(rng_key_predict, gp_model, X_unmeasured, beta=4, maximize=False, noiseless=True)  # B
-next_point_idx = acq.argmin()  # C
+next_point_idx = acq.argmax()  # C
 next_point = X_unmeasured[next_point_idx]  # D
 
 # Perform measurement in next_point, update measured & unmeasured data arrays, and re-run steps A-D.
 ```
 
-In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and the acquisiton function used to derive the next measurement points. Here, the posterior mean values indicate that the minimum of a "black box" function describing a behaviour of interest is around x=0.7. At the same time, there is a large dispersion in the samples from the posterior predictive distribution between x=-0.5 and x=0.5, resulting in a high uncertainty in that region. The acquisition function is computed as a function of both predictive mean and uncertainty and its minimum (or maximum, depending on the problem setup) corresponds to the next measurement point in the active learning and Bayesian optimization. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈0 where potentially a true minimum is located. See full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_GPBO.ipynb).
+In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and the acquisiton function used to derive the next measurement points. Here, the posterior mean values indicate that the minimum of a "black box" function describing a behaviour of interest is around $x=0.7$. At the same time, there is a large dispersion in the samples from the posterior predictive distribution between $x=-0.5$ and $x=0.5$, resulting in a high uncertainty in that region. The acquisition function is computed as a function of both predictive mean and uncertainty and its maximum corresponds to the next measurement point in the active learning and Bayesian optimization. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈0 where potentially a true minimum is located. See full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_GPBO.ipynb).
 
-<img src="https://user-images.githubusercontent.com/34245227/185658311-1106f709-eba8-475e-9d3c-3d9f1c2a30d1.png">
+<img src="https://github.com/ziatdinovmax/gpax/assets/34245227/24f641fb-5959-4780-8d0e-edf62bd0a32b">
 
 
 ### Hypothesis learning
