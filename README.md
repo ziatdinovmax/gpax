@@ -21,7 +21,7 @@ gp_model = gpax.ExactGP(1, kernel='RBF')
 # Run Hamiltonian Monte Carlo to obtain posterior samples for the GP model parameters
 gp_model.fit(rng_key, X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
 ```
-In the [fully Bayesian mode](https://docs.gpytorch.ai/en/v1.5.1/examples/01_Exact_GPs/GP_Regression_Fully_Bayesian.html), we get a pair of predictive mean and covariance for each Hamiltonian Monte Carlo sample containing the GP parameters (in this case, the RBF kernel hyperparameters and model noise). Hence, a prediction on new inputs with a trained GP model returns the center of the mass of all the predictive means (```y_pred```) and samples from multivariate normal distributions for all the pairs of predictive means and covariances (```y_sampled```).
+In the fully Bayesian mode, we get a pair of predictive mean and covariance for each Hamiltonian Monte Carlo sample containing the GP parameters (in this case, the RBF kernel hyperparameters and model noise). Hence, a prediction on new inputs with a trained GP model returns the center of the mass of all the predictive means (```y_pred```) and samples from multivariate normal distributions for all the pairs of predictive means and covariances (```y_sampled```).
 ```python3
 y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test)
 ```
