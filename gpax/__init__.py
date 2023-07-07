@@ -1,8 +1,8 @@
 from . import utils, kernels, acquisition
 from .gp import ExactGP
 from .vgp import vExactGP
-from .dkl import DKL
-from .vidkl import viDKL
+from .bnn import DKL
+from .bnn import viDKL
 from .vigp import viGP
 from .spm import sPM
 from .hypo import sample_next
