@@ -136,9 +136,9 @@ def nngp_erf(x1: jnp.ndarray, x2: jnp.ndarray,
     if depth == 0:
         return var_b + var_w * jnp.sum(x1 * x2, axis=-1) / d
     else:
-        K_12 = nngp_erf(depth - 1, x1, x2, var_b, var_w)
-        K_11 = nngp_erf(depth - 1, x1, x1, var_b, var_w)
-        K_22 = nngp_erf(depth - 1, x2, x2, var_b, var_w)
+        K_12 = nngp_erf(x1, x2, var_b, var_w, depth - 1)
+        K_11 = nngp_erf(x1, x1, var_b, var_w, depth - 1)
+        K_22 = nngp_erf(x2, x2, var_b, var_w, depth - 1)
         sqrt_term = jnp.sqrt((1 + 2 * K_11) * (1 + 2 * K_22))
         fraction = 2 * K_12 / sqrt_term
         epsilon = 1e-7
@@ -211,7 +211,6 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
         """
         var_b = params["var_b"]
         var_w = params["var_w"]
-        print(X.shape, Z.shape)
         return vmap(lambda x: vmap(lambda z: nngp_single_pair_(x, z, var_b, var_w, depth))(Z))(X)
 
     return NNGPKernel_func
