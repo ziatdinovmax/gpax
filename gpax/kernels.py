@@ -12,7 +12,7 @@ from typing import Union, Dict, Callable
 import math
 
 import jax.numpy as jnp
-from jax import jit
+from jax import jit, vmap
 
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray],  jnp.ndarray]
 
@@ -128,3 +128,59 @@ def get_kernel(kernel: Union[str, kernel_fn_type] = 'RBF'):
                   *kernel_book.keys())
             raise
     return kernel
+
+
+def nngp_single_pair(x1: jnp.ndarray, x2: jnp.ndarray, depth: int,
+                     var_b: jnp.array, var_w: jnp.array) -> jnp.array:
+    """
+    Computes the Neural Network Gaussian Process (NNGP) kernel value for a single pair of inputs.
+
+    Args:
+        x1: First input vector.
+        x2: Second input vector.
+        depth:
+            The number of layers in the corresponding infinite-width neural network.
+            Controls the level of recursion in the computation.
+        var_b: Bias variance.
+        var_w: Weight variance.
+
+    Returns:
+        Kernel value for the pair of inputs.
+    """
+    eps = 1e-7
+    d = x1.shape[-1]
+    if depth == 0:
+        return var_b + var_w * jnp.sum(x1 * x2, axis=-1) / d
+    else:
+        K_12 = nngp_single_pair(depth - 1, x1, x2, var_b, var_w)
+        K_11 = nngp_single_pair(depth - 1, x1, x1, var_b, var_w)
+        K_22 = nngp_single_pair(depth - 1, x2, x2, var_b, var_w)
+        sqrt_term = jnp.sqrt(K_11 * K_22)
+        fraction = K_12 / sqrt_term
+        theta = jnp.arccos(jnp.clip(fraction, a_min=-1 + eps, a_max=1 - eps))
+        theta_term = jnp.sin(theta) + (jnp.pi - theta) * fraction
+        return var_b + var_w / (2 * jnp.pi) * sqrt_term * theta_term
+
+
+def nngp_kernel(X: jnp.ndarray,
+                Z: jnp.ndarray,
+                depth: int,
+                params: Dict[str, jnp.ndarray],
+                ) -> jnp.ndarray:
+    """
+     Computes the Neural Network Gaussian Process (NNGP) kernel.
+
+    Args:
+        X1: First set of input vectors.
+        X2: Second set of input vectors.
+        depth:
+            The number of layers in the corresponding infinite-width neural network.
+            Controls the level of recursion in the computation.
+        params: Dictionary containing bias variance and weight variance
+
+    Returns:
+        Kernel matrix for the two sets of inputs.
+    """
+    var_b = params["var_b"]
+    var_w = params["var_w"]
+    return vmap(lambda x: vmap(lambda z: nngp_single_pair(depth, x, z, var_b, var_w))(Z))(X)
