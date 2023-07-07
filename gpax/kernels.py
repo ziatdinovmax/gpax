@@ -114,22 +114,6 @@ def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
     return k
 
 
-def get_kernel(kernel: Union[str, kernel_fn_type] = 'RBF'):
-    kernel_book = {
-        'RBF': RBFKernel,
-        'Matern': MaternKernel,
-        'Periodic': PeriodicKernel
-    }
-    if isinstance(kernel, str):
-        try:
-            kernel = kernel_book[kernel]
-        except KeyError:
-            print('Select one of the currently available kernels:',
-                  *kernel_book.keys())
-            raise
-    return kernel
-
-
 def nngp_single_pair(x1: jnp.ndarray, x2: jnp.ndarray, depth: int,
                      var_b: jnp.array, var_w: jnp.array) -> jnp.array:
     """
@@ -172,15 +156,33 @@ def nngp_kernel(X: jnp.ndarray,
 
     Args:
         X1: First set of input vectors.
-        X2: Second set of input vectors.
+        Z: Second set of input vectors.
         depth:
             The number of layers in the corresponding infinite-width neural network.
             Controls the level of recursion in the computation.
         params: Dictionary containing bias variance and weight variance
 
     Returns:
-        Kernel matrix for the two sets of inputs.
+        Computed kernel matrix between X and Z.
     """
     var_b = params["var_b"]
     var_w = params["var_w"]
     return vmap(lambda x: vmap(lambda z: nngp_single_pair(depth, x, z, var_b, var_w))(Z))(X)
+
+
+def get_kernel(kernel: Union[str, kernel_fn_type] = 'RBF'):
+    kernel_book = {
+        'RBF': RBFKernel,
+        'Matern': MaternKernel,
+        'Periodic': PeriodicKernel
+    }
+    if isinstance(kernel, str):
+        try:
+            kernel = kernel_book[kernel]
+        except KeyError:
+            print('Select one of the currently available kernels:',
+                  *kernel_book.keys())
+            raise
+    return kernel
+
+
