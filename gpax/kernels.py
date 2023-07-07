@@ -155,7 +155,7 @@ def nngp_kernel(X: jnp.ndarray,
      Computes the Neural Network Gaussian Process (NNGP) kernel.
 
     Args:
-        X1: First set of input vectors.
+        X: First set of input vectors.
         Z: Second set of input vectors.
         depth:
             The number of layers in the corresponding infinite-width neural network.
@@ -184,5 +184,3 @@ def get_kernel(kernel: Union[str, kernel_fn_type] = 'RBF'):
                   *kernel_book.keys())
             raise
     return kernel
-
-
