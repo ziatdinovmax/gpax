@@ -196,7 +196,8 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
     nngp_single_pair_ = nngp_relu if activation == 'relu' else nngp_erf
 
     def NNGPKernel_func(X: jnp.ndarray, Z: jnp.ndarray,
-                        params: Dict[str, jnp.ndarray], **kwargs
+                        params: Dict[str, jnp.ndarray], 
+                        noise: jnp.ndarray, **kwargs
                         ) -> jnp.ndarray:
         """
         Computes the Neural Network Gaussian Process (NNGP) kernel.
@@ -211,7 +212,9 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
         """
         var_b = params["var_b"]
         var_w = params["var_w"]
-        return vmap(lambda x: vmap(lambda z: nngp_single_pair_(x, z, var_b, var_w, depth))(Z))(X)
+        k = vmap(lambda x: vmap(lambda z: nngp_single_pair_(x, z, var_b, var_w, depth))(Z))(X)
+        if X.shape == Z.shape:
+            k += add_jitter(noise, **kwargs) * jnp.eye(X.shape[0])
 
     return NNGPKernel_func
 
