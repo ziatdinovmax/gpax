@@ -99,7 +99,7 @@ class viDKL(ExactGP):
         # GP's mean function
         f_loc = jnp.zeros(z.shape[0])
         # compute kernel
-        k = get_kernel(self.kernel)(
+        k = self.kernel(
             z, z,
             kernel_params,
             noise,
@@ -200,9 +200,9 @@ class viDKL(ExactGP):
         z_test = self.nn_module.apply(
             nn_params, jax.random.PRNGKey(0), X_new)
         # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(z_test, z_test, k_params, noise_p, **kwargs)
-        k_pX = get_kernel(self.kernel)(z_test, z_train, k_params, jitter=0.0)
-        k_XX = get_kernel(self.kernel)(z_train, z_train, k_params, noise, **kwargs)
+        k_pp = self.kernel(z_test, z_test, k_params, noise_p, **kwargs)
+        k_pX = self.kernel(z_test, z_train, k_params, jitter=0.0)
+        k_XX = self.kernel(z_train, z_train, k_params, noise, **kwargs)
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
