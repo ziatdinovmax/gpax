@@ -1,3 +1,12 @@
+"""
+ibnn.py
+=======
+
+Infinite width Bayesian neural net
+
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
+"""
+
 from typing import Optional, Dict, Callable
 
 import jax.numpy as jnp
