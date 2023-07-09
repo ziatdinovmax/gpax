@@ -215,6 +215,7 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
         k = vmap(lambda x: vmap(lambda z: nngp_single_pair_(x, z, var_b, var_w, depth))(Z))(X)
         if X.shape == Z.shape:
             k += add_jitter(noise, **kwargs) * jnp.eye(X.shape[0])
+        return k
 
     return NNGPKernel_func
 
@@ -224,7 +225,7 @@ def get_kernel(kernel: Union[str, kernel_fn_type] = 'RBF', **kwargs):
         'RBF': RBFKernel,
         'Matern': MaternKernel,
         'Periodic': PeriodicKernel,
-        'NNGP': NNGPKernel(*kwargs)
+        'NNGP': NNGPKernel(**kwargs)
     }
     if isinstance(kernel, str):
         try:
