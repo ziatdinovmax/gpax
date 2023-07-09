@@ -197,7 +197,7 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
 
     def NNGPKernel_func(X: jnp.ndarray, Z: jnp.ndarray,
                         params: Dict[str, jnp.ndarray], 
-                        noise: jnp.ndarray, **kwargs
+                        noise: jnp.ndarray = 0, **kwargs
                         ) -> jnp.ndarray:
         """
         Computes the Neural Network Gaussian Process (NNGP) kernel.
