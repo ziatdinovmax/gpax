@@ -13,7 +13,7 @@ import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
 
-from .. import viGP
+from ..vigp import viGP
 from ..kernels import get_kernel
 
 
