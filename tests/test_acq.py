@@ -7,8 +7,8 @@ from numpy.testing import assert_equal, assert_
 sys.path.insert(0, "../gpax/")
 
 from gpax.gp import ExactGP
-from gpax.dkl import DKL
-from gpax.vidkl import viDKL
+from gpax.bnn.dkl import DKL
+from gpax.bnn.vidkl import viDKL
 from gpax.utils import get_keys
 from gpax.acquisition import EI, UCB, UE, Thompson
 

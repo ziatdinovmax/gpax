@@ -109,7 +109,8 @@ class ExactGP:
                  ) -> None:
         clear_cache()
         self.kernel_dim = input_dim
-        self.kernel = kernel
+        self.kernel = get_kernel(kernel)
+        self.kernel_name = kernel if isinstance(kernel, str) else None
         self.mean_fn = mean_fn
         self.kernel_prior = kernel_prior
         self.mean_fn_prior = mean_fn_prior
@@ -143,7 +144,7 @@ class ExactGP:
                 args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
         # compute kernel
-        k = get_kernel(self.kernel)(
+        k = self.kernel(
             X, X,
             kernel_params,
             noise,
@@ -225,9 +226,9 @@ class ExactGP:
             args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
             y_residual -= self.mean_fn(*args).squeeze()
         # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise_p, **kwargs)
-        k_pX = get_kernel(self.kernel)(X_new, self.X_train, params, jitter=0.0)
-        k_XX = get_kernel(self.kernel)(self.X_train, self.X_train, params, noise, **kwargs)
+        k_pp = self.kernel(X_new, X_new, params, noise_p, **kwargs)
+        k_pX = self.kernel(X_new, self.X_train, params, jitter=0.0)
+        k_XX = self.kernel(self.X_train, self.X_train, params, noise, **kwargs)
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
@@ -247,19 +248,22 @@ class ExactGP:
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
 
-    def _sample_kernel_params(self, dim: int = None) -> Dict[str, jnp.ndarray]:
+    def _sample_kernel_params(self, output_scale=True) -> Dict[str, jnp.ndarray]:
         """
         Sample kernel parameters with default
         weakly-informative log-normal priors
         """
         with numpyro.plate('k_param', self.kernel_dim):  # allows using ARD kernel for kernel_dim > 1
             length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
-        scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
-        if self.kernel == 'Periodic':
+        if output_scale:
+            scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
+        else:
+            scale = numpyro.deterministic("k_scale", jnp.ndarray(1.0))
+        if self.kernel_name == 'Periodic':
             period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
         kernel_params = {
             "k_length": length, "k_scale": scale,
-            "period": period if self.kernel == "Periodic" else None}
+            "period": period if self.kernel_name == "Periodic" else None}
         return kernel_params
 
     def _predict_in_batches(self, rng_key: jnp.ndarray,
@@ -347,7 +351,7 @@ class ExactGP:
             self._set_training_data(device=device)
             X_new = jax.device_put(X_new, device)
             samples = jax.device_put(samples, device)
-        num_samples = samples["k_length"].shape[0]
+        num_samples = samples["noise"].shape[0]
         vmap_args = (jra.split(rng_key, num_samples), samples)
         predictive = jax.vmap(
             lambda prms: self._predict(prms[0], X_new, prms[1], n, noiseless, **kwargs))

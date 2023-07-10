@@ -18,7 +18,6 @@ import numpyro.distributions as dist
 from jax import jit
 
 from .gp import ExactGP
-from .kernels import get_kernel
 
 
 class vExactGP(ExactGP):
@@ -73,7 +72,7 @@ class vExactGP(ExactGP):
         # Compute kernels for each task in parallel
         jitter = jnp.array(jitter).repeat(task_dim)
         k_args = (X, X, kernel_params, noise)
-        k = jax.vmap(get_kernel(self.kernel))(*k_args, jitter=jitter)
+        k = jax.vmap(self.kernel)(*k_args, jitter=jitter)
         # Sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
@@ -95,9 +94,9 @@ class vExactGP(ExactGP):
         if m_X is not None:
             y_residual -= m_X
         # compute kernel matrices for train and test data
-        k_pp = get_kernel(self.kernel)(X_new, X_new, params, noise_p, **kwargs)
-        k_pX = get_kernel(self.kernel)(X_new, X_train, params, jitter=0.0)
-        k_XX = get_kernel(self.kernel)(X_train, X_train, params, noise, **kwargs)
+        k_pp = self.kernel(X_new, X_new, params, noise_p, **kwargs)
+        k_pX = self.kernel(X_new, X_train, params, jitter=0.0)
+        k_XX = self.kernel(X_train, X_train, params, noise, **kwargs)
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
@@ -144,11 +143,11 @@ class vExactGP(ExactGP):
                 length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
         with numpyro.plate("plate_2", task_dim):  # task dimension'
             scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
-            if self.kernel == 'Periodic':
+            if self.kernel_name == 'Periodic':
                 period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
         kernel_params = {
             "k_length": length, "k_scale": scale,
-            "period": period if self.kernel == "Periodic" else None}
+            "period": period if self.kernel_name == "Periodic" else None}
         return kernel_params
 
     def predict_in_batches(self, rng_key: jnp.ndarray,

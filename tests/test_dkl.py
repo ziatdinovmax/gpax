@@ -3,12 +3,11 @@ import pytest
 import numpy as onp
 import jax.numpy as jnp
 import jax
-import numpyro
 from numpy.testing import assert_equal, assert_array_equal, assert_
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.dkl import DKL
+from gpax.bnn.dkl import DKL
 from gpax.utils import get_keys
 
 

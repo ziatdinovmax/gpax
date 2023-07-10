@@ -12,7 +12,7 @@ from typing import Union, Dict, Callable
 import math
 
 import jax.numpy as jnp
-from jax import jit
+from jax import jit, vmap
 
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray],  jnp.ndarray]
 
@@ -114,11 +114,118 @@ def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
     return k
 
 
-def get_kernel(kernel: Union[str, kernel_fn_type] = 'RBF'):
+def nngp_erf(x1: jnp.ndarray, x2: jnp.ndarray,
+             var_b: jnp.array, var_w: jnp.array, 
+             depth: int = 3) -> jnp.array:
+    """
+    Computes the Neural Network Gaussian Process (NNGP) kernel value for
+    a single pair of inputs using the Erf activation.
+
+    Args:
+        x1: First input vector.
+        x2: Second input vector.
+        var_b: Bias variance.
+        var_w: Weight variance.
+        depth: The number of layers in the corresponding infinite-width neural network.
+               Controls the level of recursion in the computation.
+
+    Returns:
+        Kernel value for the pair of inputs.
+    """
+    d = x1.shape[-1]
+    if depth == 0:
+        return var_b + var_w * jnp.sum(x1 * x2, axis=-1) / d
+    else:
+        K_12 = nngp_erf(x1, x2, var_b, var_w, depth - 1)
+        K_11 = nngp_erf(x1, x1, var_b, var_w, depth - 1)
+        K_22 = nngp_erf(x2, x2, var_b, var_w, depth - 1)
+        sqrt_term = jnp.sqrt((1 + 2 * K_11) * (1 + 2 * K_22))
+        fraction = 2 * K_12 / sqrt_term
+        epsilon = 1e-7
+        theta = jnp.arcsin(jnp.clip(fraction, a_min=-1 + epsilon, a_max=1 - epsilon))
+        result = var_b + 2 * var_w / jnp.pi * theta
+        return result
+
+
+def nngp_relu(x1: jnp.ndarray, x2: jnp.ndarray,
+              var_b: jnp.array, var_w: jnp.array,
+              depth: int = 3) -> jnp.array:
+    """
+    Computes the Neural Network Gaussian Process (NNGP) kernel value for
+    a single pair of inputs using RELU activation.
+
+    Args:
+        x1: First input vector.
+        x2: Second input vector.
+        var_b: Bias variance.
+        var_w: Weight variance.
+        depth: The number of layers in the corresponding infinite-width neural network.
+               Controls the level of recursion in the computation.
+
+    Returns:
+        Kernel value for the pair of inputs.
+    """
+    eps = 1e-7
+    d = x1.shape[-1]
+    if depth == 0:
+        return var_b + var_w * jnp.sum(x1 * x2, axis=-1) / d
+    else:
+        K_12 = nngp_relu(x1, x2, var_b, var_w, depth - 1, )
+        K_11 = nngp_relu(x1, x1, var_b, var_w, depth - 1, )
+        K_22 = nngp_relu(x2, x2, var_b, var_w, depth - 1, )
+        sqrt_term = jnp.sqrt(K_11 * K_22)
+        fraction = K_12 / sqrt_term
+        theta = jnp.arccos(jnp.clip(fraction, a_min=-1 + eps, a_max=1 - eps))
+        theta_term = jnp.sin(theta) + (jnp.pi - theta) * fraction
+        return var_b + var_w / (2 * jnp.pi) * sqrt_term * theta_term
+
+
+def NNGPKernel(activation: str = 'erf', depth: int = 3
+               ) -> Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]:
+    """
+    Neural Network Gaussian Process (NNGP) kernel function
+
+    Args:
+        activation: activation function ('erf' or 'relu')
+        depth: The number of layers in the corresponding infinite-width neural network. 
+               Controls the level of recursion in the computation.
+
+    Returns:
+        Function for computing kernel matrix between X and Z.
+    """
+    nngp_single_pair_ = nngp_relu if activation == 'relu' else nngp_erf
+
+    def NNGPKernel_func(X: jnp.ndarray, Z: jnp.ndarray,
+                        params: Dict[str, jnp.ndarray], 
+                        noise: jnp.ndarray = 0, **kwargs
+                        ) -> jnp.ndarray:
+        """
+        Computes the Neural Network Gaussian Process (NNGP) kernel.
+
+        Args:
+            X: First set of input vectors.
+            Z: Second set of input vectors.
+            params: Dictionary containing bias variance and weight variance
+
+        Returns:
+            Computed kernel matrix between X and Z.
+        """
+        var_b = params["var_b"]
+        var_w = params["var_w"]
+        k = vmap(lambda x: vmap(lambda z: nngp_single_pair_(x, z, var_b, var_w, depth))(Z))(X)
+        if X.shape == Z.shape:
+            k += add_jitter(noise, **kwargs) * jnp.eye(X.shape[0])
+        return k
+
+    return NNGPKernel_func
+
+
+def get_kernel(kernel: Union[str, kernel_fn_type] = 'RBF', **kwargs):
     kernel_book = {
         'RBF': RBFKernel,
         'Matern': MaternKernel,
-        'Periodic': PeriodicKernel
+        'Periodic': PeriodicKernel,
+        'NNGP': NNGPKernel(**kwargs)
     }
     if isinstance(kernel, str):
         try:

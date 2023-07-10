@@ -16,8 +16,7 @@ import numpyro
 import numpyro.distributions as dist
 from jax import jit
 
-from .vgp import vExactGP
-from .kernels import get_kernel
+from ..vgp import vExactGP
 
 
 class DKL(vExactGP):
@@ -96,7 +95,7 @@ class DKL(vExactGP):
         # compute kernel(s)
         jitter = jnp.array(jitter).repeat(task_dim)
         k_args = (z, z, kernel_params, noise)
-        k = jax.vmap(get_kernel(self.kernel))(*k_args, jitter=jitter)
+        k = jax.vmap(self.kernel)(*k_args, jitter=jitter)
         # Sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
@@ -116,9 +115,9 @@ class DKL(vExactGP):
         z_train = self.nn(X_train, params)
         z_new = self.nn(X_new, params)
         # compute kernel matrices for train and new ('test') data
-        k_pp = get_kernel(self.kernel)(z_new, z_new, params, noise_p, **kwargs)
-        k_pX = get_kernel(self.kernel)(z_new, z_train, params, jitter=0.0)
-        k_XX = get_kernel(self.kernel)(z_train, z_train, params, noise, **kwargs)
+        k_pp = self.kernel(z_new, z_new, params, noise_p, **kwargs)
+        k_pX = self.kernel(z_new, z_train, params, jitter=0.0)
+        k_XX = self.kernel(z_train, z_train, params, noise, **kwargs)
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))

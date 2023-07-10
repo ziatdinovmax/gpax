@@ -16,7 +16,6 @@ import numpy as onp
 import numpyro.distributions as dist
 
 from .gp import ExactGP
-from .vidkl import viDKL
 
 
 def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
