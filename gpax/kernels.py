@@ -115,7 +115,7 @@ def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
 
 
 def nngp_erf(x1: jnp.ndarray, x2: jnp.ndarray,
-             var_b: jnp.array, var_w: jnp.array, 
+             var_b: jnp.array, var_w: jnp.array,
              depth: int = 3) -> jnp.array:
     """
     Computes the Neural Network Gaussian Process (NNGP) kernel value for
@@ -187,7 +187,7 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
 
     Args:
         activation: activation function ('erf' or 'relu')
-        depth: The number of layers in the corresponding infinite-width neural network. 
+        depth: The number of layers in the corresponding infinite-width neural network.
                Controls the level of recursion in the computation.
 
     Returns:
@@ -196,7 +196,7 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
     nngp_single_pair_ = nngp_relu if activation == 'relu' else nngp_erf
 
     def NNGPKernel_func(X: jnp.ndarray, Z: jnp.ndarray,
-                        params: Dict[str, jnp.ndarray], 
+                        params: Dict[str, jnp.ndarray],
                         noise: jnp.ndarray = 0, **kwargs
                         ) -> jnp.ndarray:
         """
@@ -218,6 +218,103 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
         return k
 
     return NNGPKernel_func
+
+
+def index_kernel(indices1, indices2, params):
+    r"""
+    Computes the task kernel matrix for given task indices.
+    The task covariance between two data points i and j, where i is in
+    indices1 and j is in indices2, is calculated as:
+
+    .. math::
+        task\_kernel_values[i, j] = BB^T[i, j] + v[i] \delta_{ij}
+
+    where BB^T is the matrix product of B with its transpose, v[i]
+    is the variance of task i, and \delta_{ij} is the Kronecker delta
+    which is 1 if i == j and 0 otherwise.
+
+    Args:
+        indices1:
+            An array of task indices for the first set of data points.
+            Each entry is an integer that indicates the task associated
+            with a data point.
+        indices2:
+            An array of task indices for the second set of data points.
+            Each entry is an integer that indicates the task associated
+            with a data point.
+        params:
+            Dictionary of parameters for the task kernel. It includes:
+            'B': The coregionalization matrix of shape (num_tasks, num_tasks).
+                This is a symmetric positive  semi-definite matrix that determines
+                the correlation structure between the tasks.
+            'v':
+                The vector of task variances with the (n_tasks,) shape.
+                This is a diagonal matrix that  determines the variance of each task.
+
+    Returns:
+        Computed kernel matrix of the shape (len(indices1), len(indices2)).
+        Each entry task_kernel_values[i, j] is the covariance between the tasks
+        associated with data point i in indices1 and data point j in indices2.
+
+    """
+    B = params["B"]
+    v = params["v"]
+    covar = jnp.dot(B, B.T) + jnp.diag(v)
+    return covar[jnp.ix_(indices1, indices2)]
+
+
+def MultitaskKernel(base_kernel, **kwargs1):
+    r"""
+    Construct a multi-task kernel given a base data kernel.
+    The multi-task kernel is defined as
+
+    .. math::
+        K(x_i, x_j) = k_{data}(x_i, x_j) * k_{task}(t_i, t_j)
+
+    where x_i and x_j are data points and t_i and t_j are tasks associated
+    with x_i and x_j respectively.
+
+    Args:
+        base_kernel : str or function
+            The name of the base data kernel or a function that computes
+            the base data kernel. This kernel is used to compute the
+            similarities in the input space. THe built-in kernels are 'RBF',
+            'Matern', 'Periodic', and 'NNGP'.
+
+        **kwargs1 : dict
+            Additional keyword arguments to pass to the `get_kernel`
+            function when constructing the base data kernel.
+
+    Returns:
+        The constructed multi-task kernel function.
+    """
+
+    data_kernel = get_kernel(base_kernel, **kwargs1)
+
+    def multi_task_kernel(X, Z, params, noise=0, **kwargs2):
+        # Extract input data and task indices from X and Z
+        X_data, indices_X = X[:, :-1], X[:, -1].astype(int)
+        Z_data, indices_Z = Z[:, :-1], Z[:, -1].astype(int)
+
+        # Compute data and task kernels
+        k_data = data_kernel(X_data, Z_data, params, 0, **kwargs2) # noise will be added later
+        k_task = index_kernel(indices_X, indices_Z, params)
+
+        # Compute the multi-task kernel
+        K = k_data * k_task
+
+        # Add noise associated with each task
+        if X.shape == Z.shape:
+            # Get the noise corresponding to each sample's task
+            sample_noise = noise[indices_X]
+            # Add small jitter for numerical stability
+            sample_noise = add_jitter(sample_noise, **kwargs2)
+            # Add the noise to the diagonal of the kernel matrix
+            K = K.at[jnp.diag_indices(K.shape[0])].add(sample_noise)
+
+        return K
+
+    return multi_task_kernel
 
 
 def get_kernel(kernel: Union[str, kernel_fn_type] = 'RBF', **kwargs):
