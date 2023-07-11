@@ -258,7 +258,7 @@ class ExactGP:
         if output_scale:
             scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
         else:
-            scale = numpyro.deterministic("k_scale", jnp.ndarray(1.0))
+            scale = numpyro.deterministic("k_scale", jnp.array(1.0))
         if self.kernel_name == 'Periodic':
             period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
         kernel_params = {
