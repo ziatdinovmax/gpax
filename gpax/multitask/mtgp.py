@@ -64,7 +64,7 @@ class MultiTaskGP(ExactGP):
         if self.data_kernel_prior:
             data_kernel_params = self.data_kernel_prior()
         else:
-            data_kernel_params = self._sample_kernel_params()
+            data_kernel_params = self._sample_kernel_params(output_scale=False)
 
         # Sample task kernel parameters
         if self.task_kernel_prior:
