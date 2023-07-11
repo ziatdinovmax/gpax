@@ -220,7 +220,7 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
     return NNGPKernel_func
 
 
-def index_kernel(indices1, indices2, params):
+def index_kernel(params):
     r"""
     Computes the task kernel matrix for given task indices.
     The task covariance between two data points i and j, where i is in
@@ -234,14 +234,6 @@ def index_kernel(indices1, indices2, params):
     which is 1 if i == j and 0 otherwise.
 
     Args:
-        indices1:
-            An array of task indices for the first set of data points.
-            Each entry is an integer that indicates the task associated
-            with a data point.
-        indices2:
-            An array of task indices for the second set of data points.
-            Each entry is an integer that indicates the task associated
-            with a data point.
         params:
             Dictionary of parameters for the task kernel. It includes:
             'B': The coregionalization matrix of shape (num_tasks, num_tasks).
@@ -252,15 +244,11 @@ def index_kernel(indices1, indices2, params):
                 This is a diagonal matrix that  determines the variance of each task.
 
     Returns:
-        Computed kernel matrix of the shape (len(indices1), len(indices2)).
-        Each entry task_kernel_values[i, j] is the covariance between the tasks
-        associated with data point i in indices1 and data point j in indices2.
-
+        Computed kernel matrix
     """
     B = params["B"]
     v = params["v"]
-    covar = jnp.dot(B, B.T) + jnp.diag(v)
-    return covar[jnp.ix_(indices1, indices2)]
+    return jnp.dot(B, B.T) + jnp.diag(v)
 
 
 def MultitaskKernel(base_kernel, **kwargs1):
@@ -298,10 +286,10 @@ def MultitaskKernel(base_kernel, **kwargs1):
 
         # Compute data and task kernels
         k_data = data_kernel(X_data, Z_data, params, 0, **kwargs2) # noise will be added later
-        k_task = index_kernel(indices_X, indices_Z, params)
+        k_task = index_kernel(params)
 
         # Compute the multi-task kernel
-        K = k_data * k_task
+        K = k_data * k_task[jnp.ix_(indices_X, indices_Z)]
 
         # Add noise associated with each task
         if X.shape == Z.shape:
