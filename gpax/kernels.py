@@ -316,6 +316,99 @@ def MultitaskKernel(base_kernel, **kwargs1):
     return multi_task_kernel
 
 
+def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
+    r"""
+    Construct a multi-task kernel given a base data kernel.
+    The multi-task kernel is defined as
+
+    .. math::
+        K_{ij} = K_{data}(x_i, x_j) \otimes K_{task}(t_i, t_j)
+
+    where x_i and x_j are data points and t_i and t_j are tasks associated
+    with x_i and x_j respectively.
+
+    Args:
+        base_kernel : str or function
+            The name of the base data kernel or a function that computes
+            the base data kernel. This kernel is used to compute the
+            similarities in the input space. THe built-in kernels are 'RBF',
+            'Matern', 'Periodic', and 'NNGP'.
+        num_tasks:
+            number of tasks
+
+        **kwargs1 : dict
+            Additional keyword arguments to pass to the `get_kernel`
+            function when constructing the base data kernel.
+
+    Returns:
+        The constructed multi-task kernel function.
+    """
+
+    data_kernel = get_kernel(base_kernel, **kwargs1)
+
+    def multivariate_kernel(X, Z, params, noise=0, **kwargs2):        
+        # Compute data and task kernels
+        task_labels = jnp.arange(num_tasks)
+        k_data = data_kernel(X, Z, params, 0, **kwargs2)  # noise will be added later
+        k_task = index_kernel(task_labels, task_labels, params)
+
+        # Compute the multi-task kernel
+        K = jnp.kron(k_data, k_task)
+
+        # Add noise associated with each task
+        if X.shape == Z.shape:
+            # Make sure noise is a jax ndarray with a proper shape
+            if isinstance(noise, (float, int)):
+                noise = jnp.ones(num_tasks) * noise
+            # Add small jitter for numerical stability
+            noise = add_jitter(noise, **kwargs2)
+            # Create a block-diagonal noise matrix with the noise terms
+            # on the diagonal of each block
+            noise_matrix = jnp.kron(jnp.eye(k_data.shape[0]), jnp.diag(noise))
+            # Add the noise to the diagonal of the kernel matrix
+            K += noise_matrix
+
+        return K
+
+    return multivariate_kernel
+
+
+def LCMKernel(base_kernel, shared_input_space=True, num_tasks=None, **kwargs1):
+    """
+    Construct kernel for a Linear Model of Coregionalization (LMC)
+    
+    Args:
+        base_kernel : str or function
+            The name of the data kernel or a function that computes
+            the data kernel. This kernel is used to compute the
+            similarities in the input space. The built-in kernels are 'RBF',
+            'Matern', 'Periodic', and 'NNGP'.
+        shared_input_space : bool, optional
+            If True (default), assumes that all tasks share the same input space and 
+            uses a multivariate kernel (kronecker product). If False, assumes that the
+            tasks have different input spaces and uses a multitask kernel (elementwise multiplication).
+        num_tasks : int, optional
+            Number of tasks. This is only used if `shared_input_space` is True.
+        **kwargs1 :
+            Additional keyword arguments to pass to the `get_kernel`
+            function when constructing the base data kernel.
+
+    Returns:
+        The constructed LMC kernel function.
+    """
+
+    if shared_input_space:
+        multi_kernel = MultivariateKernel(base_kernel, num_tasks, **kwargs1)
+    else:
+        multi_kernel = MultitaskKernel(base_kernel, **kwargs1)
+
+    def lcm_kernel(X, Z, params, noise=0, **kwargs2):
+        k = vmap(lambda par: multi_kernel(X, Z, par, noise, **kwargs2))(params)
+        return k.sum(0)
+
+    return lcm_kernel
+
+
 def get_kernel(kernel: Union[str, kernel_fn_type] = 'RBF', **kwargs):
     kernel_book = {
         'RBF': RBFKernel,
