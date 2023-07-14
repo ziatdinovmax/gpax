@@ -376,7 +376,7 @@ def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
     return multivariate_kernel
 
 
-def LCMKernel(base_kernel, shared_input_space=True, num_tasks=None, **kwargs1):
+def LCMKernel(base_kernel, num_latents, shared_input_space=True, num_tasks=None, **kwargs1):
     """
     Construct kernel for a Linear Model of Coregionalization (LMC)
     
@@ -386,6 +386,8 @@ def LCMKernel(base_kernel, shared_input_space=True, num_tasks=None, **kwargs1):
             the data kernel. This kernel is used to compute the
             similarities in the input space. The built-in kernels are 'RBF',
             'Matern', 'Periodic', and 'NNGP'.
+        num_latents: int
+            Number of latent functions
         shared_input_space : bool, optional
             If True (default), assumes that all tasks share the same input space and 
             uses a multivariate kernel (kronecker product). If False, assumes that the
@@ -407,7 +409,7 @@ def LCMKernel(base_kernel, shared_input_space=True, num_tasks=None, **kwargs1):
 
     def lcm_kernel(X, Z, params, noise=0, **kwargs2):
         if isinstance(noise, (int, float)):
-            noise = jnp.ones(num_tasks) * noise
+            noise = jnp.ones(num_latents) * noise
         k = vmap(lambda p, n: multi_kernel(X, Z, p, n, **kwargs2))(params, noise)
         return k.sum(0)
 
