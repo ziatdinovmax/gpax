@@ -253,7 +253,7 @@ class ExactGP:
         Sample kernel parameters with default
         weakly-informative log-normal priors
         """
-        with numpyro.plate('k_param', self.kernel_dim):  # allows using ARD kernel for kernel_dim > 1
+        with numpyro.plate('ard', self.kernel_dim):  # allows using ARD kernel for kernel_dim > 1
             length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
         if output_scale:
             scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
