@@ -318,8 +318,11 @@ def MultitaskKernel(base_kernel, **kwargs1):
 
 def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
     r"""
-    Construct a multi-task kernel given a base data kernel.
-    The multi-task kernel is defined as
+    Construct a multivariate kernel given a base data kernel asssuming
+    that all tasks share the same input space. For situations where not all
+    tasks share the same input parameters, see MultitaskKernel.
+    The multivariate kernel is defined as a Kronecker product between
+    data and task kernels
 
     .. math::
         K_{ij} = K_{data}(x_i, x_j) \otimes K_{task}(t_i, t_j)
