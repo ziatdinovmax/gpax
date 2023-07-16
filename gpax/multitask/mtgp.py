@@ -5,20 +5,27 @@ import numpy as onp
 import numpyro
 import numpyro.distributions as dist
 
-from .. import ExactGP
-from ..kernels import MultitaskKernel
+from ..gp import ExactGP
+from ..kernels import LCMKernel
 
 
 class MultiTaskGP(ExactGP):
-
     """
-    Gaussian process class for multi-output/fidelity problems
+    Multi-fidelity/task Gaussian process
 
     Args:
         input_dim:
             Number of input dimensions
         data_kernel:
             Kernel function operating on data inputs ('RBF', 'Matern', 'Periodic', or a custom function)
+        num_latents:
+            Number of latent functions. Typically equal or less than a number of tasks
+        shared_input_space:
+            If True (default), assumes that all tasks share the same input space and
+            uses a multivariate kernel (kronecker product). If False, assumes that the
+            tasks have different input spaces and uses a multitask kernel (elementwise multiplication).
+        num_tasks:
+            Number of tasks. This is only used if `shared_input_space` is True.
         mean_fn:
             Optional deterministic mean function (use 'mean_fn_priors' to make it probabilistic)
         data_kernel_prior:
@@ -36,19 +43,31 @@ class MultiTaskGP(ExactGP):
 
     """
     def __init__(self, input_dim: int, data_kernel: str,
+                 num_latents: int = None, shared_input_space: bool = True, num_tasks: int = None,
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  data_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  task_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 rank: int = 1, **kwargs) -> None:
+                 rank: int = 1, output_scale: bool = False, **kwargs) -> None:
         args = (input_dim, None, mean_fn, None, mean_fn_prior, noise_prior)
         super(MultiTaskGP, self).__init__(*args)
-        self.num_tasks = None
+        if shared_input_space:
+            if num_tasks is None:
+                raise AssertionError("Please specify num_tasks")
+        else:
+            if num_latents is None:
+                raise AssertionError("Please specify num_latents")
+        self.num_tasks = num_tasks
+        self.num_latents = num_tasks if num_latents is None else num_latents
         self.rank = rank
-        self.kernel = MultitaskKernel(data_kernel, **kwargs)
+        self.kernel = LCMKernel(
+            data_kernel, num_latents, shared_input_space, num_tasks, **kwargs)
+        self.data_kernel_name = data_kernel if isinstance(data_kernel, str) else None
         self.data_kernel_prior = data_kernel_prior
         self.task_kernel_prior = task_kernel_prior
+        self.shared_input = shared_input_space
+        self.output_scale = output_scale
 
     def model(self,
               X: jnp.ndarray,
@@ -56,21 +75,31 @@ class MultiTaskGP(ExactGP):
               **kwargs: float
               ) -> None:
         """Multitask GP probabilistic model with inputs X and targets y"""
-        self.num_tasks = len(onp.unique(X[:, -1]))
+
         # Initialize mean function at zeros
-        f_loc = jnp.zeros(X.shape[0])
+        if self.shared_input:
+            f_loc = jnp.zeros(self.num_tasks * X.shape[0])
+        else:
+            f_loc = jnp.zeros(X.shape[0])
+
+        # Check that we have necessary info for sampling kernel params
+        if not self.shared_input and self.num_tasks is None:
+            self.num_tasks = len(onp.unique(self.X_train[:, -1]))
+
+        if self.rank is None:
+            self.rank = self.num_tasks - 1
 
         # Sample data kernel parameters
         if self.data_kernel_prior:
             data_kernel_params = self.data_kernel_prior()
         else:
-            data_kernel_params = self._sample_kernel_params(output_scale=False)
+            data_kernel_params = self._sample_kernel_params()
 
         # Sample task kernel parameters
         if self.task_kernel_prior:
             task_kernel_params = self.task_kernel_prior()
         else:
-            task_kernel_params = self._sample_task_kernel_params(self.num_tasks, self.rank)
+            task_kernel_params = self._sample_task_kernel_params()
 
         # Combine two dictionaries with parameters
         kernel_params = {**data_kernel_params, **task_kernel_params}
@@ -78,14 +107,16 @@ class MultiTaskGP(ExactGP):
         # Sample noise
         if self.noise_prior:
             noise = self.noise_prior()
-        else:  # consider using numpyro.plate here
-            noise = numpyro.sample(
-                "noise", dist.LogNormal(
-                    jnp.zeros(self.num_tasks), jnp.ones(self.num_tasks))
-            )
+        else:
+            with numpyro.plate("noise_plate", self.num_latents):
+                noise = numpyro.sample(
+                    "noise", dist.LogNormal(
+                        jnp.zeros(self.num_tasks),
+                        jnp.ones(self.num_tasks)).to_event(1)
+                )
 
         # Compute multitask_kernel
-        k = self.kernel(X, X, kernel_params, noise)
+        k = self.kernel(X, X, kernel_params, noise, **kwargs)
 
         # Add mean function (if any)
         if self.mean_fn is not None:
@@ -94,19 +125,48 @@ class MultiTaskGP(ExactGP):
                 args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
 
-        # sample y according to the standard Gaussian process formula
+        # Sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
             dist.MultivariateNormal(loc=f_loc, covariance_matrix=k),
             obs=y,
         )
 
-    def _sample_task_kernel_params(self, n_tasks, rank):
+    def _sample_task_kernel_params(self):
         """
         Sample task kernel parameters with default weakly-informative priors
+        for all the latent functions
         """
-        B = numpyro.sample("B", numpyro.distributions.Normal(
-            jnp.zeros(shape=(n_tasks, rank)), 10*jnp.ones(shape=(n_tasks, rank))))
-        v = numpyro.sample("v", numpyro.distributions.LogNormal(
-            jnp.zeros(shape=(n_tasks,)), jnp.ones(shape=(n_tasks,))))
+        B_dist = dist.Normal(
+                jnp.zeros(shape=(self.num_latents, self.num_tasks, self.rank)),  # loc
+                10*jnp.ones(shape=(self.num_latents, self.num_tasks, self.rank)) # var
+        )
+        v_dist = dist.LogNormal(
+                jnp.zeros(shape=(self.num_latents, self.num_tasks)),  # loc
+                jnp.ones(shape=(self.num_latents, self.num_tasks)) # var
+        )
+        with numpyro.plate("latent_plate_task", self.num_latents):
+            B = numpyro.sample("B", B_dist.to_event(2))
+            v = numpyro.sample("v", v_dist.to_event(1))
         return {"B": B, "v": v}
+
+    def _sample_kernel_params(self):
+        """
+        Sample data ("base") kernel parameters with default weakly-informative
+        priors for all the latent functions
+        """
+        squeezer = lambda x: x.squeeze() if self.num_latents > 1 else x
+        with numpyro.plate("latent_plate_data", self.num_latents, dim=-2):
+            with numpyro.plate("ard", self.kernel_dim, dim=-1):
+                length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
+            if self.output_scale:
+                scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
+            else:
+                scale = numpyro.deterministic("k_scale", jnp.ones(self.num_latents))
+            if self.data_kernel_name == 'Periodic':
+                period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
+        kernel_params = {
+            "k_length": squeezer(length), "k_scale": squeezer(scale),
+            "period": squeezer(period) if self.data_kernel_name == "Periodic" else None
+        }
+        return kernel_params

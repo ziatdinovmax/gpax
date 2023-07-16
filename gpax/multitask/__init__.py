@@ -1,3 +1,3 @@
-from .mtgp import MultiTaskGP
+from .corgp import CoregGP
 
-__all__ = ["MultiTaskGP"]
+__all__ = ["CoregGP", "MultiTaskGP"]
