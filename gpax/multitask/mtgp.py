@@ -62,7 +62,7 @@ class MultiTaskGP(ExactGP):
         self.num_latents = num_tasks if num_latents is None else num_latents
         self.rank = rank
         self.kernel = LCMKernel(
-            data_kernel, num_latents, shared_input_space, num_tasks, **kwargs)
+            data_kernel, shared_input_space, num_tasks, **kwargs)
         self.data_kernel_name = data_kernel if isinstance(data_kernel, str) else None
         self.data_kernel_prior = data_kernel_prior
         self.task_kernel_prior = task_kernel_prior
