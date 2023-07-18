@@ -37,9 +37,12 @@ class MultiTaskGP(ExactGP):
         task_kernel_prior:
             Optional custom priors over task kernel parameters;
             Defaults to Normal(0, 10) for weights B and LogNormal(0, 1) for variances v.
-        rank: int
+        rank:
             Rank of the weight matrix in the task kernel. Cannot be larger than the number of tasks.
             Higher rank implies higher correlation. Defaults to 1.
+        task_weights:
+            Option to pass prior task weights. This can be useful in a situation
+            where one task has significantly more observations than another.
 
     """
     def __init__(self, input_dim: int, data_kernel: str,
@@ -49,7 +52,7 @@ class MultiTaskGP(ExactGP):
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  task_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 rank: int = 1, output_scale: bool = False, **kwargs) -> None:
+                 rank: int = 1, task_weights: Optional[jnp.ndarray] = None, output_scale: bool = False, **kwargs) -> None:
         args = (input_dim, None, mean_fn, None, mean_fn_prior, noise_prior)
         super(MultiTaskGP, self).__init__(*args)
         if shared_input_space:
@@ -67,6 +70,12 @@ class MultiTaskGP(ExactGP):
         self.data_kernel_prior = data_kernel_prior
         self.task_kernel_prior = task_kernel_prior
         self.shared_input = shared_input_space
+        if task_weights is not None:
+            if not isinstance(task_weights, (jnp.ndarray, list)):
+                raise AssertionError("Pass task weights as an array or a list")
+            if isinstance(task_weights, list):
+                task_weights = jnp.array(task_weights)
+        self.task_weights = task_weights
         self.output_scale = output_scale
 
     def model(self,
@@ -137,14 +146,19 @@ class MultiTaskGP(ExactGP):
         Sample task kernel parameters with default weakly-informative priors
         for all the latent functions
         """
+        task_w = self.task_weights  # task_weights should be a jnp.ndarray at the init
+        if task_w is None:
+            task_w = 0.5 * jnp.ones(self.num_tasks)
+
         B_dist = dist.Normal(
                 jnp.zeros(shape=(self.num_latents, self.num_tasks, self.rank)),  # loc
                 10*jnp.ones(shape=(self.num_latents, self.num_tasks, self.rank)) # var
         )
-        v_dist = dist.LogNormal(
-                jnp.zeros(shape=(self.num_latents, self.num_tasks)),  # loc
-                jnp.ones(shape=(self.num_latents, self.num_tasks)) # var
-        )
+
+        v_dist = dist.Gamma(
+            4 * task_w,
+            jnp.ones(shape=(self.num_latents, self.num_tasks)))
+
         with numpyro.plate("latent_plate_task", self.num_latents):
             B = numpyro.sample("B", B_dist.to_event(2))
             v = numpyro.sample("v", v_dist.to_event(1))
