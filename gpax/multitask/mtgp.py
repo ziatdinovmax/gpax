@@ -146,7 +146,7 @@ class MultiTaskGP(ExactGP):
         Sample task kernel parameters with default weakly-informative priors
         for all the latent functions
         """
-        task_w = self.task_weights  # task_weights should be a jnp.ndarray at the init
+        task_w = self.task_weights
         if task_w is None:
             task_w = 0.5 * jnp.ones(self.num_tasks)
 
