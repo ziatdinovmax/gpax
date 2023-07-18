@@ -108,12 +108,11 @@ class MultiTaskGP(ExactGP):
         if self.noise_prior:
             noise = self.noise_prior()
         else:
-            with numpyro.plate("noise_plate", self.num_latents):
-                noise = numpyro.sample(
-                    "noise", dist.LogNormal(
-                        jnp.zeros(self.num_tasks),
-                        jnp.ones(self.num_tasks)).to_event(1)
-                )
+            noise = numpyro.sample(
+                "noise", dist.LogNormal(
+                    jnp.zeros(self.num_tasks),
+                    jnp.ones(self.num_tasks)).to_event(1)
+            )
 
         # Compute multitask_kernel
         k = self.kernel(X, X, kernel_params, noise, **kwargs)

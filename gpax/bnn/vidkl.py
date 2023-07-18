@@ -192,7 +192,7 @@ class viDKL(ExactGP):
         (mean and cov, where cov.diagonal() is 'uncertainty')
         given a single set of DKL parameters
         """
-        noise = k_params["noise"]
+        noise = k_params.pop("noise")
         noise_p = noise * (1 - jnp.array(noiseless, int))
         # embed data into the latent space
         z_train = self.nn_module.apply(

@@ -219,7 +219,7 @@ class ExactGP:
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of GP parameters
         """
-        noise = params["noise"]
+        noise = params.pop("noise")
         noise_p = noise * (1 - jnp.array(noiseless, int))
         y_residual = self.y_train.copy()
         if self.mean_fn is not None:

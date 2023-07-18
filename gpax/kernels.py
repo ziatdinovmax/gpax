@@ -406,10 +406,7 @@ def LCMKernel(base_kernel, shared_input_space=True, num_tasks=None, **kwargs1):
         multi_kernel = MultitaskKernel(base_kernel, **kwargs1)
 
     def lcm_kernel(X, Z, params, noise=0, **kwargs2):
-        if isinstance(noise, (int, float)):
-            num_latents = params[next(iter(params))].shape[0]
-            noise = jnp.ones(num_latents, num_tasks) * noise
-        k = vmap(lambda p, n: multi_kernel(X, Z, p, n, **kwargs2))(params, noise)
+        k = vmap(lambda p: multi_kernel(X, Z, p, noise, **kwargs2))(params)
         return k.sum(0)
 
     return lcm_kernel

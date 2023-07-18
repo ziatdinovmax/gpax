@@ -109,7 +109,7 @@ class DKL(vExactGP):
                            X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
                            noiseless: bool = False, **kwargs: float
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        noise = params["noise"]
+        noise = params.pop("noise")
         noise_p = noise * (1 - jnp.array(noiseless, int))
         # embed data into the latent space
         z_train = self.nn(X_train, params)
