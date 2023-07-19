@@ -105,8 +105,8 @@ class CoregGP(ExactGP):
         """
         Sample task kernel parameters with default weakly-informative priors
         """
-        B = numpyro.sample("B", numpyro.distributions.Normal(
+        W = numpyro.sample("W", numpyro.distributions.Normal(
             jnp.zeros(shape=(n_tasks, rank)), 10*jnp.ones(shape=(n_tasks, rank))))
         v = numpyro.sample("v", numpyro.distributions.LogNormal(
             jnp.zeros(shape=(n_tasks,)), jnp.ones(shape=(n_tasks,))))
-        return {"B": B, "v": v}
+        return {"W": W, "v": v}

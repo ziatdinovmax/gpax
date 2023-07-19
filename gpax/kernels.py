@@ -223,15 +223,15 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
 def index_kernel(indices1, indices2, params):
     r"""
     Computes the task kernel matrix for given task indices.
-    The task covariance between two data points i and j, where i is in
-    indices1 and j is in indices2, is calculated as:
+    The task covariance between two discrete indices i and j
+    is calculated as:
 
     .. math::
-        task\_kernel_values[i, j] = BB^T[i, j] + v[i] \delta_{ij}
+        task\_kernel_values[i, j] = WW^T[i, j] + v[i] \delta_{ij}
 
-    where BB^T is the matrix product of B with its transpose, v[i]
-    is the variance of task i, and \delta_{ij} is the Kronecker delta
-    which is 1 if i == j and 0 otherwise.
+    where :math:`WW^T` is the matrix product of :math:`B` with its transpose, :math:`v[i]`
+    is the variance of task :math:`i`, and :math:`\delta_{ij}` is the Kronecker delta
+    which is 1 if :math:`i == j` and 0 otherwise.
 
     Args:
         indices1:
@@ -244,7 +244,7 @@ def index_kernel(indices1, indices2, params):
             with a data point.
         params:
             Dictionary of parameters for the task kernel. It includes:
-            'B': The coregionalization matrix of shape (num_tasks, num_tasks).
+            'W': The coregionalization matrix of shape (num_tasks, num_tasks).
                 This is a symmetric positive  semi-definite matrix that determines
                 the correlation structure between the tasks.
             'v':
@@ -256,10 +256,10 @@ def index_kernel(indices1, indices2, params):
         Each entry task_kernel_values[i, j] is the covariance between the tasks
         associated with data point i in indices1 and data point j in indices2.
     """
-    B = params["B"]
+    W = params["W"]
     v = params["v"]
-    covar = jnp.dot(B, B.T) + jnp.diag(v)
-    return covar[jnp.ix_(indices1, indices2)]
+    B = jnp.dot(W, W.T) + jnp.diag(v)
+    return B[jnp.ix_(indices1, indices2)]
 
 
 def MultitaskKernel(base_kernel, **kwargs1):

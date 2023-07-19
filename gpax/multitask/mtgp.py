@@ -136,7 +136,7 @@ class MultiTaskGP(ExactGP):
         Sample task kernel parameters with default weakly-informative priors
         for all the latent functions
         """
-        B_dist = dist.Normal(
+        W_dist = dist.Normal(
                 jnp.zeros(shape=(self.num_latents, self.num_tasks, self.rank)),  # loc
                 10*jnp.ones(shape=(self.num_latents, self.num_tasks, self.rank)) # var
         )
@@ -145,9 +145,9 @@ class MultiTaskGP(ExactGP):
                 jnp.ones(shape=(self.num_latents, self.num_tasks)) # var
         )
         with numpyro.plate("latent_plate_task", self.num_latents):
-            B = numpyro.sample("B", B_dist.to_event(2))
+            W = numpyro.sample("W", W_dist.to_event(2))
             v = numpyro.sample("v", v_dist.to_event(1))
-        return {"B": B, "v": v}
+        return {"W": W, "v": v}
 
     def _sample_kernel_params(self):
         """
