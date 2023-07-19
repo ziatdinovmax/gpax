@@ -396,20 +396,22 @@ def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
 def LCMKernel(base_kernel, shared_input_space=True, num_tasks=None, **kwargs1):
     """
     Construct kernel for a Linear Model of Coregionalization (LMC)
-    
+
     Args:
-        base_kernel : str or function
+        base_kernel:
             The name of the data kernel or a function that computes
             the data kernel. This kernel is used to compute the
             similarities in the input space. The built-in kernels are 'RBF',
             'Matern', 'Periodic', and 'NNGP'.
-        shared_input_space : bool, optional
-            If True (default), assumes that all tasks share the same input space and 
-            uses a multivariate kernel (kronecker product). If False, assumes that the
-            tasks have different input spaces and uses a multitask kernel (elementwise multiplication).
-        num_tasks : int, optional
+        shared_input_space:
+            If True (default), assumes that all tasks share the same input space and
+            uses a multivariate kernel (Kronecker product).
+            If False, assumes that different tasks have different number of observations
+            and uses a multitask kernel (elementwise multiplication). In that case, the task
+            indices must be appended as the last column of the input vector.
+        num_tasks: int, optional
             Number of tasks. This is only used if `shared_input_space` is True.
-        **kwargs1 :
+        **kwargs1:
             Additional keyword arguments to pass to the `get_kernel`
             function when constructing the base data kernel.
 
