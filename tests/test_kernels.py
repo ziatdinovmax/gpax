@@ -8,7 +8,7 @@ sys.path.insert(0, "../gpax/")
 
 from gpax.kernels import (RBFKernel, MaternKernel, PeriodicKernel,
                           index_kernel, nngp_erf, nngp_relu, NNGPKernel,
-                          MultitaskKernel, MultivariateKernel)
+                          MultitaskKernel, MultivariateKernel, LCMKernel)
 
 
 @pytest.mark.parametrize("kernel", [RBFKernel, MaternKernel])
@@ -136,10 +136,48 @@ def test_MultiVariateKernel():
 def test_multivariate_kernel_shapes(data_kernel, dim, num_tasks, rank):
     x1 = onp.random.randn(5, dim)
     x2 = onp.random.randn(3, dim)
-    x12 = onp.vstack([x1, x2])
     params = {"k_length": jnp.array(1.0), "k_scale": jnp.array(1.0),
               "W": jnp.ones((num_tasks, rank)), "v": jnp.ones(num_tasks)}
     noise = jnp.ones(num_tasks)
     mtkernel = MultivariateKernel(data_kernel, num_tasks)
+    k = mtkernel(x1, x2, params, noise)
+    assert_equal(k.shape, (num_tasks*len(x1), num_tasks*len(x2)))
+
+
+def test_LCMKernel():
+    base_kernel = 'RBF'
+    lcm_kernel = LCMKernel(base_kernel)
+    assert_(callable(lcm_kernel), "The result of MultitaskKernel should be a function.")
+
+
+@pytest.mark.parametrize("num_latent", [1, 2])
+@pytest.mark.parametrize("data_kernel", [RBFKernel, MaternKernel])
+@pytest.mark.parametrize("dim", [1, 2])
+def test_LCMKernel_shapes_multitask(data_kernel, dim, num_latent):
+    x1 = onp.random.randn(5, dim)
+    x2 = onp.random.randn(3, dim)
+    x1 = onp.column_stack([x1, onp.zeros_like(x1)])
+    x2 = onp.column_stack([x2, onp.ones_like(x2)])
+    x12 = onp.vstack([x1, x2])
+    params = {"k_length": jnp.ones(num_latent), "k_scale": jnp.ones(num_latent),
+              "W": jnp.ones((num_latent, 2, 2)), "v": jnp.ones((num_latent, 2))}
+    noise = jnp.array([1.0, 1.0])
+    mtkernel = LCMKernel(data_kernel, shared_input_space=False)
     k = mtkernel(x12, x12, params, noise)
-    assert_equal(k.shape, (num_tasks*len(x12), num_tasks*len(x12)))
+    assert_equal(k.shape, (len(x12), len(x12)))
+
+
+@pytest.mark.parametrize("num_latent", [1, 2])
+@pytest.mark.parametrize("data_kernel", [RBFKernel, MaternKernel])
+@pytest.mark.parametrize("num_tasks", [2, 3])
+@pytest.mark.parametrize("rank", [1, 2])
+@pytest.mark.parametrize("dim", [1, 2])
+def test_LCMKernel_shapes_multivariate(data_kernel, dim, num_latent, rank, num_tasks):
+    x1 = onp.random.randn(5, dim)
+    x2 = onp.random.randn(3, dim)
+    params = {"k_length": jnp.ones(num_latent), "k_scale": jnp.ones(num_latent),
+              "W": jnp.ones((num_latent, num_tasks, rank)), "v": jnp.ones((num_latent, num_tasks))}
+    noise = jnp.ones(num_tasks)
+    mtkernel = LCMKernel(data_kernel, shared_input_space=True, num_tasks=num_tasks)
+    k = mtkernel(x1, x2, params, noise)
+    assert_equal(k.shape, (num_tasks*len(x1), num_tasks*len(x2)))
