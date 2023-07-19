@@ -264,23 +264,24 @@ def index_kernel(indices1, indices2, params):
 
 def MultitaskKernel(base_kernel, **kwargs1):
     r"""
-    Construct a multi-task kernel given a base data kernel.
+    Constructs a multi-task kernel given a base data kernel.
     The multi-task kernel is defined as
 
     .. math::
-        K(x_i, x_j) = k_{data}(x_i, x_j) * k_{task}(t_i, t_j)
+        K(x_i, y_j) = k_{data}(x, y) * k_{task}(i, j)
 
-    where x_i and x_j are data points and t_i and t_j are tasks associated
-    with x_i and x_j respectively.
+    where *x* and *y* are data points and *i* and *j* are the tasks
+    associated with these points. The task indices are passed as the
+    last column in the input data vectors.
 
     Args:
-        base_kernel : str or function
+        base_kernel:
             The name of the base data kernel or a function that computes
             the base data kernel. This kernel is used to compute the
-            similarities in the input space. THe built-in kernels are 'RBF',
+            similarities in the input space. The built-in kernels are 'RBF',
             'Matern', 'Periodic', and 'NNGP'.
 
-        **kwargs1 : dict
+        **kwargs1:
             Additional keyword arguments to pass to the `get_kernel`
             function when constructing the base data kernel.
 
@@ -291,6 +292,13 @@ def MultitaskKernel(base_kernel, **kwargs1):
     data_kernel = get_kernel(base_kernel, **kwargs1)
 
     def multi_task_kernel(X, Z, params, noise=0, **kwargs2):
+        """
+        Computes multi-task kernel matrix, given two input arrays and
+        a dictionary wuth kernel parameters. The input arrays must have the 
+        shape (N, D+1) where N is the number of data points and D is the feature
+        dimension. The last column contains task indices.
+        """
+
         # Extract input data and task indices from X and Z
         X_data, indices_X = X[:, :-1], X[:, -1].astype(int)
         Z_data, indices_Z = Z[:, :-1], Z[:, -1].astype(int)
@@ -305,6 +313,8 @@ def MultitaskKernel(base_kernel, **kwargs1):
         # Add noise associated with each task
         if X.shape == Z.shape:
             # Get the noise corresponding to each sample's task
+            if isinstance(noise, (int, float)):
+                noise = jnp.ones(1) * noise
             sample_noise = noise[indices_X]
             # Add small jitter for numerical stability
             sample_noise = add_jitter(sample_noise, **kwargs2)
@@ -325,13 +335,13 @@ def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
     data and task kernels
 
     .. math::
-        K_{ij} = K_{data}(x_i, x_j) \otimes K_{task}(t_i, t_j)
+        K(x_i, y_j) = k_{data}(x, y) * k_{task}(i, j)
 
-    where x_i and x_j are data points and t_i and t_j are tasks associated
-    with x_i and x_j respectively.
+    where *x* and *y* are data points and *i* and *j* are the tasks
+    associated with these points.
 
     Args:
-        base_kernel : str or function
+        base_kernel:
             The name of the base data kernel or a function that computes
             the base data kernel. This kernel is used to compute the
             similarities in the input space. THe built-in kernels are 'RBF',
@@ -349,7 +359,14 @@ def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
 
     data_kernel = get_kernel(base_kernel, **kwargs1)
 
-    def multivariate_kernel(X, Z, params, noise=0, **kwargs2):        
+    def multivariate_kernel(X, Z, params, noise=0, **kwargs2):
+        """
+        Computes multivariate kernel matrix, given two input arrays and
+        a dictionary wuth kernel parameters. The input arrays must have the 
+        shape (N, D) where N is the number of data points and D is the feature
+        dimension.
+        """
+
         # Compute data and task kernels
         task_labels = jnp.arange(num_tasks)
         k_data = data_kernel(X, Z, params, 0, **kwargs2)  # noise will be added later
