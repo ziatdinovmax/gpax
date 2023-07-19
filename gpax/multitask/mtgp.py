@@ -11,7 +11,7 @@ from ..kernels import LCMKernel
 
 class MultiTaskGP(ExactGP):
     """
-    Multi-fidelity/task Gaussian process
+    Gaussian process for multi-task/fidelity learning
 
     Args:
         input_dim:
@@ -19,13 +19,17 @@ class MultiTaskGP(ExactGP):
         data_kernel:
             Kernel function operating on data inputs ('RBF', 'Matern', 'Periodic', or a custom function)
         num_latents:
-            Number of latent functions. Typically equal or less than a number of tasks
+            Number of latent functions. Typically equal to or less than the number of tasks
         shared_input_space:
             If True (default), assumes that all tasks share the same input space and
-            uses a multivariate kernel (kronecker product). If False, assumes that the
-            tasks have different input spaces and uses a multitask kernel (elementwise multiplication).
+            uses a multivariate kernel (Kronecker product). If False, assumes that different tasks
+            have different number of observations and uses a multitask kernel (elementwise multiplication).
+            In that case, the task indices must be appended as the last column of the input vector.
         num_tasks:
-            Number of tasks. This is only used if `shared_input_space` is True.
+            Number of tasks. This is only needed if `shared_input_space` is True.
+        rank:
+            Rank of the weight matrix in the task kernel. Cannot be larger than the number of tasks.
+            Higher rank implies higher correlation. Uses *(num_tasks - 1)* when not specified.
         mean_fn:
             Optional deterministic mean function (use 'mean_fn_priors' to make it probabilistic)
         data_kernel_prior:
@@ -33,23 +37,23 @@ class MultiTaskGP(ExactGP):
         mean_fn_prior:
             Optional priors over mean function parameters
         noise_prior:
-            Optional custom prior for observation noise; uses LogNormal(0,1) by default.
+            Optional custom prior for observational noise; uses LogNormal(0,1) by default.
         task_kernel_prior:
             Optional custom priors over task kernel parameters;
-            Defaults to Normal(0, 10) for weights B and LogNormal(0, 1) for variances v.
-        rank: int
-            Rank of the weight matrix in the task kernel. Cannot be larger than the number of tasks.
-            Higher rank implies higher correlation. Defaults to 1.
-
+            Defaults to Normal(0, 10) for weights W and LogNormal(0, 1) for variances v.
+        output_scale:
+            Option to sample data kernel's output scale.
+            Defaults to False to avoid over-parameterization (the scale is already absorbed into task kernel)
     """
     def __init__(self, input_dim: int, data_kernel: str,
-                 num_latents: int = None, shared_input_space: bool = True, num_tasks: int = None,
+                 num_latents: int = None, shared_input_space: bool = True,
+                 num_tasks: int = None, rank: Optional[int] = None,
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  data_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  task_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 rank: int = 1, output_scale: bool = False, **kwargs) -> None:
+                 output_scale: bool = False, **kwargs) -> None:
         args = (input_dim, None, mean_fn, None, mean_fn_prior, noise_prior)
         super(MultiTaskGP, self).__init__(*args)
         if shared_input_space:
