@@ -6,7 +6,8 @@ from numpy.testing import assert_equal, assert_
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.kernels import RBFKernel, MaternKernel, PeriodicKernel, index_kernel
+from gpax.kernels import (RBFKernel, MaternKernel, PeriodicKernel,
+                          index_kernel, nngp_erf, nngp_relu, NNGPKernel)
 
 
 @pytest.mark.parametrize("kernel", [RBFKernel, MaternKernel])
@@ -61,3 +62,38 @@ def test_index_kernel_computations():
     result = index_kernel(indices1, indices2, params)
     expected_result = jnp.array([[0, 2], [1, 0]])
     assert_(jnp.allclose(result, expected_result), "Incorrect computations")
+
+
+@pytest.mark.parametrize("depth", [1, 2, 3])
+@pytest.mark.parametrize("kernel", [nngp_erf, nngp_relu])
+@pytest.mark.parametrize("dim", [1, 2])
+def test_nngp_shapes(kernel, dim, depth):
+    x1 = onp.random.randn(1, dim)
+    x2 = onp.random.randn(1, dim)
+    var_b = jnp.array(1.0)
+    var_w = jnp.array(1.0)
+    k = kernel(x1, x2, var_b, var_w, depth)
+    assert_equal(k.shape, (1,))
+
+
+@pytest.mark.parametrize("depth", [1, 2, 3])
+@pytest.mark.parametrize("activation", ["erf", "relu"])
+@pytest.mark.parametrize("dim", [1, 2])
+def test_NNGPKernel(activation, dim, depth):
+    x1 = onp.random.randn(5, dim)
+    x2 = onp.random.randn(5, dim)
+    params = {"var_b": jnp.array(1.0), "var_w": jnp.array(1.0)}
+    kernel = NNGPKernel(activation, depth)
+    k = kernel(x1, x2, params)
+    assert_equal(k.shape, (5, 5))
+
+
+def test_NNGPKernel_activations():
+    x1 = onp.random.randn(5, 1)
+    x2 = onp.random.randn(5, 1)
+    params = {"var_b": jnp.array(1.0), "var_w": jnp.array(1.0)}
+    kernel1 = NNGPKernel(activation='erf')
+    k1 = kernel1(x1, x2, params)
+    kernel2 = NNGPKernel(activation='relu')
+    k2 = kernel2(x1, x2, params)
+    assert_(not jnp.allclose(k1, k2, rtol=1e-3))
