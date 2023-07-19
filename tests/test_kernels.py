@@ -7,7 +7,8 @@ from numpy.testing import assert_equal, assert_
 sys.path.insert(0, "../gpax/")
 
 from gpax.kernels import (RBFKernel, MaternKernel, PeriodicKernel,
-                          index_kernel, nngp_erf, nngp_relu, NNGPKernel)
+                          index_kernel, nngp_erf, nngp_relu, NNGPKernel,
+                          MultitaskKernel, MultivariateKernel)
 
 
 @pytest.mark.parametrize("kernel", [RBFKernel, MaternKernel])
@@ -97,3 +98,48 @@ def test_NNGPKernel_activations():
     kernel2 = NNGPKernel(activation='relu')
     k2 = kernel2(x1, x2, params)
     assert_(not jnp.allclose(k1, k2, rtol=1e-3))
+
+
+def test_MultiTaskKernel():
+    base_kernel = 'RBF'
+    mtkernel = MultitaskKernel(base_kernel)
+    assert_(callable(mtkernel), "The result of MultitaskKernel should be a function.")
+
+
+@pytest.mark.parametrize("data_kernel", [RBFKernel, MaternKernel])
+@pytest.mark.parametrize("dim", [1, 2])
+def test_multitask_kernel_shapes(data_kernel, dim):
+    x1 = onp.random.randn(5, dim)
+    x2 = onp.random.randn(3, dim)
+    x1 = onp.column_stack([x1, onp.zeros_like(x1)])
+    x2 = onp.column_stack([x2, onp.ones_like(x2)])
+    x12 = onp.vstack([x1, x2])
+    params = {"k_length": jnp.array(1.0), "k_scale": jnp.array(1.0),
+              "W": jnp.array([[1, 0], [0, 1]]), "v": jnp.array([1, 0])}
+    noise = jnp.array([1.0, 1.0])
+    mtkernel = MultitaskKernel(data_kernel)
+    k = mtkernel(x12, x12, params, noise)
+    assert_equal(k.shape, (len(x12), len(x12)))
+
+
+def test_MultiVariateKernel():
+    base_kernel = 'RBF'
+    num_tasks = 2
+    mtkernel = MultivariateKernel(base_kernel, num_tasks)
+    assert_(callable(mtkernel), "The result of MultiVariateKernel should be a function.")
+
+
+@pytest.mark.parametrize("data_kernel", [RBFKernel, MaternKernel])
+@pytest.mark.parametrize("num_tasks", [2, 3])
+@pytest.mark.parametrize("rank", [1, 2])
+@pytest.mark.parametrize("dim", [1, 2])
+def test_multivariate_kernel_shapes(data_kernel, dim, num_tasks, rank):
+    x1 = onp.random.randn(5, dim)
+    x2 = onp.random.randn(3, dim)
+    x12 = onp.vstack([x1, x2])
+    params = {"k_length": jnp.array(1.0), "k_scale": jnp.array(1.0),
+              "W": jnp.ones((num_tasks, rank)), "v": jnp.ones(num_tasks)}
+    noise = jnp.ones(num_tasks)
+    mtkernel = MultivariateKernel(data_kernel, num_tasks)
+    k = mtkernel(x12, x12, params, noise)
+    assert_equal(k.shape, (num_tasks*len(x12), num_tasks*len(x12)))
