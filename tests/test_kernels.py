@@ -108,9 +108,40 @@ def test_MultiTaskKernel():
 
 @pytest.mark.parametrize("data_kernel", [RBFKernel, MaternKernel])
 @pytest.mark.parametrize("dim", [1, 2])
-def test_multitask_kernel_shapes(data_kernel, dim):
+def test_multitask_kernel_shapes_test_noiseless(data_kernel, dim):
     x1 = onp.random.randn(5, dim)
     x2 = onp.random.randn(3, dim)
+    x1 = onp.column_stack([x1, onp.zeros_like(x1)])
+    x2 = onp.column_stack([x2, onp.ones_like(x2)])
+    x12 = onp.vstack([x1, x2])
+    params = {"k_length": jnp.array(1.0), "k_scale": jnp.array(1.0),
+              "W": jnp.array([[1, 0], [0, 1]]), "v": jnp.array([1, 0])}
+    mtkernel = MultitaskKernel(data_kernel)
+    k = mtkernel(x12, x12, params)
+    assert_equal(k.shape, (len(x12), len(x12)))
+
+
+@pytest.mark.parametrize("data_kernel", [RBFKernel, MaternKernel])
+@pytest.mark.parametrize("dim", [1, 2])
+def test_multitask_kernel_shapes_test_noisy(data_kernel, dim):
+    x1 = onp.random.randn(5, dim)
+    x2 = onp.random.randn(3, dim)
+    x1 = onp.column_stack([x1, onp.zeros_like(x1)])
+    x2 = onp.column_stack([x2, onp.ones_like(x2)])
+    x12 = onp.vstack([x1, x2])
+    params = {"k_length": jnp.array(1.0), "k_scale": jnp.array(1.0),
+              "W": jnp.array([[1, 0], [0, 1]]), "v": jnp.array([1, 0])}
+    noise = jnp.array([1.0, 1.0])
+    mtkernel = MultitaskKernel(data_kernel)
+    k = mtkernel(x12, x12, params, noise)
+    assert_equal(k.shape, (len(x12), len(x12)))
+
+
+@pytest.mark.parametrize("data_kernel", [RBFKernel, MaternKernel])
+@pytest.mark.parametrize("dim", [1, 2])
+def test_multitask_kernel_shapes_train(data_kernel, dim):
+    x1 = onp.random.randn(5, dim)
+    x2 = onp.random.randn(5, dim)
     x1 = onp.column_stack([x1, onp.zeros_like(x1)])
     x2 = onp.column_stack([x2, onp.ones_like(x2)])
     x12 = onp.vstack([x1, x2])
@@ -133,9 +164,38 @@ def test_MultiVariateKernel():
 @pytest.mark.parametrize("num_tasks", [2, 3])
 @pytest.mark.parametrize("rank", [1, 2])
 @pytest.mark.parametrize("dim", [1, 2])
-def test_multivariate_kernel_shapes(data_kernel, dim, num_tasks, rank):
+def test_multivariate_kernel_shapes_test_noisy(data_kernel, dim, num_tasks, rank):
     x1 = onp.random.randn(5, dim)
     x2 = onp.random.randn(3, dim)
+    params = {"k_length": jnp.array(1.0), "k_scale": jnp.array(1.0),
+              "W": jnp.ones((num_tasks, rank)), "v": jnp.ones(num_tasks)}
+    noise = jnp.ones(num_tasks)
+    mtkernel = MultivariateKernel(data_kernel, num_tasks)
+    k = mtkernel(x1, x2, params, noise)
+    assert_equal(k.shape, (num_tasks*len(x1), num_tasks*len(x2)))
+
+
+@pytest.mark.parametrize("data_kernel", [RBFKernel, MaternKernel])
+@pytest.mark.parametrize("num_tasks", [2, 3])
+@pytest.mark.parametrize("rank", [1, 2])
+@pytest.mark.parametrize("dim", [1, 2])
+def test_multivariate_kernel_shapes_test_noiseless(data_kernel, dim, num_tasks, rank):
+    x1 = onp.random.randn(5, dim)
+    x2 = onp.random.randn(3, dim)
+    params = {"k_length": jnp.array(1.0), "k_scale": jnp.array(1.0),
+              "W": jnp.ones((num_tasks, rank)), "v": jnp.ones(num_tasks)}
+    mtkernel = MultivariateKernel(data_kernel, num_tasks)
+    k = mtkernel(x1, x2, params)
+    assert_equal(k.shape, (num_tasks*len(x1), num_tasks*len(x2)))
+
+
+@pytest.mark.parametrize("data_kernel", [RBFKernel, MaternKernel])
+@pytest.mark.parametrize("num_tasks", [2, 3])
+@pytest.mark.parametrize("rank", [1, 2])
+@pytest.mark.parametrize("dim", [1, 2])
+def test_multivariate_kernel_shapes_train(data_kernel, dim, num_tasks, rank):
+    x1 = onp.random.randn(5, dim)
+    x2 = onp.random.randn(5, dim)
     params = {"k_length": jnp.array(1.0), "k_scale": jnp.array(1.0),
               "W": jnp.ones((num_tasks, rank)), "v": jnp.ones(num_tasks)}
     noise = jnp.ones(num_tasks)
