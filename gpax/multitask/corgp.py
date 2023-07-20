@@ -12,7 +12,7 @@ from ..kernels import MultitaskKernel
 class CoregGP(ExactGP):
 
     """
-    Basic implementation of the Coregionalized Gaussian Process model
+    Coregionalized Gaussian Process model
 
     Args:
         input_dim:
@@ -29,7 +29,7 @@ class CoregGP(ExactGP):
             Optional custom prior for observation noise; uses LogNormal(0,1) by default.
         task_kernel_prior:
             Optional custom priors over task kernel parameters;
-            Defaults to Normal(0, 10) for weights B and LogNormal(0, 1) for variances v.
+            Defaults to Normal(0, 10) for weights W and LogNormal(0, 1) for variances v.
         rank: int
             Rank of the weight matrix in the task kernel. Cannot be larger than the number of tasks.
             Higher rank implies higher correlation. Defaults to 1.
@@ -49,6 +49,7 @@ class CoregGP(ExactGP):
         self.kernel = MultitaskKernel(data_kernel, **kwargs)
         self.data_kernel_prior = data_kernel_prior
         self.task_kernel_prior = task_kernel_prior
+        self.kernel_name = data_kernel
 
     def model(self,
               X: jnp.ndarray,

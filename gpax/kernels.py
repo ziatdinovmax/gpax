@@ -28,7 +28,7 @@ def add_jitter(x, jitter=1e-6):
 def square_scaled_distance(X: jnp.ndarray, Z: jnp.ndarray,
                            lengthscale: Union[jnp.ndarray, float] = 1.
                            ) -> jnp.ndarray:
-    """
+    r"""
     Computes a square of scaled distance, :math:`\|\frac{X-Z}{l}\|^2`,
     between X and Z are vectors with :math:`n x num_features` dimensions
     """
@@ -294,7 +294,7 @@ def MultitaskKernel(base_kernel, **kwargs1):
     def multi_task_kernel(X, Z, params, noise=0, **kwargs2):
         """
         Computes multi-task kernel matrix, given two input arrays and
-        a dictionary wuth kernel parameters. The input arrays must have the 
+        a dictionary wuth kernel parameters. The input arrays must have the
         shape (N, D+1) where N is the number of data points and D is the feature
         dimension. The last column contains task indices.
         """
@@ -362,7 +362,7 @@ def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
     def multivariate_kernel(X, Z, params, noise=0, **kwargs2):
         """
         Computes multivariate kernel matrix, given two input arrays and
-        a dictionary wuth kernel parameters. The input arrays must have the 
+        a dictionary wuth kernel parameters. The input arrays must have the
         shape (N, D) where N is the number of data points and D is the feature
         dimension.
         """
