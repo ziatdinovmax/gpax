@@ -58,10 +58,10 @@ class MultiTaskGP(ExactGP):
         super(MultiTaskGP, self).__init__(*args)
         if shared_input_space:
             if num_tasks is None:
-                raise AssertionError("Please specify num_tasks")
+                raise ValueError("Please specify num_tasks")
         else:
             if num_latents is None:
-                raise AssertionError("Please specify num_latents")
+                raise ValueError("Please specify num_latents")
         self.num_tasks = num_tasks
         self.num_latents = num_tasks if num_latents is None else num_latents
         self.rank = rank
