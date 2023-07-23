@@ -83,6 +83,24 @@ def test_sample_periodic_kernel():
         assert isinstance(v, jnp.ndarray)
 
 
+def test_sample_noise():
+    m = vExactGP(1, 'RBF')
+    with numpyro.handlers.seed(rng_seed=1):
+        noise = m._sample_noise(3)
+    assert_equal(noise.shape[0], 3)
+
+
+def test_sample_noise_custom_prior():
+    noise_prior_dist = numpyro.distributions.HalfNormal(.1)
+    m1 = vExactGP(1, 'RBF')
+    with numpyro.handlers.seed(rng_seed=1):
+        noise1 = m1._sample_noise(3)
+    m2 = vExactGP(1, 'RBF', noise_prior_dist=noise_prior_dist)
+    with numpyro.handlers.seed(rng_seed=1):
+        noise2 = m2._sample_noise(3)
+    assert_(not onp.array_equal(noise1, noise2))
+
+
 def test_get_mvn_posterior():
     X, y = get_dummy_data(unsqueeze=True)
     X_test, _ = get_dummy_data(unsqueeze=True)

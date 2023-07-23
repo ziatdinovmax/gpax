@@ -66,3 +66,39 @@ def test_fit_multitask_meanfn():
                     mean_fn=dummy_mean_fn, mean_fn_prior=dummy_mean_fn_priors)
     m.fit(rng_key, X, y, num_warmup=50, num_samples=50)
     assert_(isinstance(m.get_samples(), dict))
+
+
+def test_sample_kernel_custom_lscale_prior():
+    lscale_prior_dist = numpyro.distributions.Normal(20, .1)
+    m1 = MultiTaskGP(1, 'RBF', num_latents=2, num_tasks=2, rank=2)
+    with numpyro.handlers.seed(rng_seed=1):
+        lscale1 = m1._sample_kernel_params()["k_length"]
+    m2 = MultiTaskGP(1, 'RBF', num_latents=2, num_tasks=2, rank=2, 
+                     lenghtscale_prior_dist=lscale_prior_dist)
+    with numpyro.handlers.seed(rng_seed=1):
+        lscale2 = m2._sample_kernel_params()["k_length"]
+    assert_(not onp.array_equal(lscale1, lscale2))
+
+
+def test_sample_task_kernel_custom_W_prior():
+    W_prior_dist = numpyro.distributions.Normal(20*jnp.ones((2, 2, 2)), 0.1*jnp.ones((2, 2, 2)))
+    m1 = MultiTaskGP(1, 'RBF', num_latents=2, num_tasks=2, rank=2)
+    with numpyro.handlers.seed(rng_seed=1):
+        W1 = m1._sample_task_kernel_params()["W"]
+    m2 = MultiTaskGP(1, 'RBF', num_latents=2, num_tasks=2, rank=2,
+                     W_prior_dist=W_prior_dist)
+    with numpyro.handlers.seed(rng_seed=1):
+        W2 = m2._sample_task_kernel_params()["W"]
+    assert_(not onp.array_equal(W1, W2))
+
+
+def test_sample_task_kernel_custom_v_prior():
+    v_prior_dist = numpyro.distributions.Normal(20*jnp.ones((2, 2)), 0.1*jnp.ones((2, 2)))
+    m1 = MultiTaskGP(1, 'RBF', num_latents=2, num_tasks=2, rank=2)
+    with numpyro.handlers.seed(rng_seed=1):
+        v1 = m1._sample_task_kernel_params()["v"]
+    m2 = MultiTaskGP(1, 'RBF', num_latents=2, num_tasks=2, rank=2,
+                     v_prior_dist=v_prior_dist)
+    with numpyro.handlers.seed(rng_seed=1):
+        v2 = m2._sample_task_kernel_params()["v"]
+    assert_(not onp.array_equal(v1, v2))
