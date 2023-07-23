@@ -33,11 +33,19 @@ class MultiTaskGP(ExactGP):
         mean_fn:
             Optional deterministic mean function (use 'mean_fn_priors' to make it probabilistic)
         data_kernel_prior:
-            Optional custom priors over the data kernel hyperparameters; uses LogNormal(0,1) by default
+            Optional custom priors over the data kernel hyperparameters
         mean_fn_prior:
             Optional priors over mean function parameters
-        noise_prior:
-            Optional custom prior for observational noise; uses LogNormal(0,1) by default.
+        noise_prior_dist:
+            Optional custom prior distribution over observational noise. Defaults to LogNormal(0,1).
+        lenghtscale_prior_dist:
+            Optional custom prior distribution over kernel lenghtscale. Defaults to LogNormal(0, 1)
+        W_prior_dist:
+            Optional custom prior distribution over W in the task kernel, :math:`WW^T + diag(v)`.
+            Defaults to Normal(0, 10).
+        v_prior_dist:
+            Optional custom prior distribution over v in the task kernel, :math:`WW^T + diag(v)`.
+            Must be non-negative. Defaults to LogNormal(0, 1)
         task_kernel_prior:
             Optional custom priors over task kernel parameters;
             Defaults to Normal(0, 10) for weights W and LogNormal(0, 1) for variances v.
@@ -51,8 +59,10 @@ class MultiTaskGP(ExactGP):
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  data_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 task_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 noise_prior_dist: Optional[dist.Distribution] = None,
+                 lenghtscale_prior_dist: Optional[dist.Distribution] = None,
+                 W_prior_dist: Optional[dist.Distribution] = None,
+                 v_prior_dist: Optional[dist.Distribution] = None,
                  output_scale: bool = False, **kwargs) -> None:
         args = (input_dim, None, mean_fn, None, mean_fn_prior, noise_prior)
         super(MultiTaskGP, self).__init__(*args)
@@ -69,7 +79,10 @@ class MultiTaskGP(ExactGP):
             data_kernel, shared_input_space, num_tasks, **kwargs)
         self.data_kernel_name = data_kernel if isinstance(data_kernel, str) else None
         self.data_kernel_prior = data_kernel_prior
-        self.task_kernel_prior = task_kernel_prior
+        self.noise_prior_dist = noise_prior_dist
+        self.lenghtscale_prior_dist = lenghtscale_prior_dist
+        self.W_prior_dist = W_prior_dist
+        self.v_prior_dist = v_prior_dist
         self.shared_input = shared_input_space
         self.output_scale = output_scale
 
@@ -100,24 +113,17 @@ class MultiTaskGP(ExactGP):
             data_kernel_params = self._sample_kernel_params()
 
         # Sample task kernel parameters
-        if self.task_kernel_prior:
-            task_kernel_params = self.task_kernel_prior()
-        else:
-            task_kernel_params = self._sample_task_kernel_params()
+        task_kernel_params = self._sample_task_kernel_params()
 
         # Combine two dictionaries with parameters
         kernel_params = {**data_kernel_params, **task_kernel_params}
 
         # Sample noise
-        if self.noise_prior:
+        if self.noise_prior:  # this will be removed in the future releases
             noise = self.noise_prior()
         else:
-            noise = numpyro.sample(
-                "noise", dist.LogNormal(
-                    jnp.zeros(self.num_tasks),
-                    jnp.ones(self.num_tasks)).to_event(1)
-            )
-
+            noise = self._sample_noise()
+        
         # Compute multitask_kernel
         k = self.kernel(X, X, kernel_params, noise, **kwargs)
 
@@ -135,19 +141,37 @@ class MultiTaskGP(ExactGP):
             obs=y,
         )
 
+    def _sample_noise(self):
+        """Sample observational noise"""
+        if self.noise_prior_dist is not None:
+            noise_dist = self.noise_prior_dist
+        else:
+            noise_dist = dist.LogNormal(
+                    jnp.zeros(self.num_tasks),
+                    jnp.ones(self.num_tasks))
+
+        noise = numpyro.sample("noise", noise_dist.to_event(1))
+        return noise
+
     def _sample_task_kernel_params(self):
         """
         Sample task kernel parameters with default weakly-informative priors
-        for all the latent functions
+        or custom priors for all the latent functions
         """
-        W_dist = dist.Normal(
-                jnp.zeros(shape=(self.num_latents, self.num_tasks, self.rank)),  # loc
-                10*jnp.ones(shape=(self.num_latents, self.num_tasks, self.rank)) # var
-        )
-        v_dist = dist.LogNormal(
-                jnp.zeros(shape=(self.num_latents, self.num_tasks)),  # loc
-                jnp.ones(shape=(self.num_latents, self.num_tasks)) # var
-        )
+        if self.W_prior_dist is not None:
+            W_dist = self.W_prior_dist
+        else:
+            W_dist = dist.Normal(
+                    jnp.zeros(shape=(self.num_latents, self.num_tasks, self.rank)),  # loc
+                    10*jnp.ones(shape=(self.num_latents, self.num_tasks, self.rank)) # var
+            )
+        if self.v_prior_dist is not None:
+            v_dist = self.v_prior_dist
+        else:
+            v_dist = dist.LogNormal(
+                    jnp.zeros(shape=(self.num_latents, self.num_tasks)),  # loc
+                    jnp.ones(shape=(self.num_latents, self.num_tasks)) # var
+            )
         with numpyro.plate("latent_plate_task", self.num_latents):
             W = numpyro.sample("W", W_dist.to_event(2))
             v = numpyro.sample("v", v_dist.to_event(1))
@@ -156,12 +180,17 @@ class MultiTaskGP(ExactGP):
     def _sample_kernel_params(self):
         """
         Sample data ("base") kernel parameters with default weakly-informative
-        priors for all the latent functions
+        priors for all the latent functions. Optionally allows to specify a custom
+        prior over the kernel lenghtscale.
         """
         squeezer = lambda x: x.squeeze() if self.num_latents > 1 else x
+        if self.lenghtscale_prior_dist is not None:
+            length_dist = self.lenghtscale_prior_dist
+        else:
+            length_dist = dist.LogNormal(0.0, 1.0)
         with numpyro.plate("latent_plate_data", self.num_latents, dim=-2):
             with numpyro.plate("ard", self.kernel_dim, dim=-1):
-                length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
+                length = numpyro.sample("k_length", length_dist)
             if self.output_scale:
                 scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
             else:

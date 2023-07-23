@@ -40,6 +40,11 @@ class DKL(vExactGP):
         latent_prior:
             Optional prior over the latent space (BNN embedding); uses none by default
 
+        **kwargs:
+            Optional custom prior distributions over observational noise (noise_dist_prior)
+            and kernel lenghtscale (lenghtscale_prior_dist)
+
+
     Examples:
 
         DKL with image patches as inputs and a 1-d vector as targets
@@ -61,9 +66,10 @@ class DKL(vExactGP):
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  nn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  nn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None
+                 latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None,
+                 **kwargs
                  ) -> None:
-        super(DKL, self).__init__(input_dim, kernel, None, kernel_prior)
+        super(DKL, self).__init__(input_dim, kernel, None, kernel_prior, **kwargs)
         self.nn = nn if nn else mlp
         self.nn_prior = nn_prior if nn_prior else mlp_prior(input_dim, z_dim)
         self.kernel_dim = z_dim
@@ -88,8 +94,7 @@ class DKL(vExactGP):
         else:
             kernel_params = self._sample_kernel_params(task_dim)
         # Sample noise
-        with numpyro.plate('obs_noise', task_dim):
-            noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
+        noise = self._sample_noise(task_dim)
         # GP's mean function
         f_loc = jnp.zeros(z.shape[:2])
         # compute kernel(s)

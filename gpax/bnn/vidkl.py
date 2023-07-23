@@ -45,6 +45,11 @@ class viDKL(ExactGP):
             Optional prior over the latent space (NN embedding); uses none by default
         guide:
             Auto-guide option, use 'delta' (default) or 'normal'
+        
+        **kwargs:
+            Optional custom prior distributions over observational noise (noise_dist_prior)
+            and kernel lenghtscale (lenghtscale_prior_dist)
+
     
     Examples:
 
@@ -66,9 +71,9 @@ class viDKL(ExactGP):
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None,
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None,
-                 guide: str = 'delta'
+                 guide: str = 'delta', **kwargs
                  ) -> None:
-        super(viDKL, self).__init__(input_dim, kernel, None, kernel_prior)
+        super(viDKL, self).__init__(input_dim, kernel, None, kernel_prior, **kwargs)
         if guide not in ['delta', 'normal']:
             raise NotImplementedError("Select guide between 'delta' and 'normal'")
         nn_module = nn if nn else MLP
@@ -95,7 +100,7 @@ class viDKL(ExactGP):
         else:
             kernel_params = self._sample_kernel_params()
         # Sample noise
-        noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
+        noise = self._sample_noise()
         # GP's mean function
         f_loc = jnp.zeros(z.shape[0])
         # compute kernel
