@@ -53,7 +53,7 @@ class vExactGP(ExactGP):
 
     def model(self,
               X: jnp.ndarray,
-              y: jnp.ndarray = None, 
+              y: jnp.ndarray = None,
               **kwargs: float
               ) -> None:
         """GP probabilistic model with inputs X and vector-valued targets y"""
@@ -96,7 +96,7 @@ class vExactGP(ExactGP):
         with numpyro.plate("noise_plate", task_dim):
             noise = numpyro.sample("noise", noise_dist)
         return noise
-    
+
     def _sample_kernel_params(self, task_dim: int = None) -> Dict[str, jnp.ndarray]:
         """
         Sample kernel parameters with default
@@ -110,14 +110,14 @@ class vExactGP(ExactGP):
             with numpyro.plate('lengthscale', self.kernel_dim, dim=-1):  # allows using ARD kernel for kernel_dim > 1
                 length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
         with numpyro.plate("plate_2", task_dim):  # task dimension'
-            scale = numpyro.sample("k_scale", length_dist))
+            scale = numpyro.sample("k_scale", length_dist)
             if self.kernel_name == 'Periodic':
                 period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
         kernel_params = {
             "k_length": length, "k_scale": scale,
             "period": period if self.kernel_name == "Periodic" else None}
         return kernel_params
-    
+
     @partial(jit, static_argnames='self')
     def _get_mvn_posterior(self,
                            X_train: jnp.ndarray, y_train: jnp.ndarray,

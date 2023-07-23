@@ -59,6 +59,7 @@ class MultiTaskGP(ExactGP):
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  data_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior_dist: Optional[dist.Distribution] = None,
                  lenghtscale_prior_dist: Optional[dist.Distribution] = None,
                  W_prior_dist: Optional[dist.Distribution] = None,
@@ -79,6 +80,7 @@ class MultiTaskGP(ExactGP):
             data_kernel, shared_input_space, num_tasks, **kwargs)
         self.data_kernel_name = data_kernel if isinstance(data_kernel, str) else None
         self.data_kernel_prior = data_kernel_prior
+        self.noise_prior = noise_prior  # will be removed
         self.noise_prior_dist = noise_prior_dist
         self.lenghtscale_prior_dist = lenghtscale_prior_dist
         self.W_prior_dist = W_prior_dist
