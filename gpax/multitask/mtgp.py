@@ -38,8 +38,8 @@ class MultiTaskGP(ExactGP):
             Optional priors over mean function parameters
         noise_prior_dist:
             Optional custom prior distribution over observational noise. Defaults to LogNormal(0,1).
-        lenghtscale_prior_dist:
-            Optional custom prior distribution over kernel lenghtscale. Defaults to LogNormal(0, 1)
+        lengthscale_prior_dist:
+            Optional custom prior distribution over kernel lengthscale. Defaults to LogNormal(0, 1)
         W_prior_dist:
             Optional custom prior distribution over W in the task kernel, :math:`WW^T + diag(v)`.
             Defaults to Normal(0, 10).
@@ -61,7 +61,7 @@ class MultiTaskGP(ExactGP):
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior_dist: Optional[dist.Distribution] = None,
-                 lenghtscale_prior_dist: Optional[dist.Distribution] = None,
+                 lengthscale_prior_dist: Optional[dist.Distribution] = None,
                  W_prior_dist: Optional[dist.Distribution] = None,
                  v_prior_dist: Optional[dist.Distribution] = None,
                  output_scale: bool = False, **kwargs) -> None:
@@ -82,7 +82,7 @@ class MultiTaskGP(ExactGP):
         self.data_kernel_prior = data_kernel_prior
         self.noise_prior = noise_prior  # will be removed
         self.noise_prior_dist = noise_prior_dist
-        self.lenghtscale_prior_dist = lenghtscale_prior_dist
+        self.lengthscale_prior_dist = lengthscale_prior_dist
         self.W_prior_dist = W_prior_dist
         self.v_prior_dist = v_prior_dist
         self.shared_input = shared_input_space
@@ -183,11 +183,11 @@ class MultiTaskGP(ExactGP):
         """
         Sample data ("base") kernel parameters with default weakly-informative
         priors for all the latent functions. Optionally allows to specify a custom
-        prior over the kernel lenghtscale.
+        prior over the kernel lengthscale.
         """
         squeezer = lambda x: x.squeeze() if self.num_latents > 1 else x
-        if self.lenghtscale_prior_dist is not None:
-            length_dist = self.lenghtscale_prior_dist
+        if self.lengthscale_prior_dist is not None:
+            length_dist = self.lengthscale_prior_dist
         else:
             length_dist = dist.LogNormal(0.0, 1.0)
         with numpyro.plate("latent_plate_data", self.num_latents, dim=-2):

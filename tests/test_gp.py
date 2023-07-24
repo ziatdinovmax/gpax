@@ -121,7 +121,7 @@ def test_sample_kernel_custom_lscale_prior():
     m1 = ExactGP(1, 'RBF')
     with numpyro.handlers.seed(rng_seed=1):
         lscale1 = m1._sample_kernel_params()["k_length"]
-    m2 = ExactGP(1, 'RBF', lenghtscale_prior_dist=lscale_prior_dist)
+    m2 = ExactGP(1, 'RBF', lengthscale_prior_dist=lscale_prior_dist)
     with numpyro.handlers.seed(rng_seed=1):
         lscale2 = m2._sample_kernel_params()["k_length"]
     assert_(not onp.array_equal(lscale1, lscale2))

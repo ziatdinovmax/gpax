@@ -74,7 +74,7 @@ def test_sample_kernel_custom_lscale_prior():
     with numpyro.handlers.seed(rng_seed=1):
         lscale1 = m1._sample_kernel_params()["k_length"]
     m2 = MultiTaskGP(1, 'RBF', num_latents=2, num_tasks=2, rank=2, 
-                     lenghtscale_prior_dist=lscale_prior_dist)
+                     lengthscale_prior_dist=lscale_prior_dist)
     with numpyro.handlers.seed(rng_seed=1):
         lscale2 = m2._sample_kernel_params()["k_length"]
     assert_(not onp.array_equal(lscale1, lscale2))

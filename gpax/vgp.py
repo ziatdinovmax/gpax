@@ -33,8 +33,8 @@ class vExactGP(ExactGP):
         noise_prior: optional custom prior for observation noise
         noise_prior_dist:
             Optional custom prior distribution over observational noise. Defaults to LogNormal(0,1).
-        lenghtscale_prior_dist:
-            Optional custom prior distribution over kernel lenghtscale. Defaults to LogNormal(0, 1).
+        lengthscale_prior_dist:
+            Optional custom prior distribution over kernel lengthscale. Defaults to LogNormal(0, 1).
 
     """
 
@@ -44,12 +44,12 @@ class vExactGP(ExactGP):
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior_dist: Optional[dist.Distribution] = None,
-                 lenghtscale_prior_dist: Optional[dist.Distribution] = None
+                 lengthscale_prior_dist: Optional[dist.Distribution] = None
                  ) -> None:
         args = (input_dim, kernel, mean_fn,  kernel_prior, mean_fn_prior, noise_prior)
         super(vExactGP, self).__init__(*args)
         self.noise_prior_dist = noise_prior_dist
-        self.lenghtscale_prior_dist = lenghtscale_prior_dist
+        self.lengthscale_prior_dist = lengthscale_prior_dist
 
     def model(self,
               X: jnp.ndarray,
@@ -102,8 +102,8 @@ class vExactGP(ExactGP):
         Sample kernel parameters with default
         weakly-informative log-normal priors
         """
-        if self.lenghtscale_prior_dist is not None:
-            length_dist = self.lenghtscale_prior_dist
+        if self.lengthscale_prior_dist is not None:
+            length_dist = self.lengthscale_prior_dist
         else:
             length_dist = dist.LogNormal(0.0, 1.0)
         with numpyro.plate("plate_1", task_dim, dim=-2):  # task dimension

@@ -42,7 +42,7 @@ class DKL(vExactGP):
 
         **kwargs:
             Optional custom prior distributions over observational noise (noise_dist_prior)
-            and kernel lenghtscale (lenghtscale_prior_dist)
+            and kernel lengthscale (lengthscale_prior_dist)
 
 
     Examples:

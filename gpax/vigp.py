@@ -60,10 +60,10 @@ class viGP(ExactGP):
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior_dist: Optional[dist.Distribution] = None,
-                 lenghtscale_prior_dist: Optional[dist.Distribution] = None,
+                 lengthscale_prior_dist: Optional[dist.Distribution] = None,
                  guide: str = 'delta') -> None:
         args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, noise_prior,
-                noise_prior_dist, lenghtscale_prior_dist)
+                noise_prior_dist, lengthscale_prior_dist)
         super(viGP, self).__init__(*args)
         self.X_train = None
         self.y_train = None
