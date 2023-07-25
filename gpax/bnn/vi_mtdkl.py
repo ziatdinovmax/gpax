@@ -14,14 +14,61 @@ from .vidkl import viDKL
 
 
 class viMTDKL(viDKL):
+    """
+    Implementation of the variational infernece-based deep kernel learning
+
+    Args:
+        input_dim:
+            Number of input dimensions, not counting the column with task indices (if any)
+        z_dim:
+            Latent space dimensionality (defaults to 2)
+        data_kernel:
+            Kernel function operating on data inputs ('RBF', 'Matern', 'Periodic', or a custom function)
+        num_latents:
+            Number of latent functions. Typically equal to or less than the number of tasks
+        shared_input_space:
+            If True (default), assumes that all tasks share the same input space and
+            uses a multivariate kernel (Kronecker product). If False, assumes that different tasks
+            have different number of observations and uses a multitask kernel (elementwise multiplication).
+            In that case, the task indices must be appended as the last column of the input vector.
+        num_tasks:
+            Number of tasks. This is only needed if `shared_input_space` is True.
+        rank:
+            Rank of the weight matrix in the task kernel. Cannot be larger than the number of tasks.
+            Higher rank implies higher correlation. Uses *(num_tasks - 1)* when not specified.
+        data_kernel_prior:
+            Optional priors over kernel hyperparameters; uses LogNormal(0,1) by default
+        nn:
+            Custom neural network ('feature extractor'); uses a 3-layer MLP
+            with ReLU activations by default
+        latent_prior:
+            Optional prior over the latent space (NN embedding); uses none by default
+        guide:
+            Auto-guide option, use 'delta' (default) or 'normal'
+        W_prior_dist:
+            Optional custom prior distribution over W in the task kernel, :math:`WW^T + diag(v)`.
+            Defaults to Normal(0, 10).
+        v_prior_dist:
+            Optional custom prior distribution over v in the task kernel, :math:`WW^T + diag(v)`.
+            Must be non-negative. Defaults to LogNormal(0, 1)
+        task_kernel_prior:
+            Optional custom priors over task kernel parameters;
+            Defaults to Normal(0, 10) for weights W and LogNormal(0, 1) for variances v.
+
+        **kwargs:
+            Optional custom prior distributions over observational noise (noise_dist_prior)
+            and kernel lengthscale (lengthscale_prior_dist)
+    """
+
     def __init__(self, input_dim: int, z_dim: int = 2, data_kernel: str = 'RBF',
                  num_latents: int = None, shared_input_space: bool = True,
                  num_tasks: int = None, rank: Optional[int] = None,
                  data_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None,
-                 guide: str = 'delta', task_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 guide: str = 'delta',
                  W_prior_dist: Optional[dist.Distribution] = None,
                  v_prior_dist: Optional[dist.Distribution] = None,
+                 task_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  **kwargs) -> None:
         args = (input_dim, z_dim, None, None, nn, None, guide)
         super(viMTDKL, self).__init__(*args, **kwargs)
