@@ -1,5 +1,8 @@
-from typing import Callable, Dict, Optional
+from functools import partial
+from typing import Callable, Dict, Optional, Tuple
 
+import jax
+from jax import jit
 import jax.numpy as jnp
 import numpy as onp
 import numpyro
@@ -139,5 +142,42 @@ class viMTDKL(viDKL):
         with numpyro.plate("latent_plate_data", self.num_latents, dim=-2):
             with numpyro.plate("ard", self.kernel_dim, dim=-1):
                 length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
-            scale = numpyro.deterministic("k_scale", jnp.ones(self.num_latents))
+            scale = numpyro.sample("k_scale", dist.Normal(1.0, 1e-4))
         return {"k_length": squeezer(length), "k_scale": squeezer(scale)}
+
+    @partial(jit, static_argnames='self')
+    def get_mvn_posterior(self,
+                          X_train: jnp.ndarray,
+                          y_train: jnp.ndarray,
+                          X_new: jnp.ndarray,
+                          nn_params: Dict[str, jnp.ndarray],
+                          k_params: Dict[str, jnp.ndarray],
+                          noiseless: bool = False,
+                          **kwargs
+                          ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Returns predictive mean and covariance at new points
+        (mean and cov, where cov.diagonal() is 'uncertainty')
+        given a single set of DKL parameters
+        """
+        noise = k_params.pop("noise")
+        noise_p = noise * (1 - jnp.array(noiseless, int))
+        # embed data into the latent space
+        z_train = self.nn_module.apply(
+            nn_params, jax.random.PRNGKey(0),
+            X_train if self.shared_input else X_train[:, :-1])
+        z_test = self.nn_module.apply(
+            nn_params, jax.random.PRNGKey(0),
+            X_new if self.shared_input else X_new[:, :-1])
+        if self.shared_input:
+            z_train = jnp.column_stack((z_train, X_train[:, -1]))
+            z_test = jnp.column_stack((z_test, X_new[:, -1]))
+        # compute kernel matrices for train and test data
+        k_pp = self.kernel(z_test, z_test, k_params, noise_p, **kwargs)
+        k_pX = self.kernel(z_test, z_train, k_params, jitter=0.0)
+        k_XX = self.kernel(z_train, z_train, k_params, noise, **kwargs)
+        # compute the predictive covariance and mean
+        K_xx_inv = jnp.linalg.inv(k_XX)
+        cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
+        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_train))
+        return mean, cov
