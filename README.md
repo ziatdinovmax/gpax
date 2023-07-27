@@ -49,7 +49,7 @@ When we run the ```.predict()``` method, the output is predictive mean and varia
 ```python3
 y_pred, y_var = gp_model.predict(rng_key_predict, X_full)
 ```
-<img src = "https://github.com/ziatdinovmax/gpax/assets/34245227/4c5036ee-4358-420d-b4d8-285b3ee81c09.jpg" height="75%" width="75%">
+![viGP](https://github.com/ziatdinovmax/gpax/assets/34245227/ac9043be-dc91-46ea-88f4-42471308d149)
 
 See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viGP.ipynb).
 
