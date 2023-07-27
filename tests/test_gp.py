@@ -8,7 +8,7 @@ from numpy.testing import assert_equal, assert_array_equal, assert_
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.gp import ExactGP
+from gpax.models.gp import ExactGP
 from gpax.utils import get_keys
 
 
@@ -96,6 +96,35 @@ def test_sample_periodic_kernel():
     for k, v in kernel_params.items():
         assert k in param_names
         assert isinstance(v, jnp.ndarray)
+
+
+def test_sample_noise():
+    m = ExactGP(1, 'RBF')
+    with numpyro.handlers.seed(rng_seed=1):
+        noise = m._sample_noise()
+    assert isinstance(noise, jnp.ndarray)
+
+
+def test_sample_noise_custom_prior():
+    noise_prior_dist = numpyro.distributions.HalfNormal(.1)
+    m1 = ExactGP(1, 'RBF')
+    with numpyro.handlers.seed(rng_seed=1):
+        noise1 = m1._sample_noise()
+    m2 = ExactGP(1, 'RBF', noise_prior_dist=noise_prior_dist)
+    with numpyro.handlers.seed(rng_seed=1):
+        noise2 = m2._sample_noise()
+    assert_(not onp.array_equal(noise1, noise2))
+
+
+def test_sample_kernel_custom_lscale_prior():
+    lscale_prior_dist = numpyro.distributions.Normal(20, .1)
+    m1 = ExactGP(1, 'RBF')
+    with numpyro.handlers.seed(rng_seed=1):
+        lscale1 = m1._sample_kernel_params()["k_length"]
+    m2 = ExactGP(1, 'RBF', lengthscale_prior_dist=lscale_prior_dist)
+    with numpyro.handlers.seed(rng_seed=1):
+        lscale2 = m2._sample_kernel_params()["k_length"]
+    assert_(not onp.array_equal(lscale1, lscale2))
 
 
 @pytest.mark.parametrize("kernel", ['RBF', 'Matern'])

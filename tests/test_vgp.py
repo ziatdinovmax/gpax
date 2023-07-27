@@ -8,7 +8,7 @@ from numpy.testing import assert_equal, assert_array_equal, assert_
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.vgp import vExactGP
+from gpax.models.vgp import vExactGP
 from gpax.utils import get_keys
 
 
@@ -81,6 +81,24 @@ def test_sample_periodic_kernel():
     for k, v in kernel_params.items():
         assert k in param_names
         assert isinstance(v, jnp.ndarray)
+
+
+def test_sample_noise():
+    m = vExactGP(1, 'RBF')
+    with numpyro.handlers.seed(rng_seed=1):
+        noise = m._sample_noise(3)
+    assert_equal(noise.shape[0], 3)
+
+
+def test_sample_noise_custom_prior():
+    noise_prior_dist = numpyro.distributions.HalfNormal(.1)
+    m1 = vExactGP(1, 'RBF')
+    with numpyro.handlers.seed(rng_seed=1):
+        noise1 = m1._sample_noise(3)
+    m2 = vExactGP(1, 'RBF', noise_prior_dist=noise_prior_dist)
+    with numpyro.handlers.seed(rng_seed=1):
+        noise2 = m2._sample_noise(3)
+    assert_(not onp.array_equal(noise1, noise2))
 
 
 def test_get_mvn_posterior():

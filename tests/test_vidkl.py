@@ -9,7 +9,7 @@ from numpy.testing import assert_equal, assert_array_equal
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.bnn.vidkl import viDKL, MLP
+from gpax.models.vidkl import viDKL, MLP
 from gpax.utils import get_keys
 
 

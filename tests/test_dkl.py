@@ -7,7 +7,7 @@ from numpy.testing import assert_equal, assert_array_equal, assert_
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.bnn.dkl import DKL
+from gpax.models.dkl import DKL
 from gpax.utils import get_keys
 
 

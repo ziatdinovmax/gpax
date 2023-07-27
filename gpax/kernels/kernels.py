@@ -28,7 +28,7 @@ def add_jitter(x, jitter=1e-6):
 def square_scaled_distance(X: jnp.ndarray, Z: jnp.ndarray,
                            lengthscale: Union[jnp.ndarray, float] = 1.
                            ) -> jnp.ndarray:
-    """
+    r"""
     Computes a square of scaled distance, :math:`\|\frac{X-Z}{l}\|^2`,
     between X and Z are vectors with :math:`n x num_features` dimensions
     """
@@ -115,7 +115,7 @@ def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
 
 
 def nngp_erf(x1: jnp.ndarray, x2: jnp.ndarray,
-             var_b: jnp.array, var_w: jnp.array, 
+             var_b: jnp.array, var_w: jnp.array,
              depth: int = 3) -> jnp.array:
     """
     Computes the Neural Network Gaussian Process (NNGP) kernel value for
@@ -187,7 +187,7 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
 
     Args:
         activation: activation function ('erf' or 'relu')
-        depth: The number of layers in the corresponding infinite-width neural network. 
+        depth: The number of layers in the corresponding infinite-width neural network.
                Controls the level of recursion in the computation.
 
     Returns:
@@ -196,7 +196,7 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
     nngp_single_pair_ = nngp_relu if activation == 'relu' else nngp_erf
 
     def NNGPKernel_func(X: jnp.ndarray, Z: jnp.ndarray,
-                        params: Dict[str, jnp.ndarray], 
+                        params: Dict[str, jnp.ndarray],
                         noise: jnp.ndarray = 0, **kwargs
                         ) -> jnp.ndarray:
         """

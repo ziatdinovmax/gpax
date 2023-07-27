@@ -7,6 +7,7 @@ Fully Bayesian implementation of Gaussian process regression
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
+import warnings
 from functools import partial
 from typing import Callable, Dict, Optional, Tuple, Type, Union
 
@@ -19,9 +20,10 @@ import numpyro.distributions as dist
 from jax import jit
 from numpyro.infer import MCMC, NUTS, init_to_median, Predictive
 
-from .kernels import get_kernel
-from .utils import split_in_batches
+from ..kernels import get_kernel
+from ..utils import split_in_batches
 
+kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray],  jnp.ndarray]
 
 clear_cache = jax._src.dispatch.xla_primitive_callable.cache_clear
 
@@ -38,11 +40,13 @@ class ExactGP:
         mean_fn:
             Optional deterministic mean function (use 'mean_fn_priors' to make it probabilistic)
         kernel_prior:
-            Optional custom priors over kernel hyperparameters; uses LogNormal(0,1) by default
+            Optional custom priors over kernel hyperparameters. Use it when passing your custom kernel.
         mean_fn_prior:
             Optional priors over mean function parameters
-        noise_prior:
-            Optional custom prior for observation noise; uses LogNormal(0,1) by default.
+        noise_prior_dist:
+            Optional custom prior distribution over observational noise. Defaults to LogNormal(0,1).
+        lengthscale_prior_dist:
+            Optional custom prior distribution over kernel lengthscale. Defaults to LogNormal(0, 1).
 
     Examples:
 
@@ -57,23 +61,11 @@ class ExactGP:
         >>> # Make a noiseless prediction on new inputs
         >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
 
-        GP for noiseless observations
-
-        >>> # Initialize model
-        >>> gp_model = gpax.ExactGP(
-        >>>     input_dim=1, kernel='RBF',
-        >>>     noise_prior = lambda: numpyro.deterministic("noise", 0) # zero observational noise
-        >>> )
-        >>> # Run HMC to obtain posterior samples for the GP model parameters
-        >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
-        >>> # Make prediction on new inputs
-        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new)
-
         GP with custom noise prior
         
         >>> gp_model = gpax.ExactGP(
         >>>     input_dim=1, kernel='RBF',
-        >>>     noise_prior = lambda: numpyro.sample("noise", numpyro.distributions.HalfNormal(.1))
+        >>>     noise_prior_dist = numpyro.distributions.HalfNormal(.1)
         >>> )
         >>> # Run HMC to obtain posterior samples for the GP model parameters
         >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
@@ -101,13 +93,25 @@ class ExactGP:
         >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
     """
 
-    def __init__(self, input_dim: int, kernel: str,
+    def __init__(self, input_dim: int, kernel: Union[str, kernel_fn_type],
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
+                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 noise_prior_dist: Optional[dist.Distribution] = None,
+                 lengthscale_prior_dist: Optional[dist.Distribution] = None
                  ) -> None:
         clear_cache()
+        if noise_prior is not None:
+            warnings.warn("`noise_prior` is deprecated and will be removed in a future version. "
+                          "Please use `noise_prior_dist` instead, which accepts an instance of a "
+                          "numpyro.distributions Distribution object, e.g., `dist.HalfNormal(scale=0.1)`, "
+                          "rather than a function that calls `numpyro.sample`.", FutureWarning)   
+        if kernel_prior is not None:
+            warnings.warn("`kernel_prior` will remain available for complex priors. However, for "
+                          "modifying only the lengthscales, it is recommended to use `lengthscale_prior_dist` instead. "
+                          "`lengthscale_prior_dist` accepts an instance of a numpyro.distributions Distribution object, "
+                          "e.g., `dist.Gamma(2, 5)`, rather than a function that calls `numpyro.sample`.", UserWarning)
         self.kernel_dim = input_dim
         self.kernel = get_kernel(kernel)
         self.kernel_name = kernel if isinstance(kernel, str) else None
@@ -115,6 +119,8 @@ class ExactGP:
         self.kernel_prior = kernel_prior
         self.mean_fn_prior = mean_fn_prior
         self.noise_prior = noise_prior
+        self.noise_prior_dist = noise_prior_dist
+        self.lengthscale_prior_dist = lengthscale_prior_dist
         self.X_train = None
         self.y_train = None
         self.mcmc = None
@@ -133,10 +139,10 @@ class ExactGP:
         else:
             kernel_params = self._sample_kernel_params()
         # Sample noise
-        if self.noise_prior:
+        if self.noise_prior:  # this will be removed in the future releases
             noise = self.noise_prior()
         else:
-            noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
+            noise = self._sample_noise()
         # Add mean function (if any)
         if self.mean_fn is not None:
             args = [X]
@@ -169,8 +175,8 @@ class ExactGP:
 
         Args:
             rng_key: random number generator key
-            X: 2D feature vector with *(number of points, number of features)* dimensions
-            y: 1D target vector with *(n,)* dimensions
+            X: 2D feature vector
+            y: 1D target vector
             num_warmup: number of HMC warmup states
             num_samples: number of HMC samples
             num_chains: number of HMC chains
@@ -206,6 +212,35 @@ class ExactGP:
         if print_summary:
             self._print_summary()
 
+    def _sample_noise(self) -> jnp.ndarray:
+        if self.noise_prior_dist is not None:
+            noise_dist = self.noise_prior_dist
+        else:
+            noise_dist = dist.LogNormal(0, 1)
+        return numpyro.sample("noise", noise_dist)
+
+    def _sample_kernel_params(self, output_scale=True) -> Dict[str, jnp.ndarray]:
+        """
+        Sample kernel parameters with default
+        weakly-informative log-normal priors
+        """
+        if self.lengthscale_prior_dist is not None:
+            length_dist = self.lengthscale_prior_dist
+        else:
+            length_dist = dist.LogNormal(0.0, 1.0)
+        with numpyro.plate('ard', self.kernel_dim):  # allows using ARD kernel for kernel_dim > 1
+            length = numpyro.sample("k_length", length_dist)
+        if output_scale:
+            scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
+        else:
+            scale = numpyro.deterministic("k_scale", jnp.array(1.0))
+        if self.kernel_name == 'Periodic':
+            period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
+        kernel_params = {
+            "k_length": length, "k_scale": scale,
+            "period": period if self.kernel_name == "Periodic" else None}
+        return kernel_params
+
     def get_samples(self, chain_dim: bool = False) -> Dict[str, jnp.ndarray]:
         """Get posterior samples (after running the MCMC chains)"""
         return self.mcmc.get_samples(group_by_chain=chain_dim)
@@ -219,7 +254,7 @@ class ExactGP:
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of GP parameters
         """
-        noise = params["noise"]
+        noise = params.pop("noise")
         noise_p = noise * (1 - jnp.array(noiseless, int))
         y_residual = self.y_train.copy()
         if self.mean_fn is not None:
@@ -247,24 +282,6 @@ class ExactGP:
         # draw samples from the posterior predictive for a given set of parameters
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
-
-    def _sample_kernel_params(self, output_scale=True) -> Dict[str, jnp.ndarray]:
-        """
-        Sample kernel parameters with default
-        weakly-informative log-normal priors
-        """
-        with numpyro.plate('k_param', self.kernel_dim):  # allows using ARD kernel for kernel_dim > 1
-            length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
-        if output_scale:
-            scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
-        else:
-            scale = numpyro.deterministic("k_scale", jnp.ndarray(1.0))
-        if self.kernel_name == 'Periodic':
-            period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
-        kernel_params = {
-            "k_length": length, "k_scale": scale,
-            "period": period if self.kernel_name == "Periodic" else None}
-        return kernel_params
 
     def _predict_in_batches(self, rng_key: jnp.ndarray,
                             X_new: jnp.ndarray,  batch_size: int = 100,

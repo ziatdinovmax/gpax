@@ -31,20 +31,29 @@ class vExactGP(ExactGP):
         kernel_prior: optional custom priors over kernel hyperparameters (uses LogNormal(0,1) by default)
         mean_fn_prior: optional priors over mean function parameters
         noise_prior: optional custom prior for observation noise
+        noise_prior_dist:
+            Optional custom prior distribution over observational noise. Defaults to LogNormal(0,1).
+        lengthscale_prior_dist:
+            Optional custom prior distribution over kernel lengthscale. Defaults to LogNormal(0, 1).
+
     """
 
     def __init__(self, input_dim: int, kernel: str,
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
+                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 noise_prior_dist: Optional[dist.Distribution] = None,
+                 lengthscale_prior_dist: Optional[dist.Distribution] = None
                  ) -> None:
         args = (input_dim, kernel, mean_fn,  kernel_prior, mean_fn_prior, noise_prior)
         super(vExactGP, self).__init__(*args)
+        self.noise_prior_dist = noise_prior_dist
+        self.lengthscale_prior_dist = lengthscale_prior_dist
 
-    def model(self, 
+    def model(self,
               X: jnp.ndarray,
-              y: jnp.ndarray = None, 
+              y: jnp.ndarray = None,
               **kwargs: float
               ) -> None:
         """GP probabilistic model with inputs X and vector-valued targets y"""
@@ -58,11 +67,10 @@ class vExactGP(ExactGP):
         else:
             kernel_params = self._sample_kernel_params(task_dim=task_dim)
         # Sample noise for each task
-        with numpyro.plate("noise_plate", task_dim):
-            if self.noise_prior:
-                noise = self.noise_prior()
-            else:
-                noise = numpyro.sample("noise", dist.LogNormal(0.0, 1.0))
+        if self.noise_prior:  # this will be removed in the future releases
+            noise = self.noise_prior()
+        else:
+            noise = self._sample_noise(task_dim)
         # Add mean function (if any)
         if self.mean_fn is not None:
             args = [X]
@@ -79,6 +87,36 @@ class vExactGP(ExactGP):
             dist.MultivariateNormal(loc=f_loc, covariance_matrix=k),
             obs=y,
         )
+
+    def _sample_noise(self, task_dim) -> jnp.ndarray:
+        if self.noise_prior_dist is not None:
+            noise_dist = self.noise_prior_dist
+        else:
+            noise_dist = dist.LogNormal(0, 1)
+        with numpyro.plate("noise_plate", task_dim):
+            noise = numpyro.sample("noise", noise_dist)
+        return noise
+
+    def _sample_kernel_params(self, task_dim: int = None) -> Dict[str, jnp.ndarray]:
+        """
+        Sample kernel parameters with default
+        weakly-informative log-normal priors
+        """
+        if self.lengthscale_prior_dist is not None:
+            length_dist = self.lengthscale_prior_dist
+        else:
+            length_dist = dist.LogNormal(0.0, 1.0)
+        with numpyro.plate("plate_1", task_dim, dim=-2):  # task dimension
+            with numpyro.plate('lengthscale', self.kernel_dim, dim=-1):  # allows using ARD kernel for kernel_dim > 1
+                length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
+        with numpyro.plate("plate_2", task_dim):  # task dimension'
+            scale = numpyro.sample("k_scale", length_dist)
+            if self.kernel_name == 'Periodic':
+                period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
+        kernel_params = {
+            "k_length": length, "k_scale": scale,
+            "period": period if self.kernel_name == "Periodic" else None}
+        return kernel_params
 
     @partial(jit, static_argnames='self')
     def _get_mvn_posterior(self,
@@ -132,23 +170,6 @@ class vExactGP(ExactGP):
         mean, cov = jax.vmap(
             self._get_mvn_posterior)(*vmap_args, noiseless=noiseless, jitter=jitter)
         return mean, cov
-
-    def _sample_kernel_params(self, task_dim: int = None) -> Dict[str, jnp.ndarray]:
-        """
-        Sample kernel parameters with default
-        weakly-informative log-normal priors
-        """
-        with numpyro.plate("plate_1", task_dim, dim=-2):  # task dimension
-            with numpyro.plate('lengthscale', self.kernel_dim, dim=-1):  # allows using ARD kernel for kernel_dim > 1
-                length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
-        with numpyro.plate("plate_2", task_dim):  # task dimension'
-            scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
-            if self.kernel_name == 'Periodic':
-                period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
-        kernel_params = {
-            "k_length": length, "k_scale": scale,
-            "period": period if self.kernel_name == "Periodic" else None}
-        return kernel_params
 
     def predict_in_batches(self, rng_key: jnp.ndarray,
                            X_new: jnp.ndarray,  batch_size: int = 100,

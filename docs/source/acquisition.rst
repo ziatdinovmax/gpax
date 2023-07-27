@@ -9,4 +9,4 @@ Acquisition functions
 
 .. autofunction:: gpax.acquisition.UE
   
-.. autofunction:: gpax.acquisition.bUCB
+.. autofunction:: gpax.acquisition.qUCB
