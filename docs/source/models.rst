@@ -44,6 +44,15 @@ Deep Kernel Learning - Approximate Bayesian
     :member-order: bysource
     :show-inheritance:
 
+Infinite-width Bayesian Neural Networks
+----------------------------------------
+.. autoclass:: gpax.models.ibnn.iBNN
+    :members:
+    :inherited-members:
+    :undoc-members:
+    :member-order: bysource
+    :show-inheritance:
+
 Multi-Task Learning
 --------------------
 .. autoclass:: gpax.models.mtgp.MultiTaskGP
@@ -52,7 +61,7 @@ Multi-Task Learning
     :undoc-members:
     :member-order: bysource
     :show-inheritance:
-    
+
 .. autoclass:: gpax.models.vi_mtdkl.viMTDKL
     :members:
     :inherited-members:
