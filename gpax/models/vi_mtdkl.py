@@ -16,6 +16,7 @@ from .vidkl import viDKL
 class viMTDKL(viDKL):
     """
     Implementation of the variational infernece-based deep kernel learning
+    for multi-task/fidelity problems
 
     Args:
         input_dim:
