@@ -4,6 +4,11 @@ How To Use
 Simple GP
 ---------
 
+|Open in Colab|
+
+.. |Open in Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb
+
 The code snippet below shows how to use vanilla GP in a fully Bayesian mode. First, we infer GP model parameters from the available training data
 
 .. code:: python
@@ -110,6 +115,7 @@ Theory-informed data reconstruction and Bayesian optimization
 Sometimes when theoretical simulations are available before the experiment, they can be used to guide the measurements or simply reconstruct sparse data via a multi-task/fidelity Gaussian process. This can be an alternative to a structured Gaussian process in situations where a mean function is too costly to compute at each step or it is expressed through some complex program that is not fully differentiable. The overall scheme is the same, but now our GP model is a MultitaskGP:
 
 .. code:: python
+
   key1, key2 = gpax.utils.get_keys(1)
 
   gp_model = gpax.MultiTaskGP(
@@ -123,13 +129,14 @@ Sometimes when theoretical simulations are available before the experiment, they
 Note that X has (N, D+1) dimensions where the last column contains task/fidelity indices for each observation. We can then use the trained model to reconstruct data from partial (expensive) observations:
 
 .. code:: python
+
   # Create a set of inputs for the task/fidelity 2
   X_unmeasured2 = np.column_stack((X_full_range, np.ones_like(X_full_range)))
 
   # Make a prediction with the trained model
   y_mean2, y_sampled2 = model.predict(key2, X_unmeasured2, noiseless=True)
 
-.. image:: GP_vs_MTGP.jpg
+.. image:: imgs/GP_vs_MTGP.jpg
   :alt: GP_vs_MTGP
 
 Hypothesis learning
