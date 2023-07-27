@@ -1,7 +1,7 @@
 Other utilities
 ================
 
-.. autoclass:: gpax.spm.sPM
+.. autoclass:: gpax.models.spm.sPM
     :members:
     :inherited-members:
     :undoc-members:

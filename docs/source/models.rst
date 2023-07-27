@@ -19,7 +19,7 @@ Gaussian Processes - Fully Bayesian Implementation
 
 Gaussian Processes - Approximate Bayesian
 ------------------------------------------
-.. autoclass:: gpax.models.gp.ExactGP
+.. autoclass:: gpax.models.gp.viGP
     :members:
     :inherited-members:
     :undoc-members:

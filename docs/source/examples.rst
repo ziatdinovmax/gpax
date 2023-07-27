@@ -9,6 +9,8 @@ The easiest way to start using GPax is via Google Colab, which is a free researc
 
 *   | Bayesian optimization |GPBO|
 
+*   | Theory-informed Gaussian process & Bayesian optimization |MTGPBO|
+
 *   | Hypothesis learning |hypoAL|
 
 *   | Deep Kernel Learning |DKL|
@@ -21,6 +23,9 @@ The easiest way to start using GPax is via Google Colab, which is a free researc
 
 .. |GPBO| image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/master/examples/gpax_GPBO.ipynb
+
+.. |MTGPBO| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/master/examples/GPax_MultiTaskGP_BO.ipynb
 
 .. |hypoAL| image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/master/examples/hypoAL.ipynb
