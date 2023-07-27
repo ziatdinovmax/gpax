@@ -4,6 +4,9 @@ How To Use
 Simple GP
 ---------
 
+1D Example
+===========
+
 |Open in Colab|
 
 .. |Open in Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
@@ -35,8 +38,42 @@ For 1-dimensional data, we can plot the GP prediction using the standard approac
 .. image:: imgs/GPax_Fig2.jpg
   :alt: GPax_GP2
 
+Sparse 2D Image Reconstruction
+==============================
+
+|Open in Colab|
+
+.. |Open in Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viGP.ipynb
+
+
+One can also use GP for sparse image reconstruction. The fully Bayesian GP is typically too slow for this purpose and it makes sense to use a stochastic variational inference approximation (viGP) instead. Code-wise, the usage of viGP in GPax is almost the same as that of the fully Bayesian GP. One difference is that instead of ```num_samples``` we have ```num_steps```. We can also control the learning rate by specifying a ```step_size```. 
+
+.. code:: python
+
+  # Get training inputs/targets and full image indices from sparse image data
+  X_train, y_train, X_full = gpax.utils.preprocess_sparse_image(sparse_img) # sparse_img is a 2D numpy array
+
+  # Initialize and train a variational inference GP model
+  gp_model = gpax.viGP(2, kernel='Matern', guide='delta')
+  gp_model.fit(rng_key, X_train, y_train, num_steps=250, step_size=0.05)
+
+
+When we run the ```.predict()``` method, the output is predictive mean and variance computed from a learned single estimate of the GP model parameters:
+.. code:: python
+
+  y_pred, y_var = gp_model.predict(rng_key_predict, X_full)
+
+Note that it returns flattened numpy arrays that you will need to reshape back to the original image shape.
+
+
 Structured GP
 -------------
+
+|Open in Colab|
+
+.. |Open in Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb
 
 The limitation of the standard GP is that it does not usually allow for the incorporation of prior domain knowledge and can be biased toward a trivial interpolative solution. Recently, we `introduced <https://arxiv.org/abs/2108.10280>`_ a structured Gaussian Process (sGP), where a classical GP is augmented by a structured probabilistic model of the expected system’s behavior. This approach allows us to `balance <https://towardsdatascience.com/unknown-knowns-bayesian-inference-and-structured-gaussian-processes-why-domain-scientists-know-4659b7e924a4>`_ the flexibility of the non-parametric GP approach with a rigid structure of prior (physical) knowledge encoded into the parametric model.
 Implementation-wise, we substitute a constant/zero prior mean function in GP with a probabilistic model of the expected system's behavior.
