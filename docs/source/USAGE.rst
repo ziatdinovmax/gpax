@@ -76,19 +76,15 @@ Finally, we train the sGP model and make predictions on new data in the almost e
     # Get GP prediction on new/test data
     y_pred, y_sampled = sgp_model.predict(rng_key_predict, X_test)
 
-.. image:: imgs/GPax_FIg3.jpg
-  :alt: GPax_sGP1
+.. image:: imgs/GP_vs_sGP2.jpg
+  :alt: GPax_sGP
 
-The probabilistic model reflects our prior knowledge about the system, but it does not have to be precise, that is, the model can have a different functional form, as long as it captures general or partial trends in the data. 
-
-.. image:: imgs/GPax_FIg4.jpg
-  :scale: 13
-  :alt: GPax_sGP2
+Structured GP is usually better at extrapolation and provides more reasonable uncertainty estimates. The probabilistic model in structured GP reflects our prior knowledge about the system, but it does not have to be precise, that is, the model can have a different functional form, as long as it captures general or partial trends in the data. 
 
 Active learning & Bayesian optimization
 ---------------------------------------
 
-Both GP and sGP can be used for active learning to reconstruct the entire data distribution from sparse observations or to localize regions of the parameter space where a particular physical behavior is maximized or minimized with as few measurements as possible (the latter is usually referred to as Bayesian optimization)
+Both GP and sGP can be used for active learning to reconstruct the entire data distribution from sparse observations or to localize regions of the parameter space where a particular physical behavior is maximized or minimized with as few measurements as possible.
 
 .. code:: python
 
@@ -97,15 +93,44 @@ Both GP and sGP can be used for active learning to reconstruct the entire data d
 
   # Compute the upper confidence bound (UCB) acquisition function to derive the next measurement point
   acq = gpax.acquisition.UCB(rng_key_predict, gp_model, X_unmeasured, beta=4, maximize=False, noiseless=True)  # B
-  next_point_idx = acq.argmin()  # C
+  next_point_idx = acq.argmax()  # C
   next_point = X_unmeasured[next_point_idx]  # D
 
   # Perform measurement in next_point, update measured & unmeasured data arrays, and re-run steps A-D.
 
-In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and the acquisiton function used to derive the next measurement points. Here, the posterior mean values indicate that the minimum of a "black box" function describing a behaviour of interest is around x=0.7. At the same time, there is a large dispersion in the samples from the posterior predictive distribution between x=-0.5 and x=0.5, resulting in a high uncertainty in that region. The acquisition function is computed as a function of both predictive mean and uncertainty and its minimum corresponds to the next measurement point in the active learning / Bayesian optimization setup. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈0 where potentially a true minimum is located.
+In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and the acquisition function used to derive the next measurement points. Here, the posterior mean values indicate that the minimum of a "black box" function describing a behavior of interest is around $x=0.7$. At the same time, there is a large dispersion in the samples from the posterior predictive distribution between $x=-0.5$ and $x=0.5$, resulting in high uncertainty in that region. The acquisition function is computed as a function of both predictive mean and uncertainty and its maximum corresponds to the next measurement point in the active learning and Bayesian optimization. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈0 where potentially a true minimum is located.
 
-.. image:: imgs/BO.png
+.. image:: imgs/GP_BO2.png
   :alt: GPax_BO
+
+
+Theory-informed data reconstruction and Bayesian optimization
+-------------------------------------------------------------
+
+Sometimes when theoretical simulations are available before the experiment, they can be used to guide the measurements or simply reconstruct sparse data via a multi-task/fidelity Gaussian process. This can be an alternative to a structured Gaussian process in situations where a mean function is too costly to compute at each step or it is expressed through some complex program that is not fully differentiable. The overall scheme is the same, but now our GP model is a MultitaskGP:
+
+.. code:: python
+  key1, key2 = gpax.utils.get_keys(1)
+
+  gp_model = gpax.MultiTaskGP(
+      input_dim=1, data_kernel='Matern',  # standard GP parameters
+      shared_input_space=False,  # different tasks/fidelities have different numbers of observations
+      num_latents=2, rank=2,  # parameters of multi-task GP
+  )
+
+  model.fit(key1, X, y, num_warmup=500, num_samples=500)
+
+Note that X has (N, D+1) dimensions where the last column contains task/fidelity indices for each observation. We can then use the trained model to reconstruct data from partial (expensive) observations:
+
+.. code:: python
+  # Create a set of inputs for the task/fidelity 2
+  X_unmeasured2 = np.column_stack((X_full_range, np.ones_like(X_full_range)))
+
+  # Make a prediction with the trained model
+  y_mean2, y_sampled2 = model.predict(key2, X_unmeasured2, noiseless=True)
+
+.. image:: GP_vs_MTGP.jpg
+  :alt: GP_vs_MTGP
 
 Hypothesis learning
 -------------------
