@@ -5,7 +5,7 @@ import numpy as onp
 import numpyro
 import numpyro.distributions as dist
 
-from .. import ExactGP
+from .gp import ExactGP
 from ..kernels import MultitaskKernel
 
 

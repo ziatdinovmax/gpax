@@ -15,7 +15,7 @@ import jax.random as jra
 import numpy as onp
 import numpyro.distributions as dist
 
-from .gp import ExactGP
+from ..models.gp import ExactGP
 
 
 def EI(rng_key: jnp.ndarray, model: Type[ExactGP],

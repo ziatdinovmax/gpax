@@ -1,14 +1,11 @@
-from . import utils, kernels, acquisition
-from .gp import ExactGP
-from .vgp import vExactGP
-from .vigp import viGP
-from .spm import sPM
-from .hypo import sample_next
-from .bnn import DKL, viDKL, iBNN, vi_iBNN, viMTDKL
-from .multitask import MultiTaskGP
-
 from .__version__ import version as __version__
+from . import utils
+from . import kernels
+from . import acquisition
+from .hypo import sample_next
+from .models import (DKL, CoregGP, ExactGP, MultiTaskGP, iBNN, vExactGP,
+                     vi_iBNN, viDKL, viGP, viMTDKL)
 
-__all__ = ["utils", "kernels", "acquisition", "ExactGP", "vExactGP", "DKL",
+__all__ = ["utils", "kernels", "mtkernels", "acquisition", "ExactGP", "vExactGP", "DKL",
            "viDKL", "iBNN", "vi_iBNN", "MultiTaskGP", "viMTDKL", "viGP", "sPM",
-           "sample_next", "__version__"]
+           "CoregGP", "sample_next", "__version__"]

@@ -20,8 +20,8 @@ import numpyro.distributions as dist
 from jax import jit
 from numpyro.infer import MCMC, NUTS, init_to_median, Predictive
 
-from .kernels import get_kernel
-from .utils import split_in_batches
+from ..kernels import get_kernel
+from ..utils import split_in_batches
 
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray],  jnp.ndarray]
 

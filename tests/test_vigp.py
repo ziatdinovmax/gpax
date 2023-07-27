@@ -8,7 +8,7 @@ from numpy.testing import assert_equal, assert_array_equal, assert_
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.vigp import viGP
+from gpax.models.vigp import viGP
 from gpax.utils import get_keys, enable_x64
 
 enable_x64()

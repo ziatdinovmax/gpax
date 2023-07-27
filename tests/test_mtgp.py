@@ -7,7 +7,7 @@ from numpy.testing import assert_
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.multitask.mtgp import MultiTaskGP
+from gpax.models.mtgp import MultiTaskGP
 from gpax.utils import get_keys
 
 

@@ -20,8 +20,7 @@ from numpyro.contrib.module import random_haiku_module
 from jax import jit
 import haiku as hk
 
-from ..gp import ExactGP
-from ..kernels import get_kernel
+from .gp import ExactGP
 from ..utils import get_haiku_dict
 
 

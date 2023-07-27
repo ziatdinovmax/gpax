@@ -16,7 +16,7 @@ import numpyro
 import numpyro.distributions as dist
 from jax import jit
 
-from ..vgp import vExactGP
+from .vgp import vExactGP
 
 
 class DKL(vExactGP):

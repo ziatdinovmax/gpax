@@ -8,7 +8,7 @@ from numpy.testing import assert_equal, assert_array_equal, assert_
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.gp import ExactGP
+from gpax.models.gp import ExactGP
 from gpax.utils import get_keys
 
 

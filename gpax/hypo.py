@@ -13,8 +13,8 @@ import jax.numpy as jnp
 import numpy as np
 import numpyro
 
-from .gp import ExactGP
-from .spm import sPM
+from .models.gp import ExactGP
+from .models.spm import sPM
 from .utils import get_keys
 
 

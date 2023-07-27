@@ -6,7 +6,7 @@ from numpy.testing import assert_, assert_equal
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.bnn import viMTDKL
+from gpax.models.vi_mtdkl import viMTDKL
 from gpax.utils import get_keys
 
 

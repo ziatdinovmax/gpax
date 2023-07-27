@@ -7,7 +7,7 @@ from numpy.testing import assert_
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.multitask.corgp import CoregGP
+from gpax.models.corgp import CoregGP
 from gpax.utils import get_keys
 
 

@@ -2,14 +2,12 @@ import sys
 import pytest
 import numpy as onp
 import jax.numpy as jnp
-import jax
-import numpyro
-from numpy.testing import assert_equal, assert_array_equal, assert_
+from numpy.testing import assert_equal
 
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.bnn import iBNN, vi_iBNN
+from gpax.models import iBNN, vi_iBNN
 from gpax.utils import get_keys
 
 
