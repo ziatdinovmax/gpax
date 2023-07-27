@@ -5,7 +5,7 @@ Simple GP
 ---------
 
 1D Example
-===========
+^^^^^^^^^^
 
 |Open in Colab|
 
@@ -39,7 +39,7 @@ For 1-dimensional data, we can plot the GP prediction using the standard approac
   :alt: GPax_GP2
 
 Sparse 2D Image Reconstruction
-==============================
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 |Open in Colab|
 
@@ -47,7 +47,7 @@ Sparse 2D Image Reconstruction
    :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viGP.ipynb
 
 
-One can also use GP for sparse image reconstruction. The fully Bayesian GP is typically too slow for this purpose and it makes sense to use a stochastic variational inference approximation (viGP) instead. Code-wise, the usage of viGP in GPax is almost the same as that of the fully Bayesian GP. One difference is that instead of ```num_samples``` we have ```num_steps```. We can also control the learning rate by specifying a ```step_size```. 
+One can also use GP for sparse image reconstruction. The fully Bayesian GP is typically too slow for this purpose and it makes sense to use a stochastic variational inference approximation (viGP) instead. Code-wise, the usage of viGP in GPax is almost the same as that of the fully Bayesian GP. One difference is that instead of ``num_samples`` we have ``num_steps``. We can also control the learning rate by specifying a ``step_size``. 
 
 .. code:: python
 
@@ -59,7 +59,8 @@ One can also use GP for sparse image reconstruction. The fully Bayesian GP is ty
   gp_model.fit(rng_key, X_train, y_train, num_steps=250, step_size=0.05)
 
 
-When we run the ```.predict()``` method, the output is predictive mean and variance computed from a learned single estimate of the GP model parameters:
+When we run the ``.predict()`` method, the output is predictive mean and variance computed from a learned single estimate of the GP model parameters:
+
 .. code:: python
 
   y_pred, y_var = gp_model.predict(rng_key_predict, X_full)
