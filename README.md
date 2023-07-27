@@ -94,11 +94,10 @@ sgp_model.fit(rng_key, X, y)
 y_pred, y_sampled = sgp_model.predict(rng_key_predict, X_test)
 ```
 
-<img src="https://user-images.githubusercontent.com/34245227/167949916-ca79005e-7fa0-4de1-917c-d191f9dae512.jpg">
+![GP_vs_sGP2](https://github.com/ziatdinovmax/gpax/assets/34245227/89de341c-f00c-468c-afe6-c0b1c1140725)
 
-The probabilistic model reflects our prior knowledge about the system, but it does not have to be precise, that is, the model can have a different functional form, as long as it captures general or partial trends in the data. The full example including the active learning part is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb).
 
-<img src="https://user-images.githubusercontent.com/34245227/167950935-98681279-414c-4af0-8afb-8acfb127b6bf.jpg" height="50%" width="50%">
+Structured GP usually is usually better at extrapolation and provides more reasonable uncertainty estimates. The probabilistic model in structured GP reflects our prior knowledge about the system, but it does not have to be precise, that is, the model can have a different functional form, as long as it captures general or partial trends in the data. The full example including the active learning part is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb).
 
 
 ### Active learning and Bayesian optimization
@@ -118,15 +117,46 @@ next_point = X_unmeasured[next_point_idx]  # D
 # Perform measurement in next_point, update measured & unmeasured data arrays, and re-run steps A-D.
 ```
 
-In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and the acquisiton function used to derive the next measurement points. Here, the posterior mean values indicate that the minimum of a "black box" function describing a behaviour of interest is around $x=0.7$. At the same time, there is a large dispersion in the samples from the posterior predictive distribution between $x=-0.5$ and $x=0.5$, resulting in a high uncertainty in that region. The acquisition function is computed as a function of both predictive mean and uncertainty and its maximum corresponds to the next measurement point in the active learning and Bayesian optimization. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈0 where potentially a true minimum is located. See full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_GPBO.ipynb).
+In the figure below we illustrate the connection between the (s)GP posterior predictive distribution and the acquisition function used to derive the next measurement points. Here, the posterior mean values indicate that the minimum of a "black box" function describing a behavior of interest is around $x=0.7$. At the same time, there is a large dispersion in the samples from the posterior predictive distribution between $x=-0.5$ and $x=0.5$, resulting in high uncertainty in that region. The acquisition function is computed as a function of both predictive mean and uncertainty and its maximum corresponds to the next measurement point in the active learning and Bayesian optimization. Here, after taking into account the uncertainty in the prediction, the UCB acquisition function suggests exploring a point at x≈0 where potentially a true minimum is located. See full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_GPBO.ipynb).
 
 <img src="https://github.com/ziatdinovmax/gpax/assets/34245227/24f641fb-5959-4780-8d0e-edf62bd0a32b">
+
+
+### Theory-informed data reconstruction and Bayesian optimization
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_GPBO.ipynb)
+
+Sometimes when theoretical simulations are available before the experiment, they can be used to guide the measurements or simply reconstruct sparse data via a multi-task/fidelity Gaussian process. This can be used as an alternative solution to a structured Gaussian process in situations where a mean function is too costly to compute at each step or it is expressed through some complex program that is not fully differentiable. The overall scheme is the same, but now our GP model is a MultitaskGP:
+
+```python3
+key1, key2 = gpax.utils.get_keys(1)
+
+gp_model = gpax.MultiTaskGP(
+    input_dim=1, data_kernel='Matern',  # standard GP parameters
+    shared_input_space=False,  # different tasks/fidelities have different numbers of observations
+    num_latents=2, rank=2,  # parameters of multi-task GP
+)
+
+model.fit(key1, X, y, num_warmup=500, num_samples=500)
+```
+
+Note that X has (N, D+1) dimensions where the last column contains task/fidelity indices for each observation. We can then use the trained model to make a prediction for partially observed data:
+```python3
+# Create a set of inputs for the task/fidelity 2
+X_unmeasured2 = np.column_stack((X_full_range, np.ones_like(X_full_range)))
+
+# Make a prediction with the trained model
+y_mean2, y_sampled2 = model.predict(key2, X_unmeasured2, noiseless=True)
+```
+
+![GP_vs_MTGP](https://github.com/ziatdinovmax/gpax/assets/34245227/5a36d3cd-c904-4345-abc3-b1bea5025cc8)
+The full example including Bayesian optimization is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GPax_MultiTaskGP_BO.ipynb)
+
 
 
 ### Hypothesis learning
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_hypo.ipynb)
 
-The structured GP can be also used for hypothesis learning in automated experiments. The [hypothesis learning](https://arxiv.org/abs/2112.06649) is based on the idea that in active learning, the correct model of the system’s behavior leads to a faster decrease in the overall Bayesian uncertainty about the system under study. In the hypothesis learning setup, probabilistic models of the possible system’s behaviors (hypotheses) are wrapped into structured GPs, and a basic reinforcement learning policy is used to select a correct model from several competing hypotheses. The example of hypothesis learning on toy data is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_hypo.ipynb).
+The structured GP can also be used for hypothesis learning in automated experiments. The [hypothesis learning](https://arxiv.org/abs/2112.06649) is based on the idea that in active learning, the correct model of the system’s behavior leads to a faster decrease in the overall Bayesian uncertainty about the system under study. In the hypothesis learning setup, probabilistic models of the possible system’s behaviors (hypotheses) are wrapped into structured GPs, and a basic reinforcement learning policy is used to select a correct model from several competing hypotheses. The example of hypothesis learning on toy data is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_hypo.ipynb).
 
 <img src="https://user-images.githubusercontent.com/34245227/167936394-52f5ffd5-a47c-425d-b8a7-0727938dfab2.gif">
 
