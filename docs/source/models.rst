@@ -1,34 +1,59 @@
 GPax models
 ===========
 
-Gaussian Processes (Fully Bayesian Implementation)
+Gaussian Processes - Fully Bayesian Implementation
 --------------------------------------------------
-.. autoclass:: gpax.gp.ExactGP
+.. autoclass:: gpax.models.gp.ExactGP
     :members:
     :inherited-members:
     :undoc-members:
     :member-order: bysource
     :show-inheritance:
 
-.. autoclass:: gpax.vgp.vExactGP
+.. autoclass:: gpax.models.vgp.vExactGP
     :members:
     :inherited-members:
     :undoc-members:
     :member-order: bysource
     :show-inheritance:
 
-Deep Kernel Learning (Fully Bayesian Implementation)
+Gaussian Processes - Approximate Bayesian
+------------------------------------------
+.. autoclass:: gpax.models.gp.ExactGP
+    :members:
+    :inherited-members:
+    :undoc-members:
+    :member-order: bysource
+    :show-inheritance:
+
+Deep Kernel Learning - Fully Bayesian Implementation
 ----------------------------------------------------
-.. autoclass:: gpax.dkl.DKL
+.. autoclass:: gpax.models.dkl.DKL
     :members:
     :inherited-members:
     :undoc-members:
     :member-order: bysource
     :show-inheritance:
 
-Deep Kernel Learning (Approximate Bayesian)
+Deep Kernel Learning - Approximate Bayesian
 -------------------------------------------
-.. autoclass:: gpax.vidkl.viDKL
+.. autoclass:: gpax.models.vidkl.viDKL
+    :members:
+    :inherited-members:
+    :undoc-members:
+    :member-order: bysource
+    :show-inheritance:
+
+Multi-Task Learning
+--------------------
+.. autoclass:: gpax.models.mtgp.MultiTaskGP
+    :members:
+    :inherited-members:
+    :undoc-members:
+    :member-order: bysource
+    :show-inheritance:
+    
+.. autoclass:: gpax.models.vi_mtdkl.viMTDKL
     :members:
     :inherited-members:
     :undoc-members:
