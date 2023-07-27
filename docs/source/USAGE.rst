@@ -67,6 +67,9 @@ When we run the ``.predict()`` method, the output is predictive mean and varianc
 
 Note that it returns flattened numpy arrays that you will need to reshape back to the original image shape.
 
+.. image:: imgs/viGP.png
+  :alt: viGP
+
 
 Structured GP
 -------------
