@@ -41,9 +41,9 @@ For 1-dimensional data, we can plot the GP prediction using the standard approac
 Sparse 2D Image Reconstruction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-|Open in Colab|
+|viGP|
 
-.. |Open in Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+.. |viGP| image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viGP.ipynb
 
 
@@ -71,9 +71,9 @@ Note that it returns flattened numpy arrays that you will need to reshape back t
 Structured GP
 -------------
 
-|Open in Colab|
+|sGP|
 
-.. |Open in Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+.. |sGP| image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb
 
 The limitation of the standard GP is that it does not usually allow for the incorporation of prior domain knowledge and can be biased toward a trivial interpolative solution. Recently, we `introduced <https://arxiv.org/abs/2108.10280>`_ a structured Gaussian Process (sGP), where a classical GP is augmented by a structured probabilistic model of the expected system’s behavior. This approach allows us to `balance <https://towardsdatascience.com/unknown-knowns-bayesian-inference-and-structured-gaussian-processes-why-domain-scientists-know-4659b7e924a4>`_ the flexibility of the non-parametric GP approach with a rigid structure of prior (physical) knowledge encoded into the parametric model.
@@ -127,6 +127,12 @@ Structured GP is usually better at extrapolation and provides more reasonable un
 Active learning & Bayesian optimization
 ---------------------------------------
 
+|BO|
+
+.. |BO| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_GPBO.ipynb
+
+
 Both GP and sGP can be used for active learning to reconstruct the entire data distribution from sparse observations or to localize regions of the parameter space where a particular physical behavior is maximized or minimized with as few measurements as possible.
 
 .. code:: python
@@ -149,6 +155,11 @@ In the figure below we illustrate the connection between the (s)GP posterior pre
 
 Theory-informed data reconstruction and Bayesian optimization
 -------------------------------------------------------------
+
+|MTGP|
+
+.. |MTGP| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GPax_MultiTaskGP_BO.ipynb
 
 Sometimes when theoretical simulations are available before the experiment, they can be used to guide the measurements or simply reconstruct sparse data via a multi-task/fidelity Gaussian process. This can be an alternative to a structured Gaussian process in situations where a mean function is too costly to compute at each step or it is expressed through some complex program that is not fully differentiable. The overall scheme is the same, but now our GP model is a MultitaskGP:
 
@@ -180,6 +191,11 @@ Note that X has (N, D+1) dimensions where the last column contains task/fidelity
 Hypothesis learning
 -------------------
 
+|hypoAL|
+
+.. |hypoAL| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_hypo.ipynb
+
 The structured GP can be also used for hypothesis learning in automated experiments. The `hypothesis learning <https://arxiv.org/abs/2112.06649>`_ is based on the idea that in active learning, the correct model of the system’s behavior leads to a faster decrease in the overall Bayesian uncertainty about the system under study. In the hypothesis learning setup, probabilistic models of the possible system’s behaviors (hypotheses) are wrapped into structured GPs, and a basic reinforcement learning policy is used to select a correct model from several competing hypotheses. A full example is available `here <https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/hypoAL.ipynb>`_.
 
 .. image:: imgs/HypoAL.gif
@@ -187,6 +203,11 @@ The structured GP can be also used for hypothesis learning in automated experime
 
 Deep Kernel Learning
 --------------------
+
+|DKL|
+
+.. |DKL| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viDKL_plasmons.ipynb
 
 `Deep Kernel Learning <https://arxiv.org/abs/1511.02222>`_ can be understood as a hybrid of deep neural network (DNN) and GP. The DNN serves as a feature extractor that allows reducing the complex high-dimensional features to low-dimensional descriptors on which a standard GP kernel operates. The parameters of DNN and of GP kernel are inferred jointly in an end-to-end fashion. Practically, the DKL training inputs are usually patches from an (easy-to-acquire) structural image, and training targets represent a physical property of interest derived from the (hard-to-acquire) spectra measured in those patches. The DKL output on the new inputs (image patches for which there are no measured spectra) is the expected property value and associated uncertainty, which can be used to derive the next measurement point in the automated experiment.
 
