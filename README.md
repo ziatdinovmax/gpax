@@ -97,7 +97,7 @@ y_pred, y_sampled = sgp_model.predict(rng_key_predict, X_test)
 ![GP_vs_sGP2](https://github.com/ziatdinovmax/gpax/assets/34245227/89de341c-f00c-468c-afe6-c0b1c1140725)
 
 
-Structured GP usually is usually better at extrapolation and provides more reasonable uncertainty estimates. The probabilistic model in structured GP reflects our prior knowledge about the system, but it does not have to be precise, that is, the model can have a different functional form, as long as it captures general or partial trends in the data. The full example including the active learning part is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb).
+Structured GP is usually better at extrapolation and provides more reasonable uncertainty estimates. The probabilistic model in structured GP reflects our prior knowledge about the system, but it does not have to be precise, that is, the model can have a different functional form, as long as it captures general or partial trends in the data. The full example including the active learning part is available [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb).
 
 
 ### Active learning and Bayesian optimization
