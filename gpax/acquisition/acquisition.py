@@ -324,6 +324,6 @@ def penalty_point(x: jnp.ndarray, recent_points: jnp.ndarray) -> jnp.ndarray:
     if len(recent_points) == 1:
         timestamps = 1
     else:
-        timestamps = jnp.arange(len(recent_points), 0, -1)
-    penalties = 1 / distances / timestamps
+        timestamps = jnp.arange(len(recent_points) + 1, 1, -1)
+    penalties = 1 / (distances + 1) / timestamps
     return jnp.sum(penalties)
