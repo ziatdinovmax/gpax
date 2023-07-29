@@ -123,7 +123,7 @@ In the figure below we illustrate the connection between the (s)GP posterior pre
 
 
 ### Theory-informed data reconstruction and Bayesian optimization
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_GPBO.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GPax_MultiTaskGP_BO.ipynb)
 
 Sometimes when theoretical simulations are available before the experiment, they can be used to guide the measurements or simply reconstruct sparse data via a multi-task/fidelity Gaussian process. This can be used as an alternative solution to a structured Gaussian process in situations where a mean function is too costly to compute at each step or it is expressed through some complex program that is not fully differentiable. The overall scheme is the same, but now our GP model is a MultitaskGP:
 
