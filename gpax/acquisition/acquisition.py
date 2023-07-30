@@ -9,20 +9,23 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 
 from typing import Type, Tuple, Optional
 
-import jax
 import jax.numpy as jnp
 import jax.random as jra
 import numpy as onp
 import numpyro.distributions as dist
 
 from ..models.gp import ExactGP
+from .penalties import compute_penalty
 
 
 def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
-       X: jnp.ndarray, xi: float = 0.01,
+       X: jnp.ndarray,
        maximize: bool = False, n: int = 1,
-       noiseless: bool = False, distance_penalty: float = None,
-       recent_points: jnp.ndarray = None, grid_indices: jnp.ndarray = None,
+       noiseless: bool = False,
+       penalty: Optional[str] = None,
+       recent_points: jnp.ndarray = None,
+       grid_indices: jnp.ndarray = None,
+       penalty_factor: float = 1.0,
        **kwargs) -> jnp.ndarray:
     r"""
     Expected Improvement
@@ -38,24 +41,31 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
-        distance_penalty:
-            Modifies the acquisition function by penalizing points near the recent points as
+        penalty:
+            Penalty applied to the acqusition function to discourage re-evaluation
+            at or near points that were recently evaluated. Options are:
+            - 'delta': the infinite penalty is applied to the recently visited points
+            - 'inverse_distance': Modifies the acquisition function by penalizing points near the recent points as
 
             .. math::
                 \alpha - \lambda \cdot \pi(X, r)
 
-            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points `r`, 
-            :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the distance penalty. Defaults to None.
+            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points :math:`r`,
+            :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the penalty factor.
         recent_points:
             An array of recently visited points [oldest, ..., newest] provided by user
         grid_indices:
             Grid indices of data points in X array for the penalty term calculation.
             For example, if each data point is an image patch, the indices could correspond
             to the (i, j) pixel coordinates of their centers in the original image.
+        penalty_factor:
+            Penalty factor :math:`\lambda` in :math:`\alpha - \lambda \cdot \pi(X, r)`
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
     X = X[:, None] if X.ndim < 2 else X
     if model.mcmc is not None:
         y_mean, y_sampled = model.predict(
@@ -75,18 +85,21 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
     ucdf = normal.cdf(u)
     updf = jnp.exp(normal.log_prob(u))
     acq = sigma * (updf + u * ucdf)
-    if distance_penalty is not None:
+    if penalty:
         X_ = grid_indices if grid_indices is not None else X
-        penalties = jax.vmap(penalty_point, in_axes=(0, None))(X_, recent_points)
-        acq -= distance_penalty * penalties
+        penalties = compute_penalty(X_, recent_points, penalty, penalty_factor)
+        acq -= penalties
     return acq
 
 
 def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         X: jnp.ndarray, beta: float = .25,
         maximize: bool = False, n: int = 1,
-        noiseless: bool = False, distance_penalty: float = None,
-        recent_points: jnp.ndarray = None, grid_indices: jnp.ndarray = None,
+        noiseless: bool = False,
+        penalty: Optional[str] = None,
+        recent_points: jnp.ndarray = None,
+        grid_indices: jnp.ndarray = None,
+        penalty_factor: float = 1.0,
         **kwargs) -> jnp.ndarray:
     r"""
     Upper confidence bound
@@ -103,24 +116,31 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
-        distance_penalty:
-            Modifies the acquisition function by penalizing points near the recent points as
+        penalty:
+            Penalty applied to the acqusition function to discourage re-evaluation
+            at or near points that were recently evaluated. Options are:
+            - 'delta': the infinite penalty is applied to the recently visited points
+            - 'inverse_distance': Modifies the acquisition function by penalizing points near the recent points as
 
             .. math::
                 \alpha - \lambda \cdot \pi(X, r)
 
-            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points `r`, 
-            :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the distance penalty. Defaults to None.
+            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points :math:`r`,
+            :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the penalty factor.
         recent_points:
             An array of recently visited points [oldest, ..., newest] provided by user
         grid_indices:
             Grid indices of data points in X array for the penalty term calculation.
             For example, if each data point is an image patch, the indices could correspond
             to the (i, j) pixel coordinates of their centers in the original image.
+        penalty_factor:
+            Penalty factor :math:`\lambda` in :math:`\alpha - \lambda \cdot \pi(X, r)`
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
     X = X[:, None] if X.ndim < 2 else X
     if model.mcmc is not None:
         _, y_sampled = model.predict(
@@ -135,10 +155,10 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         acq = mean + delta
     else:
         acq = delta - mean  # we return a negative acq for argmax in BO
-    if distance_penalty is not None:
+    if penalty:
         X_ = grid_indices if grid_indices is not None else X
-        penalties = jax.vmap(penalty_point, in_axes=(0, None))(X_, recent_points)
-        acq -= distance_penalty * penalties
+        penalties = compute_penalty(X_, recent_points, penalty, penalty_factor)
+        acq -= penalties
     return acq
 
 
@@ -146,9 +166,10 @@ def UE(rng_key: jnp.ndarray,
        model: Type[ExactGP],
        X: jnp.ndarray, n: int = 1,
        noiseless: bool = False,
-       distance_penalty: float = None,
+       penalty: Optional[str] = None,
        recent_points: jnp.ndarray = None,
        grid_indices: jnp.ndarray = None,
+       penalty_factor: float = 1.0,
        **kwargs) -> jnp.ndarray:
     r"""
     Uncertainty-based exploration
@@ -163,24 +184,31 @@ def UE(rng_key: jnp.ndarray,
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
-        distance_penalty:
-            Modifies the uncertainty by penalizing points near the recent points as
+        penalty:
+            Penalty applied to the acqusition function to discourage re-evaluation
+            at or near points that were recently evaluated. Options are:
+            - 'delta': the infinite penalty is applied to the recently visited points
+            - 'inverse_distance': Modifies the acquisition function by penalizing points near the recent points as
 
             .. math::
-                \sigma - \lambda \cdot \pi(X, r)
+                \alpha - \lambda \cdot \pi(X, r)
 
-            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points `r`, 
-            :math:`\sigma` represents the uncertainty, and :math:`\lambda` represents the distance penalty. Defaults to None.
+            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points :math:`r`,
+            :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the penalty factor.
         recent_points:
             An array of recently visited points [oldest, ..., newest] provided by user
         grid_indices:
             Grid indices of data points in X array for the penalty term calculation.
             For example, if each data point is an image patch, the indices could correspond
             to the (i, j) pixel coordinates of their centers in the original image.
+        penalty_factor:
+            Penalty factor :math:`\lambda` in :math:`\alpha - \lambda \cdot \pi(X, r)`
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
     X = X[:, None] if X.ndim < 2 else X
     if model.mcmc is not None:
         _, y_sampled = model.predict(
@@ -190,10 +218,10 @@ def UE(rng_key: jnp.ndarray,
     else:
         _, var = model.predict(
             rng_key, X, noiseless=noiseless, **kwargs)
-    if distance_penalty is not None:
+    if penalty:
         X_ = grid_indices if grid_indices is not None else X
-        penalties = jax.vmap(penalty_point, in_axes=(0, None))(X_, recent_points)
-        var -= distance_penalty * penalties
+        penalties = compute_penalty(X_, recent_points, penalty, penalty_factor)
+        var -= penalties
     return var
 
 
@@ -309,21 +337,3 @@ def obtain_samples(rng_key: jnp.ndarray, model: Type[ExactGP],
             rng_key, X, xbatch_size, samples, n,
             noiseless=noiseless, **kwargs)
     return y_sampled
-
-
-def penalty_point(x: jnp.ndarray, recent_points: jnp.ndarray) -> jnp.ndarray:
-    """
-    Compute a penalty for point x based on its distance to recent points.
-    """
-    if x.ndim == 1:
-        x = x[:, None]
-    if recent_points.ndim == 1:
-        recent_points = recent_points[:, None]
-    distances = jnp.linalg.norm(recent_points - x, axis=1)
-    # Penalties are inversely proportional to distance and timestamp
-    if len(recent_points) == 1:
-        timestamps = 1
-    else:
-        timestamps = jnp.arange(len(recent_points), 0, -1)
-    penalties = 1 / distances / timestamps
-    return jnp.sum(penalties)
