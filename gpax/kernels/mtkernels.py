@@ -133,7 +133,7 @@ def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
     data and task kernels
 
     .. math::
-        K(x_i, y_j) = k_{data}(x, y) * k_{task}(i, j)
+        K(x_i, y_j) = k_{data}(x, y) \otimes k_{task}(i, j)
 
     where *x* and *y* are data points and *i* and *j* are the tasks
     associated with these points.
