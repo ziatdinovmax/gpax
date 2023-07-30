@@ -64,6 +64,8 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
     X = X[:, None] if X.ndim < 2 else X
     if model.mcmc is not None:
         y_mean, y_sampled = model.predict(
@@ -137,6 +139,8 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
     X = X[:, None] if X.ndim < 2 else X
     if model.mcmc is not None:
         _, y_sampled = model.predict(
@@ -203,6 +207,8 @@ def UE(rng_key: jnp.ndarray,
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
     X = X[:, None] if X.ndim < 2 else X
     if model.mcmc is not None:
         _, y_sampled = model.predict(
