@@ -81,22 +81,9 @@ def test_acq_dkl(acq):
     assert_equal(obj.squeeze().shape, (len(X_new),))
 
 
+@pytest.mark.parametrize('pen', ['delta', 'inverse_distance'])
 @pytest.mark.parametrize("acq", [EI, UCB, UE])
-def test_acq_penalty(acq):
-    rng_keys = get_keys()
-    X = onp.random.randn(8,)
-    X_new = onp.random.randn(12,)
-    y = 10 * X**2
-    m = ExactGP(1, 'RBF')
-    m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
-    obj1 = acq(rng_keys[1], m, X_new)
-    recent_points = onp.array(X_new[2:4] - 0.02)
-    obj2 = acq(rng_keys[1], m, X_new, distance_penalty=0.1, recent_points=recent_points)
-    assert_(onp.count_nonzero(obj1 - obj2) > 0)
-
-
-@pytest.mark.parametrize("acq", [EI, UCB, UE])
-def test_acq_penalty_indices(acq):
+def test_acq_penalty_indices(acq, pen):
     rng_keys = get_keys()
     h = w = 5
     X = onp.random.randn(h*w, 16)
@@ -106,7 +93,7 @@ def test_acq_penalty_indices(acq):
     m = viDKL(input_dim=16)
     m.fit(rng_keys[0], X, y, num_steps=50)
     obj1 = acq(rng_keys[1], m, X_new, grid_indices=indices,
-               distance_penalty=0.1, recent_points=indices[5:7])
+               penalty=pen, recent_points=indices[5:7])
     obj2 = acq(rng_keys[1], m, X_new)
     assert_(isinstance(obj1, jnp.ndarray))
     assert_equal(obj1.squeeze().shape, (len(X_new),))
@@ -119,14 +106,7 @@ def test_compute_penalty_delta():
     penalty_factor = 1.0
     penalties = compute_penalty(X, recent_points, "delta", penalty_factor)
     assert jnp.array_equal(penalties, jnp.array([jnp.inf, jnp.inf, 0.0]))
-
-
-def test_compute_penalty_delta_no_recent_points():
-    X = jnp.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    penalty_factor = 1.0
-    penalties = compute_penalty(X, None, "delta", penalty_factor)
-    assert jnp.array_equal(penalties, jnp.array([0.0, 0.0, jnp.inf]))
-
+    
 
 def test_compute_penalty_inverse_distance():
     X = jnp.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
@@ -135,11 +115,3 @@ def test_compute_penalty_inverse_distance():
     penalties = compute_penalty(X, recent_points, "inverse_distance", penalty_factor)
     assert_(penalties[-1] > penalties[-2])
     assert_(penalties[-2] > penalties[-3])
-
-
-def test_compute_penalty_inverse_distance_no_recent_points():
-    X = jnp.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    penalty_factor = 1.0
-    penalties = compute_penalty(X, None, "inverse_distance", penalty_factor)
-    assert_(isinstance(penalties, jnp.ndarray))
-    assert_(penalties.shape == (3,))
