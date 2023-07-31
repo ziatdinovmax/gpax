@@ -42,10 +42,16 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
        penalty:
-            Penalty applied to the acqusition function to discourage re-evaluation
+            Penalty applied to the acquisition function to discourage re-evaluation
             at or near points that were recently evaluated. Options are:
-            - 'delta': the infinite penalty is applied to the recently visited points
-            - 'inverse_distance': Modifies the acquisition function by penalizing points near the recent points as
+
+            - 'delta':
+            The infinite penalty is applied to the recently visited points.
+            
+            - 'inverse_distance':
+            Modifies the acquisition function by penalizing points near the recent points. 
+
+            For the 'inverse_distance', the acqusition function is penalized as:
 
             .. math::
                 \alpha - \lambda \cdot \pi(X, r)
