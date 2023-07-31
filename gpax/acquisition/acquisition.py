@@ -41,7 +41,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
-       penalty:
+        penalty:
             Penalty applied to the acquisition function to discourage re-evaluation
             at or near points that were recently evaluated. Options are:
 
