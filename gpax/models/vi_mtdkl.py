@@ -217,7 +217,7 @@ class viMTDKL(viDKL):
         z_test = self.nn_module.apply(
             nn_params, jax.random.PRNGKey(0),
             X_new if self.shared_input else X_new[:, :-1])
-        if self.shared_input:
+        if not self.shared_input:
             z_train = jnp.column_stack((z_train, X_train[:, -1]))
             z_test = jnp.column_stack((z_test, X_new[:, -1]))
         # compute kernel matrices for train and test data
