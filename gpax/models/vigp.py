@@ -138,13 +138,13 @@ class viGP(ExactGP):
         """
         predict_fn = lambda xi:  self.predict(
                 rng_key, xi, samples, noiseless, **kwargs)
-        y_pred, y_sampled = self._predict_in_batches(
+        y_pred, y_var = self._predict_in_batches(
             rng_key, X_new, batch_size, 0, samples,
             predict_fn=predict_fn, noiseless=noiseless,
             device=device, **kwargs)
         y_pred = jnp.concatenate(y_pred, 0)
-        y_sampled = jnp.concatenate(y_sampled, -1)
-        return y_pred, y_sampled
+        y_var = jnp.concatenate(y_var, 0)
+        return y_pred, y_var
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
