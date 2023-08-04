@@ -229,6 +229,7 @@ class viDKL(ExactGP):
 
     def predict_in_batches(self, rng_key: jnp.ndarray,
                            X_new: jnp.ndarray,  batch_size: int = 100,
+                           params: Optional[Dict[str, jnp.ndarray]] = None,
                            noiseless: bool = False,
                            **kwargs
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
@@ -237,10 +238,11 @@ class viDKL(ExactGP):
         by spitting the input array into chunks ("batches") and running
         self.predict on each of them one-by-one to avoid a memory overflow
         """
-        predict_fn = lambda xi: self.predict(rng_key, xi, noiseless=noiseless, **kwargs)
+        predict_fn = lambda xi: self.predict(
+            rng_key, xi, params, noiseless=noiseless, **kwargs)
         cat_dim = 1 if self.X_train.ndim == len(self.data_dim) + 2 else 0
         mean, var = self._predict_in_batches(
-            rng_key, X_new, batch_size, cat_dim, predict_fn=predict_fn)
+            rng_key, X_new, batch_size, cat_dim, params, predict_fn=predict_fn)
         mean = jnp.concatenate(mean, cat_dim)
         var = jnp.concatenate(var, cat_dim)
         return mean, var
