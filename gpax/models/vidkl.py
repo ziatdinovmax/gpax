@@ -321,7 +321,7 @@ class viDKL(ExactGP):
             self.fit(key, X, y, num_steps, step_size,
                      print_summary, progress_bar, **kwargs)
             mean, var = self.predict_in_batches(
-                key, X_new, batch_size, noiseless, **kwargs)
+                key, X_new, batch_size, None, noiseless, **kwargs)
             return mean, var
 
         if n_models > 1 and ensemble_method not in ["vectorized", "parallel"]:
