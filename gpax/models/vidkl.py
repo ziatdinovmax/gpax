@@ -8,7 +8,7 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
 from functools import partial
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -30,7 +30,7 @@ class viDKL(ExactGP):
 
     Args:
         input_dim:
-            Number of input dimensions
+            Input features dimensions (e.g. 64*64 for a stack of flattened 64-by-64 images)
         z_dim:
             Latent space dimensionality (defaults to 2)
         kernel:
@@ -66,7 +66,7 @@ class viDKL(ExactGP):
         >>> y_mean, y_var = dkl.predict(key2, X_new)
     """
 
-    def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
+    def __init__(self, input_dim: Union[int, Tuple[int]], z_dim: int = 2, kernel: str = 'RBF',
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None,
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None,
