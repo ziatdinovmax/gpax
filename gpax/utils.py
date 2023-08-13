@@ -7,7 +7,7 @@ Utility functions
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
-from typing import Union, Dict, Type
+from typing import Union, Dict, Type, List
 
 import jax
 import jax.numpy as jnp
@@ -49,6 +49,36 @@ def split_in_batches(X_new: Union[onp.ndarray, jnp.ndarray],
     if X_i.shape[dim] > 0:
         X_split.append(X_i)
     return X_split
+
+
+def split_dict(data: Dict[str, jnp.ndarray], chunk_size: int
+               ) -> List[Dict[str, jnp.ndarray]]:
+    """Splits a dictionary of arrays into a list of smaller dictionaries.
+
+    Args:
+        data: Dictionary containing numpy arrays.
+        chunk_size: Desired size of the smaller arrays.
+
+    Returns:
+        List of dictionaries with smaller numpy arrays.
+    """
+
+    # Get the length of the arrays
+    N = len(next(iter(data.values())))
+
+    # Calculate number of chunks
+    num_chunks = int(onp.ceil(N / chunk_size))
+
+    # Split the dictionary
+    result = []
+    for i in range(num_chunks):
+        start_idx = i * chunk_size
+        end_idx = min((i+1) * chunk_size, N)
+
+        chunk = {key: value[start_idx:end_idx] for key, value in data.items()}
+        result.append(chunk)
+
+    return result
 
 
 def get_haiku_dict(kernel_params: Dict[str, jnp.ndarray]) -> Dict[str, Dict[str, jnp.ndarray]]:
