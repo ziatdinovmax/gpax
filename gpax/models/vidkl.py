@@ -227,9 +227,10 @@ class viDKL(ExactGP):
         """
         Samples from the DKL posterior at X_new points
         """
+        if self.y_train.ndim > 1:
+            raise NotImplementedError("Currently does not support a multi-channel regime")
         y_mean, K = self.get_mvn_posterior(
-            self.X_train, self.y_train, X_new,
-            self.nn_params, self.kernel_params, noiseless, **kwargs)
+            X_new, self.nn_params, self.kernel_params, noiseless, **kwargs)
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
 
