@@ -246,9 +246,9 @@ class viDKL(ExactGP):
         """
         predict_fn = lambda xi: self.predict(
             rng_key, xi, params, noiseless=noiseless, **kwargs)
-        cat_dim = 1 if self.X_train.ndim == len(self.data_dim) + 2 else 0
+        cat_dim = 1 if self.y_train.ndim == 2 else 0
         mean, var = self._predict_in_batches(
-            rng_key, X_new, batch_size, cat_dim, params, predict_fn=predict_fn)
+            rng_key, X_new, batch_size, 0, params, predict_fn=predict_fn)
         mean = jnp.concatenate(mean, cat_dim)
         var = jnp.concatenate(var, cat_dim)
         return mean, var
