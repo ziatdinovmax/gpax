@@ -233,6 +233,10 @@ class viDKL(ExactGP):
             X_new, self.nn_params, self.kernel_params, noiseless, **kwargs)
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
+    
+    def get_samples(self) -> Tuple[Dict['str', jnp.ndarray]]:
+        """Returns a tuple with trained NN weights and kernel hyperparameters"""
+        return self.nn_params, self.kernel_params
 
     def predict_in_batches(self, rng_key: jnp.ndarray,
                            X_new: jnp.ndarray,  batch_size: int = 100,
