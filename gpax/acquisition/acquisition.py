@@ -76,45 +76,6 @@ def compute_acquisition(
     return acq
 
 
-def compute_batch_acquisition(acquisition_type: Callable,
-                              model: Type[ExactGP],
-                              X: jnp.ndarray,
-                              *acq_args,
-                              maximize_distance: bool = False,
-                              n_evals: int = 1,
-                              subsample_size: int = 1,
-                              indices: Optional[jnp.ndarray] = None,
-                              **kwargs) -> jnp.ndarray:
-
-    """
-    Batch-mode acquisition function fo a given type
-    """
-    
-    if model.mcmc is None:
-        raise ValueError("The model needs to be fully Bayesian")
-
-    samples = random_sample_dict(model.get_samples(), subsample_size)
-    f = vmap(acquisition_type, in_axes=(None, None, 0) + (None,) * len(acq_args))
-
-    if not maximize_distance:
-        acq = f(model, X, samples, *acq_args, **kwargs)
-    else:
-        X_ = jnp.array(indices) if indices is not None else jnp.array(X)
-        acq_all, dist_all = [], []
-
-        for _ in range(n_evals):
-            acq = f(model, X_, samples, *acq_args, **kwargs)
-            points = acq.argmax(-1)
-            d = jnp.linalg.norm(points).mean()
-            acq_all.append(acq)
-            dist_all.append(d)
-
-        idx = jnp.array(dist_all).argmax()
-        acq = acq_all[idx]
-
-    return acq
-
-
 def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
        X: jnp.ndarray,
        maximize: bool = False,
