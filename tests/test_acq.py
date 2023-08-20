@@ -1,6 +1,7 @@
 import sys
 import pytest
 import numpy as onp
+import jax
 import jax.numpy as jnp
 from numpy.testing import assert_equal, assert_
 
@@ -9,8 +10,23 @@ sys.path.insert(0, "../gpax/")
 from gpax.models.gp import ExactGP
 from gpax.models.vidkl import viDKL
 from gpax.utils import get_keys
-from gpax.acquisition import EI, UCB, UE, Thompson
+from gpax.acquisition import ei, ucb, poi, EI, UCB, UE, Thompson
 from gpax.acquisition.penalties import compute_penalty, penalty_point, find_and_replace_point_indices
+
+
+@pytest.mark.parametrize("base_acq", [ei, ucb, poi])
+def test_base_acq(base_acq):
+    rng_key = get_keys()[0]
+    X = onp.random.randn(8,)
+    X_new = onp.random.randn(12,)
+    y = 10 * X**2
+    m = ExactGP(1, 'RBF')
+    m.fit(rng_key, X, y, num_warmup=100, num_samples=100)
+    sample = {k: v[0] for (k, v) in m.get_samples().items()}
+    obj = base_acq(m, X_new[:, None], sample)
+    assert_(isinstance(obj, jnp.ndarray))
+    assert_equal(len(obj), len(X_new))
+    assert_equal(obj.ndim, 1)
 
 
 @pytest.mark.parametrize("acq", [EI, UCB, UE, Thompson])
@@ -24,6 +40,18 @@ def test_acq_gp(acq):
     obj = acq(rng_keys[1], m, X_new)
     assert_(isinstance(obj, jnp.ndarray))
     assert_equal(obj.squeeze().shape, (len(X_new),))
+
+
+def test_UCB_beta():
+    rng_keys = get_keys()
+    X = onp.random.randn(8,)
+    X_new = onp.random.randn(12,)
+    y = 10 * X**2
+    m = ExactGP(1, 'RBF')
+    m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
+    obj1 = UCB(rng_keys[1], m, X_new, 2)
+    obj2 = UCB(rng_keys[1], m, X_new, 2)
+    assert_(not onp.array_equal(obj1, obj2))
 
 
 def test_EI_gp_penalty_inv_distance():
