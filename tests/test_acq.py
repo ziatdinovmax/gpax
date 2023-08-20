@@ -10,8 +10,9 @@ sys.path.insert(0, "../gpax/")
 from gpax.models.gp import ExactGP
 from gpax.models.vidkl import viDKL
 from gpax.utils import get_keys
-from gpax.acquisition import ei, ucb, poi, EI, UCB, UE, Thompson
-from gpax.acquisition.penalties import compute_penalty, penalty_point, find_and_replace_point_indices
+from gpax.acquisition.base_acq import ei, ucb, poi 
+from gpax.acquisition import EI, UCB, UE, Thompson
+from gpax.acquisition.penalties import compute_penalty
 
 
 @pytest.mark.parametrize("base_acq", [ei, ucb, poi])
