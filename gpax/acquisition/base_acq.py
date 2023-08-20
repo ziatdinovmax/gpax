@@ -93,6 +93,34 @@ def ucb(model: Type[ExactGP],
     return acq
 
 
+def ue(model: Type[ExactGP],
+       X: jnp.ndarray,
+       sample: Dict[str, jnp.ndarray],
+       noiseless: bool = False,
+       **kwargs) -> jnp.ndarray:
+    r"""
+    Uncertainty-based exploration
+
+    Args:
+        model: trained model
+        X: new inputs with shape (N, D), where D is a feature dimension
+        sample: a single sample with model parameters
+        noiseless:
+            Noise-free prediction. It is set to False by default as new/unseen data is assumed
+            to follow the same distribution as the training data. Hence, since we introduce a model noise
+            for the training data, we also want to include that noise in our prediction.
+        **jitter:
+            Small positive term added to the diagonal part of a covariance
+            matrix for numerical stability (Default: 1e-6)
+    """
+    if not isinstance(sample, (tuple, list)):
+        sample = (sample,)
+    # Get covariance for a single sample with kernel parameters
+    _, cov = model.get_mvn_posterior(X, *sample, noiseless, **kwargs)
+    # Return variance
+    return cov.diagonal()
+
+
 def poi(model: Type[ExactGP],
         X: jnp.ndarray,
         sample: Dict[str, jnp.ndarray],

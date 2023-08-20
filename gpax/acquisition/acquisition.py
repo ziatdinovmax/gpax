@@ -316,22 +316,15 @@ def UE(rng_key: jnp.ndarray,
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
-    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
-        raise ValueError("Please provide an array of recently visited points")
-    X = X[:, None] if X.ndim < 2 else X
-    if model.mcmc is not None:
-        _, y_sampled = model.predict(
-            rng_key, X, n=n, noiseless=noiseless, **kwargs)
-        y_sampled = y_sampled.mean(1)
-        var = y_sampled.var(0)
-    else:
-        _, var = model.predict(
-            rng_key, X, noiseless=noiseless, **kwargs)
-    if penalty:
-        X_ = grid_indices if grid_indices is not None else X
-        penalties = compute_penalty(X_, recent_points, penalty, penalty_factor)
-        var -= penalties
-    return var
+    if rng_key is not None:
+        import warnings
+        warnings.warn("`rng_key` is deprecated and will be removed in future versions. "
+                      "It's no longer used.", DeprecationWarning, stacklevel=2)
+    return compute_acquisition(
+        model, X, ucb, noiseless,
+        penalty=penalty, recent_points=recent_points,
+        grid_indices=grid_indices, penalty_factor=penalty_factor,
+        **kwargs)
 
 
 def Thompson(rng_key: jnp.ndarray,
