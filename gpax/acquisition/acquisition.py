@@ -15,8 +15,7 @@ from jax import vmap
 import numpy as onp
 
 from ..models.gp import ExactGP
-from ..utils import random_sample_dict
-from .base_acq import ei, ucb, poi
+from .base_acq import ei, ucb, poi, ue
 from .penalties import compute_penalty
 
 
@@ -321,7 +320,7 @@ def UE(rng_key: jnp.ndarray,
         warnings.warn("`rng_key` is deprecated and will be removed in future versions. "
                       "It's no longer used.", DeprecationWarning, stacklevel=2)
     return compute_acquisition(
-        model, X, ucb, noiseless,
+        model, X, ue, noiseless,
         penalty=penalty, recent_points=recent_points,
         grid_indices=grid_indices, penalty_factor=penalty_factor,
         **kwargs)
