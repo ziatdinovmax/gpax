@@ -49,8 +49,8 @@ def test_UCB_beta():
     y = 10 * X**2
     m = ExactGP(1, 'RBF')
     m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
-    obj1 = UCB(rng_keys[1], m, X_new, 2)
-    obj2 = UCB(rng_keys[1], m, X_new, 2)
+    obj1 = UCB(rng_keys[1], m, X_new, beta=2)
+    obj2 = UCB(rng_keys[1], m, X_new, beta=4)
     assert_(not onp.array_equal(obj1, obj2))
 
 
