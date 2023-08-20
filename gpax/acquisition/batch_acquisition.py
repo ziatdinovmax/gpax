@@ -54,8 +54,7 @@ def compute_batch_acquisition(acquisition_type: Callable,
     return acq
 
 
-def qEI(rng_key: jnp.ndarray,
-        model: Type[ExactGP],
+def qEI(model: Type[ExactGP],
         X: jnp.ndarray,
         maximize: bool = False,
         noiseless: bool = False,
@@ -90,14 +89,13 @@ def qEI(rng_key: jnp.ndarray,
     """
 
     return compute_batch_acquisition(
-        ei, rng_key, model, X, maximize, noiseless,
+        ei, model, X, maximize, noiseless,
         maximize_distance=maximize_distance,
         n_evals=n_evals, subsample_size=subsample_size,
         indices=indices, **kwargs)
 
 
-def qUCB(rng_key: jnp.ndarray,
-         model: Type[ExactGP],
+def qUCB(model: Type[ExactGP],
          X: jnp.ndarray,
          beta: float = 0.25,
          maximize: bool = False,
@@ -134,14 +132,13 @@ def qUCB(rng_key: jnp.ndarray,
     """
 
     return compute_batch_acquisition(
-        ucb, rng_key, model, X, beta, maximize, noiseless,
+        ucb, model, X, beta, maximize, noiseless,
         maximize_distance=maximize_distance,
         n_evals=n_evals, subsample_size=subsample_size,
         indices=indices, **kwargs)
 
 
-def qPOI(rng_key: jnp.ndarray,
-         model: Type[ExactGP],
+def qPOI(model: Type[ExactGP],
          X: jnp.ndarray,
          xi: float = .001,
          maximize: bool = False,
@@ -176,7 +173,7 @@ def qPOI(rng_key: jnp.ndarray,
     """
 
     return compute_batch_acquisition(
-        poi, rng_key, model, X, xi, maximize, noiseless,
+        poi, model, X, xi, maximize, noiseless,
         maximize_distance=maximize_distance,
         n_evals=n_evals, subsample_size=subsample_size,
         indices=indices, **kwargs)
