@@ -193,7 +193,7 @@ class viMTDKL(viDKL):
             scale = numpyro.sample("k_scale", dist.Normal(1.0, 1e-4))
         return {"k_length": squeezer(length), "k_scale": squeezer(scale)}
 
-    @partial(jit, static_argnames='self')
+    #@partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
                           X_new: jnp.ndarray,
                           nn_params: Dict[str, jnp.ndarray],
@@ -209,7 +209,7 @@ class viMTDKL(viDKL):
         """
         if y_residual is None:
             y_residual = self.y_train
-        noise = k_params.pop("noise")
+        noise = k_params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
         # embed data into the latent space
         z_train = self.nn_module.apply(

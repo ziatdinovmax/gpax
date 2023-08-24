@@ -245,7 +245,7 @@ class ExactGP:
         """Get posterior samples (after running the MCMC chains)"""
         return self.mcmc.get_samples(group_by_chain=chain_dim)
 
-    @partial(jit, static_argnames='self')
+    #@partial(jit, static_argnames='self')
     def get_mvn_posterior(self,
                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
                           noiseless: bool = False, **kwargs: float
@@ -254,7 +254,7 @@ class ExactGP:
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of GP parameters
         """
-        noise = params.pop("noise")
+        noise = params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
         y_residual = self.y_train.copy()
         if self.mean_fn is not None:
