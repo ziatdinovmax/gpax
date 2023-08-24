@@ -10,13 +10,13 @@ sys.path.insert(0, "../gpax/")
 from gpax.models.gp import ExactGP
 from gpax.models.vidkl import viDKL
 from gpax.utils import get_keys
-from gpax.acquisition.base_acq import ei, ucb, poi, ue
+from gpax.acquisition.base_acq import ei, ucb, poi, ue, kg
 from gpax.acquisition import EI, UCB, UE, Thompson
 from gpax.acquisition import qEI, qPOI, qUCB
 from gpax.acquisition.penalties import compute_penalty
 
 
-@pytest.mark.parametrize("base_acq", [ei, ucb, poi, ue])
+@pytest.mark.parametrize("base_acq", [ei, ucb, poi, ue, kg])
 def test_base_acq(base_acq):
     rng_key = get_keys()[0]
     X = onp.random.randn(8,)

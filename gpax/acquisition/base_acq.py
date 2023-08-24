@@ -9,10 +9,12 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 
 from typing import Type, Dict
 
+import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
 from ..models.gp import ExactGP
+from ..utils import get_keys
 
 
 def ei(model: Type[ExactGP],
@@ -158,3 +160,50 @@ def poi(model: Type[ExactGP],
         u = -u
     normal = dist.Normal(jnp.zeros_like(u), jnp.ones_like(u))
     return normal.cdf(u)
+
+
+def kg(model: Type[ExactGP],
+       X_new: jnp.ndarray,
+       sample: Dict[str, jnp.ndarray],
+       n: int = 1, maximize:
+       bool = True,
+       noiseless: bool = True,
+       rng_key=None):
+
+    if rng_key is None:
+        rng_key = get_keys()[0]
+    if not isinstance(sample, (tuple, list)):
+        sample = (sample,)
+
+    X_train_o = model.X_train.copy()
+    y_train_o = model.y_train.copy()
+
+    def kg_for_one_point(x_aug, y_aug, mean_o):
+        # Update GP model with augmented data (as if y_sim was an actual observation at x)
+        model._set_training_data(x_aug, y_aug)
+        # Re-evaluate posterior predictive distribution on all the candidate ("test") points
+        mean_aug, _ = model.get_mvn_posterior(X_new, *sample, noiseless=noiseless)
+        # Find the maximum mean value
+        y_fant = mean_aug.max() if maximize else mean_aug.min()
+        # Compute adn return the improvement compared to the original maximum mean value
+        mean_o_best = mean_o.max() if maximize else mean_o.min()
+        return y_fant - mean_o_best
+
+    # Get posterior distribution for candidate points
+    mean, cov = model.get_mvn_posterior(X_new, *sample, noiseless=noiseless)
+    # Simulate potential observations
+    y_sim = dist.MultivariateNormal(mean, cov).sample(rng_key, sample_shape=(n,))
+    # Augment training data with simulated observations
+    X_train_aug = jnp.array([jnp.concatenate([X_train_o, x[None]], axis=0) for x in X_new])
+    y_train_aug = []
+    for ys in y_sim:
+        y_train_aug.append(jnp.array([jnp.concatenate([y_train_o, y[None]]) for y in ys]))
+    y_train_aug = jnp.array(y_train_aug)
+    # Compute KG
+    vectorized_kg = jax.vmap(jax.vmap(kg_for_one_point, in_axes=(0, 0, None)), in_axes=(None, 0, None))
+    kg_values = vectorized_kg(X_train_aug, y_train_aug, mean)
+
+    # Reset training data to the original
+    model._set_training_data(X_train_o, y_train_o)
+
+    return kg_values.mean(0)
