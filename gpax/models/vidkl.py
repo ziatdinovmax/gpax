@@ -202,7 +202,7 @@ class viDKL(ExactGP):
         """
         if y_residual is None:
             y_residual = self.y_train
-        noise = params["noise"]
+        noise = k_params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
         # embed data into the latent space
         z_train = self.nn_module.apply(
