@@ -11,7 +11,7 @@ from gpax.models.gp import ExactGP
 from gpax.models.vidkl import viDKL
 from gpax.utils import get_keys
 from gpax.acquisition.base_acq import ei, ucb, poi, ue, kg
-from gpax.acquisition import EI, UCB, UE, Thompson
+from gpax.acquisition import EI, UCB, UE, Thompson, KG
 from gpax.acquisition import qEI, qPOI, qUCB
 from gpax.acquisition.penalties import compute_penalty
 
@@ -40,6 +40,18 @@ def test_acq_gp(acq):
     m = ExactGP(1, 'RBF')
     m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
     obj = acq(rng_keys[1], m, X_new)
+    assert_(isinstance(obj, jnp.ndarray))
+    assert_equal(obj.squeeze().shape, (len(X_new),))
+
+
+def test_KG_gp():
+    rng_keys = get_keys()
+    X = onp.random.randn(8,)
+    X_new = onp.random.randn(12,)
+    y = 10 * X**2
+    m = ExactGP(1, 'RBF')
+    m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
+    obj = KG(m, X_new)
     assert_(isinstance(obj, jnp.ndarray))
     assert_equal(obj.squeeze().shape, (len(X_new),))
 

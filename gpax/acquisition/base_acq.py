@@ -7,7 +7,7 @@ Base acquisition functions
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
-from typing import Type, Dict
+from typing import Type, Dict, Optional
 
 import jax
 import jax.numpy as jnp
@@ -165,10 +165,30 @@ def poi(model: Type[ExactGP],
 def kg(model: Type[ExactGP],
        X_new: jnp.ndarray,
        sample: Dict[str, jnp.ndarray],
-       n: int = 1, maximize:
-       bool = True,
+       n: int = 1,
+       maximize: bool = True,
        noiseless: bool = True,
-       rng_key=None):
+       rng_key: Optional[jnp.ndarray] = None,
+       **kwargs):
+    
+    r"""
+    Knowledge gradient
+
+    Args:
+        model: trained model
+        X: new inputs with shape (N, D), where D is a feature dimension
+        sample: a single sample with model parameters
+        n: Number fo simulated samples (Defaults to 1)
+        maximize: If True, assumes that BO is solving maximization problem
+        noiseless:
+            Noise-free prediction. It is set to False by default as new/unseen data is assumed
+            to follow the same distribution as the training data. Hence, since we introduce a model noise
+            for the training data, we also want to include that noise in our prediction.
+        rng_key: random number generator key
+        **jitter:
+            Small positive term added to the diagonal part of a covariance
+            matrix for numerical stability (Default: 1e-6)
+    """
 
     if rng_key is None:
         rng_key = get_keys()[0]
@@ -182,7 +202,7 @@ def kg(model: Type[ExactGP],
         # Update GP model with augmented data (as if y_sim was an actual observation at x)
         model._set_training_data(x_aug, y_aug)
         # Re-evaluate posterior predictive distribution on all the candidate ("test") points
-        mean_aug, _ = model.get_mvn_posterior(X_new, *sample, noiseless=noiseless)
+        mean_aug, _ = model.get_mvn_posterior(X_new, *sample, noiseless=noiseless, **kwargs)
         # Find the maximum mean value
         y_fant = mean_aug.max() if maximize else mean_aug.min()
         # Compute adn return the improvement compared to the original maximum mean value
@@ -190,7 +210,7 @@ def kg(model: Type[ExactGP],
         return y_fant - mean_o_best
 
     # Get posterior distribution for candidate points
-    mean, cov = model.get_mvn_posterior(X_new, *sample, noiseless=noiseless)
+    mean, cov = model.get_mvn_posterior(X_new, *sample, noiseless=noiseless, **kwargs)
     # Simulate potential observations
     y_sim = dist.MultivariateNormal(mean, cov).sample(rng_key, sample_shape=(n,))
     # Augment training data with simulated observations

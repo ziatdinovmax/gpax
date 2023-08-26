@@ -15,7 +15,7 @@ from jax import vmap
 import numpy as onp
 
 from ..models.gp import ExactGP
-from .base_acq import ei, ucb, poi, ue
+from .base_acq import ei, ucb, poi, ue, kg
 from .penalties import compute_penalty
 
 
@@ -326,6 +326,66 @@ def UE(rng_key: jnp.ndarray,
         **kwargs)
 
 
+def KG(model: Type[ExactGP],
+       X: jnp.ndarray,
+       n: int = 1,
+       maximize: bool = False,
+       noiseless: bool = False,
+       penalty: Optional[str] = None,
+       recent_points: jnp.ndarray = None,
+       grid_indices: jnp.ndarray = None,
+       penalty_factor: float = 1.0,
+       rng_key: Optional[jnp.ndarray] = None,
+       **kwargs) -> jnp.ndarray:
+    r"""
+    Knowledge gradient
+
+    Args:
+        rng_key: JAX random number generator key
+        model: trained model
+        X: new inputs
+        xi: exploration-exploitation tradeoff (defaults to 0.01)
+        maximize: If True, assumes that BO is solving maximization problem
+        noiseless:
+            Noise-free prediction. It is set to False by default as new/unseen data is assumed
+            to follow the same distribution as the training data. Hence, since we introduce a model noise
+            for the training data, we also want to include that noise in our prediction.
+        penalty:
+            Penalty applied to the acquisition function to discourage re-evaluation
+            at or near points that were recently evaluated. Options are:
+
+            - 'delta':
+            The infinite penalty is applied to the recently visited points.
+
+            - 'inverse_distance':
+            Modifies the acquisition function by penalizing points near the recent points.
+
+            For the 'inverse_distance', the acqusition function is penalized as:
+
+            .. math::
+                \alpha - \lambda \cdot \pi(X, r)
+
+            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points :math:`r`,
+            :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the penalty factor.
+        recent_points:
+            An array of recently visited points [oldest, ..., newest] provided by user
+        grid_indices:
+            Grid indices of data points in X array for the penalty term calculation.
+            For example, if each data point is an image patch, the indices could correspond
+            to the (i, j) pixel coordinates of their centers in the original image.
+        penalty_factor:
+            Penalty factor :math:`\lambda` in :math:`\alpha - \lambda \cdot \pi(X, r)`
+        **jitter:
+            Small positive term added to the diagonal part of a covariance
+            matrix for numerical stability (Default: 1e-6)
+    """
+    return compute_acquisition(
+        model, X, kg, n, maximize, noiseless,
+        penalty=penalty, recent_points=recent_points,
+        grid_indices=grid_indices, penalty_factor=penalty_factor,
+        **kwargs)
+
+
 def Thompson(rng_key: jnp.ndarray,
              model: Type[ExactGP],
              X: jnp.ndarray, n: int = 1,
@@ -359,3 +419,4 @@ def Thompson(rng_key: jnp.ndarray,
         _, tsample = model.sample_from_posterior(
             rng_key, X, n=1, noiseless=noiseless, **kwargs)
     return tsample
+
