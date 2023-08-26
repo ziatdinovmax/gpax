@@ -335,13 +335,11 @@ def KG(model: Type[ExactGP],
        recent_points: jnp.ndarray = None,
        grid_indices: jnp.ndarray = None,
        penalty_factor: float = 1.0,
-       rng_key: Optional[jnp.ndarray] = None,
        **kwargs) -> jnp.ndarray:
     r"""
     Knowledge gradient
 
     Args:
-        rng_key: JAX random number generator key
         model: trained model
         X: new inputs
         xi: exploration-exploitation tradeoff (defaults to 0.01)
@@ -375,6 +373,7 @@ def KG(model: Type[ExactGP],
             to the (i, j) pixel coordinates of their centers in the original image.
         penalty_factor:
             Penalty factor :math:`\lambda` in :math:`\alpha - \lambda \cdot \pi(X, r)`
+        **rng_key: JAX random number generator key for sampling simulated observations
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
