@@ -26,10 +26,33 @@ def ei(model: Type[ExactGP],
     r"""
     Expected Improvement
 
+    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
+    the Expected Improvement at an input point :math:`x` is defined as:
+
+    .. math::
+        EI(x) =
+        \begin{cases}
+        (\mu(x) - f^+ - \xi) \Phi(Z) + \sigma(x) \phi(Z) & \text{if } \sigma(x) > 0 \\
+        0 & \text{if } \sigma(x) = 0
+        \end{cases}
+
+    where:
+    - :math:`\mu(x)` is the predictive mean.
+    - :math:`\sigma(x)` is the predictive standard deviation.
+    - :math:`f^+` is the value of the best observed sample.
+    - :math:`\xi` is a small positive "jitter" term (not used in this function).
+    - :math:`Z` is defined as:
+
+    .. math::
+
+        Z = \frac{\mu(x) - f^+ - \xi}{\sigma(x)}
+
+    provided :math:`\sigma(x) > 0`.
+
     Args:
         model: trained model
         X: new inputs with shape (N, D), where D is a feature dimension
-        sample: a single sample with model parameters
+        sample: a single sample with model parameters (used to derive mu and sigma)
         maximize: If True, assumes that BO is solving maximization problem
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
@@ -66,6 +89,18 @@ def ucb(model: Type[ExactGP],
         **kwargs) -> jnp.ndarray:
     r"""
     Upper confidence bound
+
+    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
+    the Upper Confidence Bound (UCB) at an input point :math:`x` is defined as:
+
+    .. math::
+
+        UCB(x) = \mu(x) + \kappa \sigma(x)
+
+    where:
+    - :math:`\mu(x)` is the predictive mean.
+    - :math:`\sigma(x)` is the predictive standard deviation.
+    - :math:`\kappa` is the exploration-exploitation trade-off parameter.
 
     Args:
         model: trained model
@@ -170,9 +205,22 @@ def kg(model: Type[ExactGP],
        noiseless: bool = True,
        rng_key: Optional[jnp.ndarray] = None,
        **kwargs):
-    
+
     r"""
     Knowledge gradient
+    
+    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
+    the Knowledge Gradient (KG) at an input point :math:`x` quantifies the expected improvement in the optimal decision after observing the function value at :math:`x`.
+
+    The KG value is defined as:
+
+    .. math::
+
+        KG(x) = \mathbb{E}[V_{n+1}^* - V_n^* | x]
+
+    where:
+    - :math:`V_{n+1}^*` is the optimal expected value of the objective function after \(n+1\) observations.
+    - :math:`V_n^*` is the optimal expected value of the objective function based on the current \(n\) observations.
 
     Args:
         model: trained model

@@ -87,6 +87,29 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
     r"""
     Expected Improvement
 
+    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
+    the Expected Improvement at an input point :math:`x` is defined as:
+
+    .. math::
+        EI(x) =
+        \begin{cases}
+        (\mu(x) - f^+) \Phi(Z) + \sigma(x) \phi(Z) & \text{if } \sigma(x) > 0 \\
+        0 & \text{if } \sigma(x) = 0
+        \end{cases}
+
+    where:
+    - :math:`\mu(x)` is the predictive mean.
+    - :math:`\sigma(x)` is the predictive standard deviation.
+    - :math:`f^+` is the value of the best observed sample.
+    - :math:`Z` is defined as:
+
+    .. math::
+
+        Z = \frac{\mu(x) - f^+}{\sigma(x)}
+
+    provided :math:`\sigma(x) > 0`.
+
+
     Args:
         rng_key: JAX random number generator key
         model: trained model
@@ -149,6 +172,20 @@ def POI(rng_key: jnp.ndarray,
         **kwargs) -> jnp.ndarray:
     r"""
     Probability of Improvement
+
+    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
+    the Probability of Improvement (PI) at an input point :math:`x` is defined as:
+
+    .. math::
+
+        PI(x) = \Phi\left(\frac{\mu(x) - f^+ - \xi}{\sigma(x)}\right)
+
+    where:
+    - :math:`\mu(x)` is the predictive mean.
+    - :math:`\sigma(x)` is the predictive standard deviation.
+    - :math:`f^+` is the value of the best observed sample.
+    - :math:`\xi` is a small positive "jitter" term to encourage more exploration.
+    - :math:`\Phi` is the cumulative distribution function (CDF) of the standard normal distribution.
 
     Args:
         rng_key: JAX random number generator key
@@ -213,6 +250,18 @@ def UCB(rng_key: jnp.ndarray,
         **kwargs) -> jnp.ndarray:
     r"""
     Upper confidence bound
+
+    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
+    the Upper Confidence Bound (UCB) at an input point :math:`x` is defined as:
+
+    .. math::
+
+        UCB(x) = \mu(x) + \kappa \sigma(x)
+
+    where:
+    - :math:`\mu(x)` is the predictive mean.
+    - :math:`\sigma(x)` is the predictive standard deviation.
+    - :math:`\kappa` is the exploration-exploitation trade-off parameter.
 
     Args:
         rng_key: JAX random number generator key
@@ -339,10 +388,23 @@ def KG(model: Type[ExactGP],
     r"""
     Knowledge gradient
 
+    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
+    the Knowledge Gradient (KG) at an input point :math:`x` quantifies the expected improvement in the optimal decision after observing the function value at :math:`x`.
+
+    The KG value is defined as:
+
+    .. math::
+
+        KG(x) = \mathbb{E}[V_{n+1}^* - V_n^* | x]
+
+    where:
+    - :math:`V_{n+1}^*` is the optimal expected value of the objective function after \(n+1\) observations.
+    - :math:`V_n^*` is the optimal expected value of the objective function based on the current \(n\) observations.
+
     Args:
         model: trained model
         X: new inputs
-        xi: exploration-exploitation tradeoff (defaults to 0.01)
+        n: number of simulated samples for each point in X
         maximize: If True, assumes that BO is solving maximization problem
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
