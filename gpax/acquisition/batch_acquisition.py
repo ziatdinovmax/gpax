@@ -216,7 +216,7 @@ def qKG(model: Type[ExactGP],
     Batch-mode Knowledge Gradient
 
     qKG computes the Knowledge Gradient values for given input points `X` using multiple randomly drawn samples 
-    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qPOI considers diversity among the 
+    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qKG considers diversity among the 
     posterior samples by maximizing the mean distance between samples that give the highest acquisition 
     values across multiple evaluations.
 

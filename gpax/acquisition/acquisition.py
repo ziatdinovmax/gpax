@@ -174,7 +174,7 @@ def POI(rng_key: jnp.ndarray,
     Probability of Improvement
 
     Given a probabilistic model :math:`m` that models the objective function :math:`f`,
-    the Probability of Improvement (PI) at an input point :math:`x` is defined as:
+    the Probability of Improvement at an input point :math:`x` is defined as:
 
     .. math::
 
@@ -252,7 +252,7 @@ def UCB(rng_key: jnp.ndarray,
     Upper confidence bound
 
     Given a probabilistic model :math:`m` that models the objective function :math:`f`,
-    the Upper Confidence Bound (UCB) at an input point :math:`x` is defined as:
+    the Upper Confidence Bound at an input point :math:`x` is defined as:
 
     .. math::
 
@@ -401,7 +401,8 @@ def KG(model: Type[ExactGP],
     Knowledge gradient
 
     Given a probabilistic model :math:`m` that models the objective function :math:`f`,
-    the Knowledge Gradient (KG) at an input point :math:`x` quantifies the expected improvement in the optimal decision after observing the function value at :math:`x`.
+    the Knowledge Gradient (KG) at an input point :math:`x` quantifies the expected improvement
+    in the optimal decision after observing the function value at :math:`x`.
 
     The KG value is defined as:
 
