@@ -14,7 +14,7 @@ from jax import vmap
 
 from ..models.gp import ExactGP
 from ..utils import random_sample_dict
-from .base_acq import ei, ucb, poi
+from .base_acq import ei, ucb, poi, kg
 
 
 def compute_batch_acquisition(acquisition_type: Callable,
@@ -31,7 +31,7 @@ def compute_batch_acquisition(acquisition_type: Callable,
     """
     if model.mcmc is None:
         raise ValueError("The model needs to be fully Bayesian")
-    
+
     X = X[:, None] if X.ndim < 2 else X
 
     samples = random_sample_dict(model.get_samples(), subsample_size)
@@ -67,7 +67,7 @@ def qEI(model: Type[ExactGP],
         **kwargs) -> jnp.ndarray:
     """
     Batch-mode Expected Improvement
-    
+
     Args:
         model: trained model
         X: new inputs
@@ -109,7 +109,7 @@ def qUCB(model: Type[ExactGP],
          **kwargs) -> jnp.ndarray:
     """
     Batch-mode Upper Confidence Bound
-    
+
     Args:
         model: trained model
         X: new inputs
@@ -176,6 +176,49 @@ def qPOI(model: Type[ExactGP],
 
     return compute_batch_acquisition(
         poi, model, X, xi, maximize, noiseless,
+        maximize_distance=maximize_distance,
+        n_evals=n_evals, subsample_size=subsample_size,
+        indices=indices, **kwargs)
+
+
+def qKG(model: Type[ExactGP],
+        X: jnp.ndarray,
+        n: int = 10,
+        maximize: bool = False,
+        noiseless: bool = False,
+        maximize_distance: bool = False,
+        n_evals: int = 1,
+        subsample_size: int = 1,
+        indices: Optional[jnp.ndarray] = None,
+        **kwargs) -> jnp.ndarray:
+    """
+    Batch-mode Knowledge Gradient
+
+    Args:
+        model: trained model
+        X: new inputs
+        n: number of simulated samples for each point in X
+        maximize: If True, assumes that BO is solving maximization problem
+        noiseless:
+            Noise-free prediction. It is set to False by default as new/unseen data is assumed
+            to follow the same distribution as the training data. Hence, since we introduce a model noise
+            for the training data, we also want to include that noise in our prediction.
+        maximize_distance:
+            Selects a subsample with a maximum distance between acq.argmax() points
+        n_evals:
+            Number of evaluations (how many times a ramdom subsample is drawn)
+            when maximizing distance between maxima of different EIs in a batch.
+        subsample_size:
+            Size of the subsample from the GP model's MCMC samples.
+        indices:
+            Indices of the input points.
+
+    Returns:
+        The computed batch Knowledge Gradient values at the provided input points X.
+    """
+
+    return compute_batch_acquisition(
+        kg, model, X, n, maximize, noiseless,
         maximize_distance=maximize_distance,
         n_evals=n_evals, subsample_size=subsample_size,
         indices=indices, **kwargs)

@@ -12,7 +12,7 @@ from gpax.models.vidkl import viDKL
 from gpax.utils import get_keys
 from gpax.acquisition.base_acq import ei, ucb, poi, ue, kg
 from gpax.acquisition import EI, UCB, UE, Thompson, KG
-from gpax.acquisition import qEI, qPOI, qUCB
+from gpax.acquisition import qEI, qPOI, qUCB, qKG
 from gpax.acquisition.penalties import compute_penalty
 
 
@@ -124,7 +124,7 @@ def test_acq_dkl(acq):
 
 
 @pytest.mark.parametrize("q", [1, 3])
-@pytest.mark.parametrize("acq", [qEI, qPOI, qUCB])
+@pytest.mark.parametrize("acq", [qEI, qPOI, qUCB, qKG])
 def test_batched_acq(acq, q):
     rng_key = get_keys()[0]
     X = onp.random.randn(8,)
