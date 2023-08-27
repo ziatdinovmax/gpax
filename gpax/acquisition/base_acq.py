@@ -138,6 +138,17 @@ def ue(model: Type[ExactGP],
     r"""
     Uncertainty-based exploration
 
+    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
+    the Uncertainty-based Exploration (UE) at an input point :math:`x` targets regions where the model's predictions are most uncertain.
+    It quantifies this uncertainty as:
+
+    .. math::
+
+        UE(x) = \sigma^2(x)
+
+    where:
+    - :math:`\sigma^2(x)` is the predictive variance of the model at the input point :math:`x`.
+
     Args:
         model: trained model
         X: new inputs with shape (N, D), where D is a feature dimension
