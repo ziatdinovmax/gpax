@@ -68,6 +68,11 @@ def qEI(model: Type[ExactGP],
     """
     Batch-mode Expected Improvement
 
+    qEI computes the Expected Improvement values for given input points `X` using multiple randomly drawn samples 
+    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qEI considers diversity among the 
+    posterior samples by maximizing the mean distance between samples that give the highest acquisition 
+    values across multiple evaluations.
+
     Args:
         model: trained model
         X: new inputs
@@ -77,7 +82,9 @@ def qEI(model: Type[ExactGP],
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
         maximize_distance:
-            Selects a subsample with a maximum distance between acq.argmax() points
+            If set to True, it means we want our batch to contain points that
+            are as far apart as possible in the acquisition function space.
+            This encourages diversity in the batch.
         n_evals:
             Number of evaluations (how many times a ramdom subsample is drawn)
             when maximizing distance between maxima of different EIs in a batch.
@@ -110,6 +117,11 @@ def qUCB(model: Type[ExactGP],
     """
     Batch-mode Upper Confidence Bound
 
+    qUCB computes the Unner Confidence Bound values for given input points `X` using multiple randomly drawn samples 
+    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qUCB considers diversity among the 
+    posterior samples by maximizing the mean distance between samples that give the highest acquisition 
+    values across multiple evaluations.
+
     Args:
         model: trained model
         X: new inputs
@@ -120,7 +132,9 @@ def qUCB(model: Type[ExactGP],
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
         maximize_distance:
-            Selects a subsample with a maximum distance between acq.argmax() points
+            If set to True, it means we want our batch to contain points that
+            are as far apart as possible in the acquisition function space.
+            This encourages diversity in the batch.
         n_evals:
             Number of evaluations (how many times a ramdom subsample is drawn)
             when maximizing distance between maxima of different EIs in a batch.
@@ -153,6 +167,11 @@ def qPOI(model: Type[ExactGP],
     """
     Batch-mode Probability of Improvement
 
+    qPOI computes the Probability of Improvement values for given input points `X` using multiple randomly drawn samples 
+    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qPOI considers diversity among the 
+    posterior samples by maximizing the mean distance between samples that give the highest acquisition 
+    values across multiple evaluations.
+
     Args:
         model: trained model
         X: new inputs
@@ -163,7 +182,9 @@ def qPOI(model: Type[ExactGP],
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
         maximize_distance:
-            Selects a subsample with a maximum distance between acq.argmax() points
+            If set to True, it means we want our batch to contain points that
+            are as far apart as possible in the acquisition function space.
+            This encourages diversity in the batch.
         n_evals:
             Number of evaluations (how many times a ramdom subsample is drawn)
             when maximizing distance between maxima of different EIs in a batch.
@@ -194,6 +215,11 @@ def qKG(model: Type[ExactGP],
     """
     Batch-mode Knowledge Gradient
 
+    qKG computes the Knowledge Gradient values for given input points `X` using multiple randomly drawn samples 
+    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qPOI considers diversity among the 
+    posterior samples by maximizing the mean distance between samples that give the highest acquisition 
+    values across multiple evaluations.
+
     Args:
         model: trained model
         X: new inputs
@@ -204,7 +230,9 @@ def qKG(model: Type[ExactGP],
             to follow the same distribution as the training data. Hence, since we introduce a model noise
             for the training data, we also want to include that noise in our prediction.
         maximize_distance:
-            Selects a subsample with a maximum distance between acq.argmax() points
+            If set to True, it means we want our batch to contain points that
+            are as far apart as possible in the acquisition function space.
+            This encourages diversity in the batch.
         n_evals:
             Number of evaluations (how many times a ramdom subsample is drawn)
             when maximizing distance between maxima of different EIs in a batch.

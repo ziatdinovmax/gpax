@@ -325,6 +325,18 @@ def UE(rng_key: jnp.ndarray,
     r"""
     Uncertainty-based exploration
 
+    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
+    the Uncertainty-based Exploration (UE) at an input point :math:`x` targets regions where the model's predictions are most uncertain.
+    It quantifies this uncertainty as:
+
+    .. math::
+
+        UE(x) = \sigma^2(x)
+
+    where:
+    - :math:`\sigma^2(x)` is the predictive variance of the model at the input point :math:`x`.
+
+
     Args:
         rng_key: JAX random number generator key
         model: trained model
