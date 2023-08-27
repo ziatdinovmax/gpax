@@ -165,7 +165,7 @@ def poi(model: Type[ExactGP],
 def kg(model: Type[ExactGP],
        X_new: jnp.ndarray,
        sample: Dict[str, jnp.ndarray],
-       n: int = 1,
+       n: int = 10,
        maximize: bool = True,
        noiseless: bool = True,
        rng_key: Optional[jnp.ndarray] = None,
@@ -178,7 +178,7 @@ def kg(model: Type[ExactGP],
         model: trained model
         X: new inputs with shape (N, D), where D is a feature dimension
         sample: a single sample with model parameters
-        n: Number fo simulated samples (Defaults to 1)
+        n: Number fo simulated samples (Defaults to 10)
         maximize: If True, assumes that BO is solving maximization problem
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
@@ -207,7 +207,10 @@ def kg(model: Type[ExactGP],
         y_fant = mean_aug.max() if maximize else mean_aug.min()
         # Compute adn return the improvement compared to the original maximum mean value
         mean_o_best = mean_o.max() if maximize else mean_o.min()
-        return y_fant - mean_o_best
+        u = y_fant - mean_o_best
+        if not maximize:
+            u = -u
+        return u
 
     # Get posterior distribution for candidate points
     mean, cov = model.get_mvn_posterior(X_new, *sample, noiseless=noiseless, **kwargs)
