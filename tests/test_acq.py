@@ -3,6 +3,8 @@ import pytest
 import numpy as onp
 import jax
 import jax.numpy as jnp
+import numpyro
+import numpyro.distributions as dist
 from numpy.testing import assert_equal, assert_
 
 sys.path.insert(0, "../gpax/")
@@ -11,27 +13,85 @@ from gpax.models.gp import ExactGP
 from gpax.models.vidkl import viDKL
 from gpax.utils import get_keys
 from gpax.acquisition.base_acq import ei, ucb, poi, ue, kg
-from gpax.acquisition import EI, UCB, UE, Thompson, KG
-from gpax.acquisition import qEI, qPOI, qUCB, qKG
+from gpax.acquisition.acquisition import _compute_mean_and_var
+from gpax.acquisition.acquisition import EI, UCB, UE, POI, Thompson, KG
+from gpax.acquisition.batch_acquisition import _compute_batch_acquisition
+from gpax.acquisition.batch_acquisition import qEI, qPOI, qUCB, qKG
 from gpax.acquisition.penalties import compute_penalty
 
 
-@pytest.mark.parametrize("base_acq", [ei, ucb, poi, ue, kg])
-def test_base_acq(base_acq):
-    rng_key = get_keys()[0]
+class mock_GP:
+    def __init__(self):
+        self.mcmc = 1
+
+    def get_samples(self):
+        rng_key = get_keys()[1]
+        samples = {"k_length": jax.random.normal(rng_key, shape=(100, 1)),
+                   "k_scale": jax.random.normal(rng_key, shape=(100,)),
+                   "noise": jax.random.normal(rng_key, shape=(100,))}
+        return samples
+
+
+@pytest.mark.parametrize("base_acq", [ei, ucb, poi, ue])
+def test_base_standard_acq(base_acq):
+    mean = onp.random.randn(10,)
+    var = onp.random.uniform(0, 1, size=10)
+    moments = (mean, var)
+    obj = base_acq(moments)
+    assert_(isinstance(obj, jnp.ndarray))
+    assert_equal(len(obj), len(mean))
+    assert_equal(obj.ndim, 1)
+
+
+def test_base_acq_kg():
+    rng_keys = get_keys()
     X = onp.random.randn(8,)
-    X_new = onp.random.randn(12,)
+    X_new = onp.random.randn(12, 1)
     y = 10 * X**2
     m = ExactGP(1, 'RBF')
-    m.fit(rng_key, X, y, num_warmup=100, num_samples=100)
+    m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
     sample = {k: v[0] for (k, v) in m.get_samples().items()}
-    obj = base_acq(m, X_new[:, None], sample)
+    obj = kg(m, X_new, sample)
     assert_(isinstance(obj, jnp.ndarray))
     assert_equal(len(obj), len(X_new))
     assert_equal(obj.ndim, 1)
 
 
-@pytest.mark.parametrize("acq", [EI, UCB, UE, Thompson])
+@pytest.mark.parametrize("base_acq", [ei, ucb, poi])
+def test_base_standard_acq_maximize(base_acq):
+    mean = onp.random.randn(10,)
+    var = onp.random.uniform(0, 1, size=10)
+    moments = (mean, var)
+    obj1 = base_acq(moments, maximize=False)
+    obj2 = base_acq(moments, maximize=True)
+    assert_(not onp.array_equal(obj1, obj2))
+
+
+@pytest.mark.parametrize("base_acq", [ei, poi])
+def test_base_standard_acq_best_f(base_acq):
+    mean = onp.random.randn(10,)
+    var = onp.random.uniform(0, 1, size=10)
+    best_f = mean.min() - 0.01
+    moments = (mean, var)
+    obj1 = base_acq(moments)
+    obj2 = base_acq(moments, best_f=best_f)
+    assert_(not onp.array_equal(obj1, obj2))
+
+
+def test_compute_mean_and_var():
+    rng_keys = get_keys()
+    X = onp.random.randn(8,)
+    X_new = onp.random.randn(12,)
+    y = 10 * X**2
+    m = ExactGP(1, 'RBF')
+    m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
+    mean, var = _compute_mean_and_var(
+        rng_keys[1], m, X_new, n=1, noiseless=True)
+    assert_equal(mean.shape, (len(X_new),))
+    assert_equal(var.shape, (len(X_new),))
+
+
+@pytest.mark.parametrize("acq", [EI, UCB, UE, Thompson, POI])
 def test_acq_gp(acq):
     rng_keys = get_keys()
     X = onp.random.randn(8,)
@@ -44,16 +104,17 @@ def test_acq_gp(acq):
     assert_equal(obj.squeeze().shape, (len(X_new),))
 
 
-def test_KG_gp():
+@pytest.mark.parametrize("acq", [EI, UCB, UE, Thompson, POI, KG])
+def test_acq_dkl(acq):
     rng_keys = get_keys()
-    X = onp.random.randn(8,)
-    X_new = onp.random.randn(12,)
-    y = 10 * X**2
-    m = ExactGP(1, 'RBF')
-    m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
-    obj = KG(m, X_new)
+    X = onp.random.randn(8, 10)
+    X_new = onp.random.randn(12, 10)
+    y = (10 * X**2).mean(-1)
+    m = viDKL(1, 2, 'RBF')
+    m.fit(rng_keys[0], X, y, num_steps=10)
+    obj = acq(rng_keys[1], m, X_new)
     assert_(isinstance(obj, jnp.ndarray))
-    assert_equal(obj.squeeze().shape, (len(X_new),))
+    assert_equal(obj.shape, (len(X_new),))
 
 
 def test_UCB_beta():
@@ -65,7 +126,21 @@ def test_UCB_beta():
     m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
     obj1 = UCB(rng_keys[1], m, X_new, beta=2)
     obj2 = UCB(rng_keys[1], m, X_new, beta=4)
+    obj3 = UCB(rng_keys[1], m, X_new, beta=2)
     assert_(not onp.array_equal(obj1, obj2))
+    assert_(onp.array_equal(obj1, obj3))
+
+
+def test_KG_gp():
+    rng_keys = get_keys()
+    X = onp.random.randn(8,)
+    X_new = onp.random.randn(12,)
+    y = 10 * X**2
+    m = ExactGP(1, 'RBF')
+    m.fit(rng_keys[0], X, y, num_warmup=100, num_samples=100)
+    obj = KG(m, X_new)
+    assert_(isinstance(obj, jnp.ndarray))
+    assert_equal(obj.squeeze().shape, (len(X_new),))
 
 
 def test_EI_gp_penalty_inv_distance():
@@ -123,16 +198,29 @@ def test_acq_dkl(acq):
     assert_equal(obj.squeeze().shape, (len(X_new),))
 
 
+@pytest.mark.parametrize("maximize_distance", [False, True])
+def test_compute_batch_acquisition(maximize_distance):
+    def mock_acq_fn(*args):
+        return jnp.arange(0, 10)
+    X = onp.random.randn(10)
+    rng_key = get_keys()[0]
+    m = mock_GP()
+    obj = _compute_batch_acquisition(
+        rng_key, m, X, mock_acq_fn, subsample_size=7,
+        maximize_distance=maximize_distance)
+    assert_equal(obj.shape[0], 7)
+
+
 @pytest.mark.parametrize("q", [1, 3])
 @pytest.mark.parametrize("acq", [qEI, qPOI, qUCB, qKG])
 def test_batched_acq(acq, q):
-    rng_key = get_keys()[0]
+    rng_key = get_keys()
     X = onp.random.randn(8,)
     X_new = onp.random.randn(12,)
     y = 10 * X**2
     m = ExactGP(1, 'RBF')
-    m.fit(rng_key, X, y, num_warmup=100, num_samples=100)
-    obj = acq(m, X_new, subsample_size=q)
+    m.fit(rng_key[0], X, y, num_warmup=100, num_samples=100)
+    obj = acq(rng_key[1], m, X_new, subsample_size=q)
     assert_equal(obj.shape, (q, len(X_new)))
 
 
