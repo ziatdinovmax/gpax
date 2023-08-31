@@ -7,7 +7,7 @@ Base acquisition functions
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
-from typing import Type, Dict, Optional
+from typing import Type, Dict, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -17,11 +17,9 @@ from ..models.gp import ExactGP
 from ..utils import get_keys
 
 
-def ei(model: Type[ExactGP],
-       X: jnp.ndarray,
-       sample: Dict[str, jnp.ndarray],
+def ei(moments: Tuple[jnp.ndarray, jnp.ndarray],
+       best_f: float = None,
        maximize: bool = False,
-       noiseless: bool = False,
        **kwargs) -> jnp.ndarray:
     r"""
     Expected Improvement
@@ -50,27 +48,20 @@ def ei(model: Type[ExactGP],
     provided :math:`\sigma(x) > 0`.
 
     Args:
-        model: trained model
-        X: new inputs with shape (N, D), where D is a feature dimension
-        sample: a single sample with model parameters (used to derive mu and sigma)
-        maximize: If True, assumes that BO is solving maximization problem
-        noiseless:
-            Noise-free prediction. It is set to False by default as new/unseen data is assumed
-            to follow the same distribution as the training data. Hence, since we introduce a model noise
-            for the training data, we also want to include that noise in our prediction.
-        **jitter:
-            Small positive term added to the diagonal part of a covariance
-            matrix for numerical stability (Default: 1e-6)
+        moments:
+            Tuple with predictive mean and variance
+            (first and second moments of predictive distribution).
+        best_f:
+            Best function value observed so far. Derived from the predictive mean
+            when not provided by a user.
+        maximize:
+            If True, assumes that BO is solving maximization problem.
     """
-    if not isinstance(sample, (tuple, list)):
-        sample = (sample,)
-    # Get predictive mean and covariance for a single sample with kernel parameters
-    pred, cov = model.get_mvn_posterior(X, *sample, noiseless, **kwargs)
-    # Compute standard deviation
-    sigma = jnp.sqrt(cov.diagonal())
-    # Standard EI computation
-    best_f = pred.max() if maximize else pred.min()
-    u = (pred - best_f) / sigma
+    mean, var = moments
+    if best_f is None:
+        best_f = mean.max() if maximize else mean.min()
+    sigma = jnp.sqrt(var)
+    u = (mean - best_f) / sigma
     if not maximize:
         u = -u
     normal = dist.Normal(jnp.zeros_like(u), jnp.ones_like(u))
@@ -80,12 +71,9 @@ def ei(model: Type[ExactGP],
     return acq
 
 
-def ucb(model: Type[ExactGP],
-        X: jnp.ndarray,
-        sample: Dict[str, jnp.ndarray],
+def ucb(moments: Tuple[jnp.ndarray, jnp.ndarray],
         beta: float = 0.25,
         maximize: bool = False,
-        noiseless: bool = False,
         **kwargs) -> jnp.ndarray:
     r"""
     Upper confidence bound
@@ -103,38 +91,22 @@ def ucb(model: Type[ExactGP],
     - :math:`\kappa` is the exploration-exploitation trade-off parameter.
 
     Args:
-        model: trained model
-        X: new inputs with shape (N, D), where D is a feature dimension
-        sample: a single sample with model parameters
-        beta: coefficient balancing exploration-exploitation trade-off
+        moments:
+            Tuple with predictive mean and variance
+            (first and second moments of predictive distribution).
         maximize: If True, assumes that BO is solving maximization problem
-        noiseless:
-            Noise-free prediction. It is set to False by default as new/unseen data is assumed
-            to follow the same distribution as the training data. Hence, since we introduce a model noise
-            for the training data, we also want to include that noise in our prediction.
-        **jitter:
-            Small positive term added to the diagonal part of a covariance
-            matrix for numerical stability (Default: 1e-6)
+        beta: coefficient balancing exploration-exploitation trade-off
     """
-    if not isinstance(sample, (tuple, list)):
-        sample = (sample,)
-    # Get predictive mean and covariance for a single sample with kernel parameters
-    mean, cov = model.get_mvn_posterior(X, *sample, noiseless, **kwargs)
-    var = cov.diagonal()
-    # Standard UCB derivation
+    mean, var = moments
     delta = jnp.sqrt(beta * var)
     if maximize:
         acq = mean + delta
     else:
-        acq = delta - mean  # we return a negative acq for argmax in BO
+        acq = -(mean - delta)  # return a negative acq for argmax in BO
     return acq
 
 
-def ue(model: Type[ExactGP],
-       X: jnp.ndarray,
-       sample: Dict[str, jnp.ndarray],
-       noiseless: bool = False,
-       **kwargs) -> jnp.ndarray:
+def ue(moments: Tuple[jnp.ndarray, jnp.ndarray], **kwargs) -> jnp.ndarray:
     r"""
     Uncertainty-based exploration
 
@@ -150,58 +122,33 @@ def ue(model: Type[ExactGP],
     - :math:`\sigma^2(x)` is the predictive variance of the model at the input point :math:`x`.
 
     Args:
-        model: trained model
-        X: new inputs with shape (N, D), where D is a feature dimension
-        sample: a single sample with model parameters
-        noiseless:
-            Noise-free prediction. It is set to False by default as new/unseen data is assumed
-            to follow the same distribution as the training data. Hence, since we introduce a model noise
-            for the training data, we also want to include that noise in our prediction.
-        **jitter:
-            Small positive term added to the diagonal part of a covariance
-            matrix for numerical stability (Default: 1e-6)
+        moments:
+            Tuple with predictive mean and variance
+            (first and second moments of predictive distribution).
+
     """
-    if not isinstance(sample, (tuple, list)):
-        sample = (sample,)
-    # Get covariance for a single sample with kernel parameters
-    _, cov = model.get_mvn_posterior(X, *sample, noiseless, **kwargs)
-    # Return variance
-    return cov.diagonal()
+    _, var = moments
+    return jnp.sqrt(var)
 
 
-def poi(model: Type[ExactGP],
-        X: jnp.ndarray,
-        sample: Dict[str, jnp.ndarray],
-        xi: float = 0.01,
-        maximize: bool = False,
-        noiseless: bool = False,
-        **kwargs) -> jnp.ndarray:
+def poi(moments: Tuple[jnp.ndarray, jnp.ndarray],
+        best_f: float = None, xi: float = 0.01,
+        maximize: bool = False, **kwargs) -> jnp.ndarray:
     r"""
     Probability of Improvement
 
     Args:
-        model: trained model
-        X: new inputs with shape (N, D), where D is a feature dimension
-        sample: a single sample with model parameters
-        xi: Exploration-exploitation trade-off parameter (Defaults to 0.01)
+        moments:
+            Tuple with predictive mean and variance
+            (first and second moments of predictive distribution).
         maximize: If True, assumes that BO is solving maximization problem
-        noiseless:
-            Noise-free prediction. It is set to False by default as new/unseen data is assumed
-            to follow the same distribution as the training data. Hence, since we introduce a model noise
-            for the training data, we also want to include that noise in our prediction.
-        **jitter:
-            Small positive term added to the diagonal part of a covariance
-            matrix for numerical stability (Default: 1e-6)
+        xi: Exploration-exploitation trade-off parameter (Defaults to 0.01)
     """
-    if not isinstance(sample, (tuple, list)):
-        sample = (sample,)
-    # Get predictive mean and covariance for a single sample with kernel parameters
-    pred, cov = model.get_mvn_posterior(X, *sample, noiseless, **kwargs)
-    # Compute standard deviation
-    sigma = jnp.sqrt(cov.diagonal())
-    # Standard computation of poi
-    best_f = pred.max() if maximize else pred.min()
-    u = (pred - best_f - xi) / sigma
+    mean, var = moments
+    if best_f is None:
+        best_f = mean.max() if maximize else mean.min()
+    sigma = jnp.sqrt(var)
+    u = (mean - best_f - xi) / sigma
     if not maximize:
         u = -u
     normal = dist.Normal(jnp.zeros_like(u), jnp.ones_like(u))
@@ -211,12 +158,11 @@ def poi(model: Type[ExactGP],
 def kg(model: Type[ExactGP],
        X_new: jnp.ndarray,
        sample: Dict[str, jnp.ndarray],
+       rng_key: Optional[jnp.ndarray] = None,
        n: int = 10,
        maximize: bool = True,
        noiseless: bool = True,
-       rng_key: Optional[jnp.ndarray] = None,
        **kwargs):
-
     r"""
     Knowledge gradient
     

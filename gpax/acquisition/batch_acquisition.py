@@ -11,40 +11,42 @@ from typing import Type, Optional, Callable
 
 import jax.numpy as jnp
 from jax import vmap
+import jax.random as jra
 
 from ..models.gp import ExactGP
 from ..utils import random_sample_dict
-from .base_acq import ei, ucb, poi, kg
+from .acquisition import ei, ucb, poi, kg
 
 
-def compute_batch_acquisition(acquisition_type: Callable,
-                              model: Type[ExactGP],
-                              X: jnp.ndarray,
-                              *acq_args,
-                              maximize_distance: bool = False,
-                              n_evals: int = 1,
-                              subsample_size: int = 1,
-                              indices: Optional[jnp.ndarray] = None,
-                              **kwargs) -> jnp.ndarray:
-    """
-    Computes batch-mode acquisition function of a given type
-    """
+def _compute_batch_acquisition(
+        rng_key: jnp.ndarray,
+        model: Type[ExactGP],
+        X: jnp.ndarray,
+        single_acq_fn: Callable,
+        maximize_distance: bool = False,
+        n_evals: int = 1,
+        subsample_size: int = 1,
+        indices: Optional[jnp.ndarray] = None,
+        **kwargs) -> jnp.ndarray:
+    """Generic function for computing batch acquisition of a given type"""
+
     if model.mcmc is None:
         raise ValueError("The model needs to be fully Bayesian")
 
     X = X[:, None] if X.ndim < 2 else X
 
-    samples = random_sample_dict(model.get_samples(), subsample_size)
-    f = vmap(acquisition_type, in_axes=(None, None, 0) + (None,) * len(acq_args))
+    f = vmap(single_acq_fn, in_axes=(0, None))
 
     if not maximize_distance:
-        acq = f(model, X, samples, *acq_args, **kwargs)
+        samples = random_sample_dict(model.get_samples(), subsample_size, rng_key)
+        acq = f(samples, X)
     else:
+        subkeys = jra.split(rng_key, num=n_evals)
         X_ = jnp.array(indices) if indices is not None else jnp.array(X)
         acq_all, dist_all = [], []
-
-        for _ in range(n_evals):
-            acq = f(model, X_, samples, *acq_args, **kwargs)
+        for subkey in subkeys:
+            samples = random_sample_dict(model.get_samples(), subsample_size, subkey)
+            acq = f(samples, X_)
             points = acq.argmax(-1)
             d = jnp.linalg.norm(points).mean()
             acq_all.append(acq)
@@ -56,8 +58,10 @@ def compute_batch_acquisition(acquisition_type: Callable,
     return acq
 
 
-def qEI(model: Type[ExactGP],
+def qEI(rng_key: jnp.ndarray,
+        model: Type[ExactGP],
         X: jnp.ndarray,
+        best_f: float = None,
         maximize: bool = False,
         noiseless: bool = False,
         maximize_distance: bool = False,
@@ -74,9 +78,14 @@ def qEI(model: Type[ExactGP],
     values across multiple evaluations.
 
     Args:
+        rng_key: random number generator key
         model: trained model
         X: new inputs
-        maximize: If True, assumes that BO is solving maximization problem
+        best_f:
+            Best function value observed so far. Derived from the predictive mean
+            when not provided by a user.
+        maximize:
+            If True, assumes that BO is solving maximization problem
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
@@ -97,14 +106,17 @@ def qEI(model: Type[ExactGP],
         The computed batch Expected Improvement values at the provided input points X.
     """
 
-    return compute_batch_acquisition(
-        ei, model, X, maximize, noiseless,
-        maximize_distance=maximize_distance,
-        n_evals=n_evals, subsample_size=subsample_size,
-        indices=indices, **kwargs)
+    def single_acq(sample, X):
+        mean, cov = model.get_mvn_posterior(X, sample, noiseless, **kwargs)
+        return ei((mean, cov.diagonal()), best_f, maximize)
+
+    return _compute_batch_acquisition(
+        rng_key, model, X, single_acq, maximize_distance,
+        n_evals, subsample_size, indices, **kwargs)
 
 
-def qUCB(model: Type[ExactGP],
+def qUCB(rng_key: jnp.ndarray,
+         model: Type[ExactGP],
          X: jnp.ndarray,
          beta: float = 0.25,
          maximize: bool = False,
@@ -117,16 +129,20 @@ def qUCB(model: Type[ExactGP],
     """
     Batch-mode Upper Confidence Bound
 
-    qUCB computes the Unner Confidence Bound values for given input points `X` using multiple randomly drawn samples 
+    qUCB computes the Upper Confidence Bound values for given input points `X` using multiple randomly drawn samples 
     from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qUCB considers diversity among the 
     posterior samples by maximizing the mean distance between samples that give the highest acquisition 
     values across multiple evaluations.
 
     Args:
+        rng_key: random number generator key
         model: trained model
         X: new inputs
-        beta: the exploration-exploitation trade-off
-        maximize: If True, assumes that BO is solving maximization problem
+        best_f:
+            Best function value observed so far. Derived from the predictive mean
+            when not provided by a user.
+        maximize:
+            If True, assumes that BO is solving maximization problem
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
@@ -144,19 +160,22 @@ def qUCB(model: Type[ExactGP],
             Indices of the input points.
 
     Returns:
-        The computed batch Upper Confidence Bound values at the provided input points X.
+        The computed batch Expected Improvement values at the provided input points X.
     """
 
-    return compute_batch_acquisition(
-        ucb, model, X, beta, maximize, noiseless,
-        maximize_distance=maximize_distance,
-        n_evals=n_evals, subsample_size=subsample_size,
-        indices=indices, **kwargs)
+    def single_acq(sample, X):
+        mean, cov = model.get_mvn_posterior(X, sample, noiseless, **kwargs)
+        return ucb((mean, cov.diagonal()), beta, maximize)
+
+    return _compute_batch_acquisition(
+        rng_key, model, X, single_acq, maximize_distance,
+        n_evals, subsample_size, indices, **kwargs)
 
 
-def qPOI(model: Type[ExactGP],
+def qPOI(rng_key: jnp.ndarray,
+         model: Type[ExactGP],
          X: jnp.ndarray,
-         xi: float = .001,
+         best_f: float = None,
          maximize: bool = False,
          noiseless: bool = False,
          maximize_distance: bool = False,
@@ -173,10 +192,14 @@ def qPOI(model: Type[ExactGP],
     values across multiple evaluations.
 
     Args:
+        rng_key: random number generator key
         model: trained model
         X: new inputs
-        xi: the exploration-exploitation trade-off
-        maximize: If True, assumes that BO is solving maximization problem
+        best_f:
+            Best function value observed so far. Derived from the predictive mean
+            when not provided by a user.
+        maximize:
+            If True, assumes that BO is solving maximization problem
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
@@ -193,16 +216,21 @@ def qPOI(model: Type[ExactGP],
         indices:
             Indices of the input points.
 
+    Returns:
+        The computed batch Expected Improvement values at the provided input points X.
     """
 
-    return compute_batch_acquisition(
-        poi, model, X, xi, maximize, noiseless,
-        maximize_distance=maximize_distance,
-        n_evals=n_evals, subsample_size=subsample_size,
-        indices=indices, **kwargs)
+    def single_acq(sample, X):
+        mean, cov = model.get_mvn_posterior(X, sample, noiseless, **kwargs)
+        return poi((mean, cov.diagonal()), best_f, maximize)
+
+    return _compute_batch_acquisition(
+        rng_key, model, X, single_acq, maximize_distance,
+        n_evals, subsample_size, indices, **kwargs)
 
 
-def qKG(model: Type[ExactGP],
+def qKG(rng_key: jnp.ndarray,
+        model: Type[ExactGP],
         X: jnp.ndarray,
         n: int = 10,
         maximize: bool = False,
@@ -221,6 +249,7 @@ def qKG(model: Type[ExactGP],
     values across multiple evaluations.
 
     Args:
+        rng_key: random number generator key
         model: trained model
         X: new inputs
         n: number of simulated samples for each point in X
@@ -244,9 +273,9 @@ def qKG(model: Type[ExactGP],
     Returns:
         The computed batch Knowledge Gradient values at the provided input points X.
     """
+    def single_acq(sample, X):
+        return kg(model, X, sample, rng_key, n, maximize, noiseless, **kwargs)
 
-    return compute_batch_acquisition(
-        kg, model, X, n, maximize, noiseless,
-        maximize_distance=maximize_distance,
-        n_evals=n_evals, subsample_size=subsample_size,
-        indices=indices, **kwargs)
+    return _compute_batch_acquisition(
+        rng_key, model, X, single_acq, maximize_distance,
+        n_evals, subsample_size, indices, **kwargs)

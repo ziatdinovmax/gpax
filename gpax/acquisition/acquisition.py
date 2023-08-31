@@ -7,84 +7,58 @@ Acquisition functions
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
-from typing import Type, Optional, Callable, Any
+from typing import Type, Optional, Callable, Dict, Tuple
 
 import jax.numpy as jnp
 import jax.random as jra
 from jax import vmap
 import numpy as onp
 
+import numpyro.distributions as dist
+
 from ..models.gp import ExactGP
+from ..utils import get_keys
 from .base_acq import ei, ucb, poi, ue, kg
 from .penalties import compute_penalty
 
 
-def compute_acquisition(
-        model: Type[ExactGP],
-        X: jnp.ndarray,
-        acq_func: Callable[..., jnp.ndarray],
-        *acq_args: Any,
-        penalty: Optional[str] = None,
-        recent_points: Optional[jnp.ndarray] = None,
-        grid_indices: Optional[jnp.ndarray] = None,
-        penalty_factor: float = 1.0,
-        **kwargs) -> jnp.ndarray:
+def _compute_mean_and_var(
+        rng_key: jnp.ndarray, model: Type[ExactGP], X: jnp.ndarray,
+        n: int, noiseless: bool, **kwargs) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """
-    Computes acquistion function of a given type
-
-    Args:
-        model: The trained model.
-        X: New inputs.
-        acq_func: Acquisition function to be used (e.g., ei or ucb).
-        *acq_args: Positional arguments passed to the acquisition function.
-        penalty:
-            Penalty applied to the acquisition function to discourage re-evaluation
-            at or near points that were recently evaluated.
-        recent_points:
-            An array of recently visited points [oldest, ..., newest] provided by user
-        grid_indices:
-            Grid indices of data points in X array for the penalty term calculation.
-            For example, if each data point is an image patch, the indices could correspond
-            to the (i, j) pixel coordinates of their centers in the original image.
-        penalty_factor:
-            Penalty factor :math:`\lambda` in :math:`\alpha - \lambda \cdot \pi(X, r)`
-        **kwargs:
-            Additional keyword arguments passed to the acquisition function.
-
-    Returns:
-        Computed acquisition function values
+    Computes predictive mean and variance
     """
-    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
-        raise ValueError("Please provide an array of recently visited points")
-
-    X = X[:, None] if X.ndim < 2 else X
-    samples = model.get_samples()
-
-    if model.mcmc is None:
-        acq = acq_func(model, X, samples, *acq_args, **kwargs)
+    if model.mcmc is not None:
+        _, y_sampled = model.predict(
+            rng_key, X, n=n, noiseless=noiseless, **kwargs)
+        y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
+        mean, var = y_sampled.mean(0), y_sampled.var(0)
     else:
-        f = vmap(acq_func, in_axes=(None, None, 0) + (None,)*len(acq_args))
-        acq = f(model, X, samples, *acq_args, **kwargs)
-        acq = acq.mean(0)
+        mean, var = model.predict(rng_key, X, noiseless=noiseless, **kwargs)
+    return mean, var
 
-    if penalty:
-        X_ = grid_indices if grid_indices is not None else X
-        penalties = compute_penalty(X_, recent_points, penalty, penalty_factor)
-        acq -= penalties
 
-    return acq
+def _compute_penalties(
+        X: jnp.ndarray, recent_points: jnp.ndarray, penalty: str,
+        penalty_factor: float, grid_indices: jnp.ndarray) -> jnp.ndarray:
+    """
+    Computes penaltes for recent points to be substracted
+    from acqusition function values
+    """
+    X_ = grid_indices if grid_indices is not None else X
+    return compute_penalty(X_, recent_points, penalty, penalty_factor)
 
 
 def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
-       X: jnp.ndarray,
-       maximize: bool = False,
+       X: jnp.ndarray, best_f: float = None,
+       maximize: bool = False, n: int = 1,
        noiseless: bool = False,
        penalty: Optional[str] = None,
        recent_points: jnp.ndarray = None,
        grid_indices: jnp.ndarray = None,
        penalty_factor: float = 1.0,
        **kwargs) -> jnp.ndarray:
-    r"""
+    """
     Expected Improvement
 
     Given a probabilistic model :math:`m` that models the objective function :math:`f`,
@@ -109,12 +83,21 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
 
     provided :math:`\sigma(x) > 0`.
 
+    The function leverages multiple predictive posteriors, each associated
+    with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
+    and hyperparameter uncertainty. In this setup, the uncertainty in parameters of probabilistic
+    mean function (if any) also contributes to the acquisition function values.
 
     Args:
         rng_key: JAX random number generator key
         model: trained model
         X: new inputs
+        best_f:
+            Best function value observed so far. Derived from the predictive mean
+            when not provided by a user.
         maximize: If True, assumes that BO is solving maximization problem
+        n: number of samples drawn from each MVN distribution
+           (number of distributions is equal to the number of HMC samples)
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
@@ -148,23 +131,111 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
-    if rng_key is not None:
-        import warnings
-        warnings.warn("`rng_key` is deprecated and will be removed in future versions. "
-                      "It's no longer used.", DeprecationWarning, stacklevel=2)
-    return compute_acquisition(
-        model, X, ei, maximize, noiseless,
-        penalty=penalty, recent_points=recent_points,
-        grid_indices=grid_indices, penalty_factor=penalty_factor,
-        **kwargs)
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
+
+    X = X[:, None] if X.ndim < 2 else X
+
+    moments = _compute_mean_and_var(rng_key, model, X, n, noiseless, **kwargs)
+
+    acq = ei(moments, best_f, maximize)
+
+    if penalty:
+        acq -= _compute_penalties(X, recent_points, penalty, penalty_factor, grid_indices)
+
+    return acq
 
 
-def POI(rng_key: jnp.ndarray,
-        model: Type[ExactGP],
-        X: jnp.ndarray,
-        xi: float = 0.01,
-        maximize: bool = False,
+def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
+        X: jnp.ndarray, beta: float = .25,
+        maximize: bool = False, n: int = 1,
         noiseless: bool = False,
+        penalty: Optional[str] = None,
+        recent_points: jnp.ndarray = None,
+        grid_indices: jnp.ndarray = None,
+        penalty_factor: float = 1.0,
+        **kwargs) -> jnp.ndarray:
+    """
+    Upper confidence bound
+
+    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
+    the Upper Confidence Bound at an input point :math:`x` is defined as:
+
+    .. math::
+
+        UCB(x) = \mu(x) + \kappa \sigma(x)
+
+    where:
+    - :math:`\mu(x)` is the predictive mean.
+    - :math:`\sigma(x)` is the predictive standard deviation.
+    - :math:`\kappa` is the exploration-exploitation trade-off parameter.
+
+    The function leverages multiple predictive posteriors, each associated
+    with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
+    and hyperparameter uncertainty. In this setup, the uncertainty in parameters of probabilistic
+    mean function (if any) also contributes to the acquisition function values.
+
+    Args:
+        rng_key: JAX random number generator key
+        model: trained model
+        X: new inputs
+        beta: coefficient balancing exploration-exploitation trade-off
+        maximize: If True, assumes that BO is solving maximization problem
+        n: number of samples drawn from each MVN distribution
+           (number of distributions is equal to the number of HMC samples)
+        noiseless:
+            Noise-free prediction. It is set to False by default as new/unseen data is assumed
+            to follow the same distribution as the training data. Hence, since we introduce a model noise
+            for the training data, we also want to include that noise in our prediction.
+        penalty:
+            Penalty applied to the acquisition function to discourage re-evaluation
+            at or near points that were recently evaluated. Options are:
+
+            - 'delta':
+            The infinite penalty is applied to the recently visited points.
+
+            - 'inverse_distance':
+            Modifies the acquisition function by penalizing points near the recent points.
+
+            For the 'inverse_distance', the acqusition function is penalized as:
+
+            .. math::
+                \alpha - \lambda \cdot \pi(X, r)
+
+            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points :math:`r`,
+            :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the penalty factor.
+        recent_points:
+            An array of recently visited points [oldest, ..., newest] provided by user
+        grid_indices:
+            Grid indices of data points in X array for the penalty term calculation.
+            For example, if each data point is an image patch, the indices could correspond
+            to the (i, j) pixel coordinates of their centers in the original image.
+        penalty_factor:
+            Penalty factor :math:`\lambda` in :math:`\alpha - \lambda \cdot \pi(X, r)`
+        **jitter:
+            Small positive term added to the diagonal part of a covariance
+            matrix for numerical stability (Default: 1e-6)
+    """
+
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
+
+    X = X[:, None] if X.ndim < 2 else X
+
+    moments = _compute_mean_and_var(rng_key, model, X, n, noiseless, **kwargs)
+
+    acq = ucb(moments, beta, maximize)
+
+    if penalty:
+        acq -= _compute_penalties(X, recent_points, penalty, penalty_factor, grid_indices)
+
+    return acq
+
+
+def POI(rng_key: jnp.ndarray, model: Type[ExactGP],
+        X: jnp.ndarray, best_f: float = None,
+        xi: float = 0.01, maximize: bool = False,
+        n: int = 1, noiseless: bool = False,
         penalty: Optional[str] = None,
         recent_points: jnp.ndarray = None,
         grid_indices: jnp.ndarray = None,
@@ -187,12 +258,22 @@ def POI(rng_key: jnp.ndarray,
     - :math:`\xi` is a small positive "jitter" term to encourage more exploration.
     - :math:`\Phi` is the cumulative distribution function (CDF) of the standard normal distribution.
 
+    The function leverages multiple predictive posteriors, each associated
+    with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
+    and hyperparameter uncertainty. In this setup, the uncertainty in parameters of probabilistic
+    mean function (if any) also contributes to the acquisition function values.
+
     Args:
         rng_key: JAX random number generator key
         model: trained model
         X: new inputs
-        xi: exploration-exploitation tradeoff (defaults to 0.01)
+        best_f:
+            Best function value observed so far. Derived from the predictive mean
+            when not provided by a user.
+        xi: coefficient affecting exploration-exploitation trade-off
         maximize: If True, assumes that BO is solving maximization problem
+        n: number of samples drawn from each MVN distribution
+           (number of distributions is equal to the number of HMC samples)
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
@@ -226,102 +307,31 @@ def POI(rng_key: jnp.ndarray,
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
-    if rng_key is not None:
-        import warnings
-        warnings.warn("`rng_key` is deprecated and will be removed in future versions. "
-                      "It's no longer used.", DeprecationWarning, stacklevel=2)
-    return compute_acquisition(
-        model, X, poi, xi, maximize, noiseless,
-        penalty=penalty, recent_points=recent_points,
-        grid_indices=grid_indices, penalty_factor=penalty_factor,
-        **kwargs)
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
+
+    X = X[:, None] if X.ndim < 2 else X
+
+    moments = _compute_mean_and_var(rng_key, model, X, n, noiseless, **kwargs)
+
+    acq = poi(moments, best_f, xi, maximize)
+
+    if penalty:
+        acq -= _compute_penalties(X, recent_points, penalty, penalty_factor, grid_indices)
+
+    return acq
 
 
-def UCB(rng_key: jnp.ndarray,
-        model: Type[ExactGP],
+def UE(rng_key: jnp.ndarray, model: Type[ExactGP],
         X: jnp.ndarray,
-        beta: float = .25,
-        maximize: bool = False,
+        n: int = 1,
         noiseless: bool = False,
         penalty: Optional[str] = None,
         recent_points: jnp.ndarray = None,
         grid_indices: jnp.ndarray = None,
         penalty_factor: float = 1.0,
         **kwargs) -> jnp.ndarray:
-    r"""
-    Upper confidence bound
 
-    Given a probabilistic model :math:`m` that models the objective function :math:`f`,
-    the Upper Confidence Bound at an input point :math:`x` is defined as:
-
-    .. math::
-
-        UCB(x) = \mu(x) + \kappa \sigma(x)
-
-    where:
-    - :math:`\mu(x)` is the predictive mean.
-    - :math:`\sigma(x)` is the predictive standard deviation.
-    - :math:`\kappa` is the exploration-exploitation trade-off parameter.
-
-    Args:
-        rng_key: JAX random number generator key
-        model: trained model
-        X: new inputs
-        beta: coefficient balancing exploration-exploitation trade-off
-        maximize: If True, assumes that BO is solving maximization problem
-        noiseless:
-            Noise-free prediction. It is set to False by default as new/unseen data is assumed
-            to follow the same distribution as the training data. Hence, since we introduce a model noise
-            for the training data, we also want to include that noise in our prediction.
-        penalty:
-            Penalty applied to the acquisition function to discourage re-evaluation
-            at or near points that were recently evaluated. Options are:
-
-            - 'delta':
-            The infinite penalty is applied to the recently visited points.
-
-            - 'inverse_distance':
-            Modifies the acquisition function by penalizing points near the recent points.
-
-            For the 'inverse_distance', the acqusition function is penalized as:
-
-            .. math::
-                \alpha - \lambda \cdot \pi(X, r)
-
-            where :math:`\pi(X, r)` computes a penalty for points in :math:`X` based on their distance to recent points :math:`r`,
-            :math:`\alpha` represents the acquisition function, and :math:`\lambda` represents the penalty factor.
-        recent_points:
-            An array of recently visited points [oldest, ..., newest] provided by user
-        grid_indices:
-            Grid indices of data points in X array for the penalty term calculation.
-            For example, if each data point is an image patch, the indices could correspond
-            to the (i, j) pixel coordinates of their centers in the original image.
-        penalty_factor:
-            Penalty factor :math:`\lambda` in :math:`\alpha - \lambda \cdot \pi(X, r)`
-        **jitter:
-            Small positive term added to the diagonal part of a covariance
-            matrix for numerical stability (Default: 1e-6)
-    """
-    if rng_key is not None:
-        import warnings
-        warnings.warn("`rng_key` is deprecated and will be removed in future versions. "
-                      "It's no longer used.", DeprecationWarning, stacklevel=2)
-    return compute_acquisition(
-        model, X, ucb, beta, maximize, noiseless,
-        penalty=penalty, recent_points=recent_points,
-        grid_indices=grid_indices, penalty_factor=penalty_factor,
-        **kwargs)
-
-
-def UE(rng_key: jnp.ndarray,
-       model: Type[ExactGP],
-       X: jnp.ndarray, n: int = 1,
-       noiseless: bool = False,
-       penalty: Optional[str] = None,
-       recent_points: jnp.ndarray = None,
-       grid_indices: jnp.ndarray = None,
-       penalty_factor: float = 1.0,
-       **kwargs) -> jnp.ndarray:
     r"""
     Uncertainty-based exploration
 
@@ -336,6 +346,10 @@ def UE(rng_key: jnp.ndarray,
     where:
     - :math:`\sigma^2(x)` is the predictive variance of the model at the input point :math:`x`.
 
+    The function leverages multiple predictive posteriors, each associated
+    with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
+    and hyperparameter uncertainty. In this setup, the uncertainty in parameters of probabilistic
+    mean function (if any) also contributes to the acquisition function values.
 
     Args:
         rng_key: JAX random number generator key
@@ -376,18 +390,24 @@ def UE(rng_key: jnp.ndarray,
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
-    if rng_key is not None:
-        import warnings
-        warnings.warn("`rng_key` is deprecated and will be removed in future versions. "
-                      "It's no longer used.", DeprecationWarning, stacklevel=2)
-    return compute_acquisition(
-        model, X, ue, noiseless,
-        penalty=penalty, recent_points=recent_points,
-        grid_indices=grid_indices, penalty_factor=penalty_factor,
-        **kwargs)
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
+    X = X[:, None] if X.ndim < 2 else X
+
+    moments = _compute_mean_and_var(rng_key, model, X, n, noiseless, **kwargs)
+
+    acq = ue(moments)
+
+    if penalty:
+        X_ = grid_indices if grid_indices is not None else X
+        penalties = compute_penalty(X_, recent_points, penalty, penalty_factor)
+
+        acq -= penalties
+    return acq
 
 
-def KG(model: Type[ExactGP],
+def KG(rng_key: jnp.ndarray,
+       model: Type[ExactGP],
        X: jnp.ndarray,
        n: int = 1,
        maximize: bool = False,
@@ -415,10 +435,16 @@ def KG(model: Type[ExactGP],
     - :math:`V_n^*` is the optimal expected value of the objective function based on the current \(n\) observations.
 
     Args:
-        model: trained model
-        X: new inputs
-        n: number of simulated samples for each point in X
-        maximize: If True, assumes that BO is solving maximization problem
+        rng_key:
+            JAX random number generator key for sampling simulated observations
+        model:
+            Trained model
+        X:
+            New inputs
+        n:
+            Number of simulated samples for each point in X
+        maximize:
+            If True, assumes that BO is solving maximization problem
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
@@ -448,16 +474,28 @@ def KG(model: Type[ExactGP],
             to the (i, j) pixel coordinates of their centers in the original image.
         penalty_factor:
             Penalty factor :math:`\lambda` in :math:`\alpha - \lambda \cdot \pi(X, r)`
-        **rng_key: JAX random number generator key for sampling simulated observations
         **jitter:
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
-    return compute_acquisition(
-        model, X, kg, n, maximize, noiseless,
-        penalty=penalty, recent_points=recent_points,
-        grid_indices=grid_indices, penalty_factor=penalty_factor,
-        **kwargs)
+    if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
+        raise ValueError("Please provide an array of recently visited points")
+
+    X = X[:, None] if X.ndim < 2 else X
+    samples = model.get_samples()
+
+    if model.mcmc is None:
+        acq = kg(model, X, samples, rng_key, n, maximize, noiseless, **kwargs)
+    else:
+        vec_kg = vmap(kg, in_axes=(None, None, 0, 0, None, None, None))
+        samples = model.get_samples()
+        keys = jra.split(rng_key, num=len(next(iter(samples.values()))))
+        acq = vec_kg(model, X, samples, keys, n, maximize, noiseless, **kwargs)
+
+    if penalty:
+        acq -= _compute_penalties(X, recent_points, penalty, penalty_factor, grid_indices)
+
+    return acq
 
 
 def Thompson(rng_key: jnp.ndarray,
@@ -493,4 +531,3 @@ def Thompson(rng_key: jnp.ndarray,
         _, tsample = model.sample_from_posterior(
             rng_key, X, n=1, noiseless=noiseless, **kwargs)
     return tsample
-
