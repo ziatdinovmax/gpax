@@ -5,7 +5,7 @@ from numpy.testing import assert_equal, assert_, assert_array_equal
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.utils import preprocess_sparse_image, split_dict
+from gpax.utils import preprocess_sparse_image, split_dict, random_sample_dict
 
 
 def test_sparse_img_processing():
@@ -32,18 +32,45 @@ def test_split_dict():
         'b': jnp.array([10, 20, 30, 40, 50, 60])
     }
     chunk_size = 4
-    
+
     result = split_dict(data, chunk_size)
-    
+
     expected = [
         {'a': jnp.array([1, 2, 3, 4]), 'b': jnp.array([10, 20, 30, 40])},
         {'a': jnp.array([5, 6]), 'b': jnp.array([50, 60])},
     ]
-    
+
     # Check that the length of the result matches the expected length
     assert len(result) == len(expected)
-    
+
     # Check that each chunk matches the expected chunk
     for r, e in zip(result, expected):
         for k in data:
             assert_array_equal(r[k], e[k])
+
+
+def test_random_sample_size():
+    data = {
+        'a': jnp.array([1, 2, 3, 4, 5]),
+        'b': jnp.array([5, 4, 3, 2, 1]),
+        'c': jnp.array([10, 20, 30, 40, 50])
+    }
+    num_samples = 3
+    sampled_data = random_sample_dict(data, num_samples)
+    for value in sampled_data.values():
+        assert_(len(value) == num_samples)
+
+
+def test_random_sample_consistency():
+    data = {
+        'a': jnp.array([1, 2, 3, 4, 5]),
+        'b': jnp.array([5, 4, 3, 2, 1]),
+        'c': jnp.array([10, 20, 30, 40, 50])
+    }
+    num_samples = 3
+    seed = 123
+    sampled_data1 = random_sample_dict(data, num_samples, seed)
+    sampled_data2 = random_sample_dict(data, num_samples, seed)
+
+    for key in sampled_data1:
+        assert_(jnp.array_equal(sampled_data1[key], sampled_data2[key]))

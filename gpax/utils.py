@@ -82,20 +82,25 @@ def split_dict(data: Dict[str, jnp.ndarray], chunk_size: int
 
 
 def random_sample_dict(data: Dict[str, jnp.ndarray],
-                       num_samples: int) -> Dict[str, jnp.ndarray]:
+                       num_samples: int,
+                       seed: int = 42) -> Dict[str, jnp.ndarray]:
     """Returns a dictionary with a smaller number of consistent random samples for each array.
 
     Args:
         data: Dictionary containing numpy arrays.
         num_samples: Number of random samples required.
+        seed: Seed for the random number generator.
 
     Returns:
         Dictionary with the consistently sampled arrays.
     """
 
+    # Create a random key
+    key = jax.random.PRNGKey(seed)
+
     # Generate unique random indices
-    indices = onp.random.choice(
-        len(next(iter(data.values()))), size=num_samples, replace=False)
+    num_data_points = len(next(iter(data.values())))
+    indices = jax.random.permutation(key, num_data_points)[:num_samples]
 
     return {key: value[indices] for key, value in data.items()}
 
