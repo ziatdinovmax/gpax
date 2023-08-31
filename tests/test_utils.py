@@ -1,11 +1,12 @@
 import sys
 import numpy as onp
 import jax.numpy as jnp
+import jax.random as jra
 from numpy.testing import assert_equal, assert_, assert_array_equal
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.utils import preprocess_sparse_image, split_dict, random_sample_dict
+from gpax.utils import preprocess_sparse_image, split_dict, random_sample_dict, get_keys
 
 
 def test_sparse_img_processing():
@@ -56,7 +57,8 @@ def test_random_sample_size():
         'c': jnp.array([10, 20, 30, 40, 50])
     }
     num_samples = 3
-    sampled_data = random_sample_dict(data, num_samples)
+    rng_key = jra.PRNGKey(123)
+    sampled_data = random_sample_dict(data, num_samples, rng_key)
     for value in sampled_data.values():
         assert_(len(value) == num_samples)
 
@@ -68,9 +70,24 @@ def test_random_sample_consistency():
         'c': jnp.array([10, 20, 30, 40, 50])
     }
     num_samples = 3
-    seed = 123
-    sampled_data1 = random_sample_dict(data, num_samples, seed)
-    sampled_data2 = random_sample_dict(data, num_samples, seed)
+    rng_key = jra.PRNGKey(123)
+    sampled_data1 = random_sample_dict(data, num_samples, rng_key)
+    sampled_data2 = random_sample_dict(data, num_samples, rng_key)
+
+    for key in sampled_data1:
+        assert_(jnp.array_equal(sampled_data1[key], sampled_data2[key]))
+
+
+def test_random_sample_difference():
+    data = {
+        'a': jnp.array([1, 2, 3, 4, 5]),
+        'b': jnp.array([5, 4, 3, 2, 1]),
+        'c': jnp.array([10, 20, 30, 40, 50])
+    }
+    num_samples = 3
+    rng_key1, rng_key2 = get_keys()
+    sampled_data1 = random_sample_dict(data, num_samples, rng_key1)
+    sampled_data2 = random_sample_dict(data, num_samples, rng_key2)
 
     for key in sampled_data1:
         assert_(jnp.array_equal(sampled_data1[key], sampled_data2[key]))
