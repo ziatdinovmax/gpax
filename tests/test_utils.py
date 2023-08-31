@@ -90,4 +90,4 @@ def test_random_sample_difference():
     sampled_data2 = random_sample_dict(data, num_samples, rng_key2)
 
     for key in sampled_data1:
-        assert_(jnp.array_equal(sampled_data1[key], sampled_data2[key]))
+        assert_(not jnp.array_equal(sampled_data1[key], sampled_data2[key]))
