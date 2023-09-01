@@ -24,11 +24,11 @@ def _compute_batch_acquisition(
         X: jnp.ndarray,
         single_acq_fn: Callable,
         maximize_distance: bool = False,
-        n_evals: int = 1,
+        n_evals: int = 10,
         subsample_size: int = 1,
         indices: Optional[jnp.ndarray] = None,
         **kwargs) -> jnp.ndarray:
-    """Generic function for computing batch acquisition of a given type"""
+    """Function for computing batch acquisition of a given type"""
 
     if model.mcmc is None:
         raise ValueError("The model needs to be fully Bayesian")
@@ -40,19 +40,20 @@ def _compute_batch_acquisition(
     if not maximize_distance:
         samples = random_sample_dict(model.get_samples(), subsample_size, rng_key)
         acq = f(samples, X)
+
     else:
-        subkeys = jra.split(rng_key, num=n_evals)
         X_ = jnp.array(indices) if indices is not None else jnp.array(X)
-        acq_all, dist_all = [], []
-        for subkey in subkeys:
+
+        def compute_acq_and_distance(subkey):
             samples = random_sample_dict(model.get_samples(), subsample_size, subkey)
             acq = f(samples, X_)
             points = acq.argmax(-1)
             d = jnp.linalg.norm(points).mean()
-            acq_all.append(acq)
-            dist_all.append(d)
+            return acq, d
 
-        idx = jnp.array(dist_all).argmax()
+        subkeys = jra.split(rng_key, num=n_evals)
+        acq_all, dist_all = vmap(compute_acq_and_distance)(subkeys)
+        idx = dist_all.argmax()
         acq = acq_all[idx]
 
     return acq
@@ -72,9 +73,9 @@ def qEI(rng_key: jnp.ndarray,
     """
     Batch-mode Expected Improvement
 
-    qEI computes the Expected Improvement values for given input points `X` using multiple randomly drawn samples 
-    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qEI considers diversity among the 
-    posterior samples by maximizing the mean distance between samples that give the highest acquisition 
+    qEI computes the Expected Improvement values for given input points `X` using multiple randomly drawn samples
+    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qEI considers diversity among the
+    posterior samples by maximizing the mean distance between samples that give the highest acquisition
     values across multiple evaluations.
 
     Args:
@@ -129,9 +130,9 @@ def qUCB(rng_key: jnp.ndarray,
     """
     Batch-mode Upper Confidence Bound
 
-    qUCB computes the Upper Confidence Bound values for given input points `X` using multiple randomly drawn samples 
-    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qUCB considers diversity among the 
-    posterior samples by maximizing the mean distance between samples that give the highest acquisition 
+    qUCB computes the Upper Confidence Bound values for given input points `X` using multiple randomly drawn samples
+    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qUCB considers diversity among the
+    posterior samples by maximizing the mean distance between samples that give the highest acquisition
     values across multiple evaluations.
 
     Args:
@@ -186,9 +187,9 @@ def qPOI(rng_key: jnp.ndarray,
     """
     Batch-mode Probability of Improvement
 
-    qPOI computes the Probability of Improvement values for given input points `X` using multiple randomly drawn samples 
-    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qPOI considers diversity among the 
-    posterior samples by maximizing the mean distance between samples that give the highest acquisition 
+    qPOI computes the Probability of Improvement values for given input points `X` using multiple randomly drawn samples
+    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qPOI considers diversity among the
+    posterior samples by maximizing the mean distance between samples that give the highest acquisition
     values across multiple evaluations.
 
     Args:
@@ -243,9 +244,9 @@ def qKG(rng_key: jnp.ndarray,
     """
     Batch-mode Knowledge Gradient
 
-    qKG computes the Knowledge Gradient values for given input points `X` using multiple randomly drawn samples 
-    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qKG considers diversity among the 
-    posterior samples by maximizing the mean distance between samples that give the highest acquisition 
+    qKG computes the Knowledge Gradient values for given input points `X` using multiple randomly drawn samples
+    from the HMC-inferred model's posterior. If `maximize_distance` is enabled, qKG considers diversity among the
+    posterior samples by maximizing the mean distance between samples that give the highest acquisition
     values across multiple evaluations.
 
     Args:
