@@ -34,17 +34,19 @@ class iBNN(ExactGP):
             Optional custom priors over NNGP kernel hyperparameters; uses LogNormal(0,1) by default
         mean_fn_prior:
             Optional priors over mean function parameters
-        noise_prior:
-            Optional custom prior for observation noise; uses LogNormal(0,1) by default.
+        noise_prior_dist:
+            Optional custom prior distribution over observational noise. Defaults to LogNormal(0,1).
     """
 
     def __init__(self, input_dim: int, depth: int = 3, activation: str = 'erf',
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  nngp_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
+                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 noise_prior_dist: Optional[dist.Distribution] = None
                  ) -> None:
-        args = (input_dim, None, mean_fn, nngp_prior, mean_fn_prior, noise_prior)
+        args = (input_dim, None, mean_fn, nngp_prior, mean_fn_prior,
+                noise_prior, noise_prior_dist)
         super(iBNN, self).__init__(*args)
         self.kernel = get_kernel("NNGP", activation=activation, depth=depth)
 
