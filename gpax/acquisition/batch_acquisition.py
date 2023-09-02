@@ -24,8 +24,8 @@ def _compute_batch_acquisition(
         X: jnp.ndarray,
         single_acq_fn: Callable,
         maximize_distance: bool = False,
-        n_evals: int = 10,
         subsample_size: int = 1,
+        n_evals: int = 10,
         indices: Optional[jnp.ndarray] = None,
         **kwargs) -> jnp.ndarray:
     """Function for computing batch acquisition of a given type"""
@@ -66,8 +66,8 @@ def qEI(rng_key: jnp.ndarray,
         maximize: bool = False,
         noiseless: bool = False,
         maximize_distance: bool = False,
-        n_evals: int = 1,
         subsample_size: int = 1,
+        n_evals: int = 10,
         indices: Optional[jnp.ndarray] = None,
         **kwargs) -> jnp.ndarray:
     """
@@ -113,7 +113,7 @@ def qEI(rng_key: jnp.ndarray,
 
     return _compute_batch_acquisition(
         rng_key, model, X, single_acq, maximize_distance,
-        n_evals, subsample_size, indices, **kwargs)
+        subsample_size, n_evals, indices, **kwargs)
 
 
 def qUCB(rng_key: jnp.ndarray,
@@ -123,8 +123,8 @@ def qUCB(rng_key: jnp.ndarray,
          maximize: bool = False,
          noiseless: bool = False,
          maximize_distance: bool = False,
-         n_evals: int = 1,
          subsample_size: int = 1,
+         n_evals: int = 10,
          indices: Optional[jnp.ndarray] = None,
          **kwargs) -> jnp.ndarray:
     """
@@ -170,7 +170,7 @@ def qUCB(rng_key: jnp.ndarray,
 
     return _compute_batch_acquisition(
         rng_key, model, X, single_acq, maximize_distance,
-        n_evals, subsample_size, indices, **kwargs)
+        subsample_size, n_evals, indices, **kwargs)
 
 
 def qPOI(rng_key: jnp.ndarray,
@@ -180,8 +180,8 @@ def qPOI(rng_key: jnp.ndarray,
          maximize: bool = False,
          noiseless: bool = False,
          maximize_distance: bool = False,
-         n_evals: int = 1,
          subsample_size: int = 1,
+         n_evals: int = 10,
          indices: Optional[jnp.ndarray] = None,
          **kwargs) -> jnp.ndarray:
     """
@@ -227,7 +227,7 @@ def qPOI(rng_key: jnp.ndarray,
 
     return _compute_batch_acquisition(
         rng_key, model, X, single_acq, maximize_distance,
-        n_evals, subsample_size, indices, **kwargs)
+        subsample_size, n_evals, indices, **kwargs)
 
 
 def qKG(rng_key: jnp.ndarray,
@@ -237,8 +237,8 @@ def qKG(rng_key: jnp.ndarray,
         maximize: bool = False,
         noiseless: bool = False,
         maximize_distance: bool = False,
-        n_evals: int = 1,
         subsample_size: int = 1,
+        n_evals: int = 10,
         indices: Optional[jnp.ndarray] = None,
         **kwargs) -> jnp.ndarray:
     """
@@ -279,4 +279,4 @@ def qKG(rng_key: jnp.ndarray,
 
     return _compute_batch_acquisition(
         rng_key, model, X, single_acq, maximize_distance,
-        n_evals, subsample_size, indices, **kwargs)
+        subsample_size, n_evals, indices, **kwargs)
