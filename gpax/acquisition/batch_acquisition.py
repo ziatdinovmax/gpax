@@ -95,11 +95,11 @@ def qEI(rng_key: jnp.ndarray,
             If set to True, it means we want our batch to contain points that
             are as far apart as possible in the acquisition function space.
             This encourages diversity in the batch.
+        subsample_size:
+            Size of the subsample from the GP model's MCMC samples.
         n_evals:
             Number of evaluations (how many times a ramdom subsample is drawn)
             when maximizing distance between maxima of different EIs in a batch.
-        subsample_size:
-            Size of the subsample from the GP model's MCMC samples.
         indices:
             Indices of the input points.
 
@@ -152,11 +152,11 @@ def qUCB(rng_key: jnp.ndarray,
             If set to True, it means we want our batch to contain points that
             are as far apart as possible in the acquisition function space.
             This encourages diversity in the batch.
+        subsample_size:
+            Size of the subsample from the GP model's MCMC samples.
         n_evals:
             Number of evaluations (how many times a ramdom subsample is drawn)
             when maximizing distance between maxima of different EIs in a batch.
-        subsample_size:
-            Size of the subsample from the GP model's MCMC samples.
         indices:
             Indices of the input points.
 
@@ -209,11 +209,11 @@ def qPOI(rng_key: jnp.ndarray,
             If set to True, it means we want our batch to contain points that
             are as far apart as possible in the acquisition function space.
             This encourages diversity in the batch.
+        subsample_size:
+            Size of the subsample from the GP model's MCMC samples.
         n_evals:
             Number of evaluations (how many times a ramdom subsample is drawn)
             when maximizing distance between maxima of different EIs in a batch.
-        subsample_size:
-            Size of the subsample from the GP model's MCMC samples.
         indices:
             Indices of the input points.
 
@@ -263,11 +263,11 @@ def qKG(rng_key: jnp.ndarray,
             If set to True, it means we want our batch to contain points that
             are as far apart as possible in the acquisition function space.
             This encourages diversity in the batch.
+        subsample_size:
+            Size of the subsample from the GP model's MCMC samples.
         n_evals:
             Number of evaluations (how many times a ramdom subsample is drawn)
             when maximizing distance between maxima of different EIs in a batch.
-        subsample_size:
-            Size of the subsample from the GP model's MCMC samples.
         indices:
             Indices of the input points.
 
