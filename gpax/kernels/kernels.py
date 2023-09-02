@@ -44,7 +44,8 @@ def square_scaled_distance(X: jnp.ndarray, Z: jnp.ndarray,
 @jit
 def RBFKernel(X: jnp.ndarray, Z: jnp.ndarray,
               params: Dict[str, jnp.ndarray],
-              noise: int = 0, **kwargs: float) -> jnp.ndarray:
+              noise: int = 0, jitter: float = 1e-6,
+              **kwargs) -> jnp.ndarray:
     """
     Radial basis function kernel
 
@@ -60,14 +61,15 @@ def RBFKernel(X: jnp.ndarray, Z: jnp.ndarray,
     r2 = square_scaled_distance(X, Z, params["k_length"])
     k = params["k_scale"] * jnp.exp(-0.5 * r2)
     if X.shape == Z.shape:
-        k += add_jitter(noise, **kwargs) * jnp.eye(X.shape[0])
+        k += add_jitter(noise, jitter) * jnp.eye(X.shape[0])
     return k
 
 
 @jit
 def MaternKernel(X: jnp.ndarray, Z: jnp.ndarray,
                  params: Dict[str, jnp.ndarray],
-                 noise: int = 0, **kwargs: float) -> jnp.ndarray:
+                 noise: int = 0, jitter: float = 1e-6,
+                 **kwargs) -> jnp.ndarray:
     """
     Matern52 kernel
 
@@ -85,14 +87,15 @@ def MaternKernel(X: jnp.ndarray, Z: jnp.ndarray,
     sqrt5_r = 5**0.5 * r
     k = params["k_scale"] * (1 + sqrt5_r + (5/3) * r2) * jnp.exp(-sqrt5_r)
     if X.shape == Z.shape:
-        k += add_jitter(noise, **kwargs) * jnp.eye(X.shape[0])
+        k += add_jitter(noise, jitter) * jnp.eye(X.shape[0])
     return k
 
 
 @jit
 def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
                    params: Dict[str, jnp.ndarray],
-                   noise: int = 0, **kwargs: float
+                   noise: int = 0, jitter: float = 1e-6,
+                   **kwargs
                    ) -> jnp.ndarray:
     """
     Periodic kernel
@@ -110,7 +113,7 @@ def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
     scaled_sin = jnp.sin(math.pi * d / params["period"]) / params["k_length"]
     k = params["k_scale"] * jnp.exp(-2 * (scaled_sin ** 2).sum(-1))
     if X.shape == Z.shape:
-        k += add_jitter(noise, **kwargs) * jnp.eye(X.shape[0])
+        k += add_jitter(noise, jitter) * jnp.eye(X.shape[0])
     return k
 
 
@@ -197,7 +200,8 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
 
     def NNGPKernel_func(X: jnp.ndarray, Z: jnp.ndarray,
                         params: Dict[str, jnp.ndarray],
-                        noise: jnp.ndarray = 0, **kwargs
+                        noise: jnp.ndarray = 0, jitter: float = 1e-6,
+                        **kwargs
                         ) -> jnp.ndarray:
         """
         Computes the Neural Network Gaussian Process (NNGP) kernel.
@@ -214,7 +218,7 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
         var_w = params["var_w"]
         k = vmap(lambda x: vmap(lambda z: nngp_single_pair_(x, z, var_b, var_w, depth))(Z))(X)
         if X.shape == Z.shape:
-            k += add_jitter(noise, **kwargs) * jnp.eye(X.shape[0])
+            k += add_jitter(noise, jitter) * jnp.eye(X.shape[0])
         return k
 
     return NNGPKernel_func

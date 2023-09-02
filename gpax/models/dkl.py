@@ -108,13 +108,13 @@ class DKL(vExactGP):
             obs=y,
         )
 
-    @partial(jit, static_argnames='self')
+    #@partial(jit, static_argnames='self')
     def _get_mvn_posterior(self,
                            X_train: jnp.ndarray, y_train: jnp.ndarray,
                            X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
                            noiseless: bool = False, **kwargs: float
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        noise = params.pop("noise")
+        noise = params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
         # embed data into the latent space
         z_train = self.nn(X_train, params)

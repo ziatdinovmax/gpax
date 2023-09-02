@@ -118,7 +118,7 @@ class vExactGP(ExactGP):
             "period": period if self.kernel_name == "Periodic" else None}
         return kernel_params
 
-    @partial(jit, static_argnames='self')
+    #@partial(jit, static_argnames='self')
     def _get_mvn_posterior(self,
                            X_train: jnp.ndarray, y_train: jnp.ndarray,
                            X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
