@@ -7,17 +7,14 @@ Acquisition functions
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
-from typing import Type, Optional, Callable, Dict, Tuple
+from typing import Type, Optional, Tuple
 
 import jax.numpy as jnp
 import jax.random as jra
 from jax import vmap
 import numpy as onp
 
-import numpyro.distributions as dist
-
 from ..models.gp import ExactGP
-from ..utils import get_keys
 from .base_acq import ei, ucb, poi, ue, kg
 from .penalties import compute_penalty
 
@@ -58,7 +55,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
        grid_indices: jnp.ndarray = None,
        penalty_factor: float = 1.0,
        **kwargs) -> jnp.ndarray:
-    """
+    r"""
     Expected Improvement
 
     Given a probabilistic model :math:`m` that models the objective function :math:`f`,
@@ -83,7 +80,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
 
     provided :math:`\sigma(x) > 0`.
 
-    The function leverages multiple predictive posteriors, each associated
+    In the case of HMC, the function leverages multiple predictive posteriors, each associated
     with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
     and hyperparameter uncertainty. In this setup, the uncertainty in parameters of probabilistic
     mean function (if any) also contributes to the acquisition function values.
@@ -155,7 +152,7 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
         grid_indices: jnp.ndarray = None,
         penalty_factor: float = 1.0,
         **kwargs) -> jnp.ndarray:
-    """
+    r"""
     Upper confidence bound
 
     Given a probabilistic model :math:`m` that models the objective function :math:`f`,
@@ -170,7 +167,7 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     - :math:`\sigma(x)` is the predictive standard deviation.
     - :math:`\kappa` is the exploration-exploitation trade-off parameter.
 
-    The function leverages multiple predictive posteriors, each associated
+    In the case of HMC, the function leverages multiple predictive posteriors, each associated
     with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
     and hyperparameter uncertainty. In this setup, the uncertainty in parameters of probabilistic
     mean function (if any) also contributes to the acquisition function values.
@@ -258,7 +255,7 @@ def POI(rng_key: jnp.ndarray, model: Type[ExactGP],
     - :math:`\xi` is a small positive "jitter" term to encourage more exploration.
     - :math:`\Phi` is the cumulative distribution function (CDF) of the standard normal distribution.
 
-    The function leverages multiple predictive posteriors, each associated
+    In the case of HMC, the function leverages multiple predictive posteriors, each associated
     with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
     and hyperparameter uncertainty. In this setup, the uncertainty in parameters of probabilistic
     mean function (if any) also contributes to the acquisition function values.
@@ -346,7 +343,7 @@ def UE(rng_key: jnp.ndarray, model: Type[ExactGP],
     where:
     - :math:`\sigma^2(x)` is the predictive variance of the model at the input point :math:`x`.
 
-    The function leverages multiple predictive posteriors, each associated
+    In the case of HMC, the function leverages multiple predictive posteriors, each associated
     with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
     and hyperparameter uncertainty. In this setup, the uncertainty in parameters of probabilistic
     mean function (if any) also contributes to the acquisition function values.
@@ -504,7 +501,11 @@ def Thompson(rng_key: jnp.ndarray,
              noiseless: bool = False,
              **kwargs) -> jnp.ndarray:
     """
-    Thompson sampling
+    Thompson sampling.
+
+    For MAP approximation, it draws a single sample of a function from the
+    posterior predictive distribution. In the case of HMC, it draws a single posterior
+    sample from the HMC samples of GP model parameters and then samples a function from it.
 
     Args:
         rng_key: JAX random number generator key
