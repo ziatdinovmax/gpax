@@ -68,11 +68,8 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
         0 & \text{if } \sigma(x) = 0
         \end{cases}
 
-    where:
-    - :math:`\mu(x)` is the predictive mean.
-    - :math:`\sigma(x)` is the predictive standard deviation.
-    - :math:`f^+` is the value of the best observed sample.
-    - :math:`Z` is defined as:
+    where :math:`\mu(x)` is the predictive mean, :math:`\sigma(x)` is the predictive standard deviation,
+    :math:`f^+` is the value of the best observed sample. :math:`Z` is defined as:
 
     .. math::
 
@@ -162,10 +159,8 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
 
         UCB(x) = \mu(x) + \kappa \sigma(x)
 
-    where:
-    - :math:`\mu(x)` is the predictive mean.
-    - :math:`\sigma(x)` is the predictive standard deviation.
-    - :math:`\kappa` is the exploration-exploitation trade-off parameter.
+    where :math:`\mu(x)` is the predictive mean, :math:`\sigma(x)` is the predictive standard deviation,
+    and :math:`\kappa` is the exploration-exploitation trade-off parameter.
 
     In the case of HMC, the function leverages multiple predictive posteriors, each associated
     with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
@@ -248,12 +243,9 @@ def POI(rng_key: jnp.ndarray, model: Type[ExactGP],
 
         PI(x) = \Phi\left(\frac{\mu(x) - f^+ - \xi}{\sigma(x)}\right)
 
-    where:
-    - :math:`\mu(x)` is the predictive mean.
-    - :math:`\sigma(x)` is the predictive standard deviation.
-    - :math:`f^+` is the value of the best observed sample.
-    - :math:`\xi` is a small positive "jitter" term to encourage more exploration.
-    - :math:`\Phi` is the cumulative distribution function (CDF) of the standard normal distribution.
+    where :math:`\mu(x)` is the predictive mean, :math:`\sigma(x)` is the predictive standard deviation,
+    :math:`f^+` is the value of the best observed sample, :math:`\xi` is a small positive "jitter" term to encourage more exploration,
+    and :math:`\Phi` is the cumulative distribution function (CDF) of the standard normal distribution.
 
     In the case of HMC, the function leverages multiple predictive posteriors, each associated
     with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
@@ -340,8 +332,7 @@ def UE(rng_key: jnp.ndarray, model: Type[ExactGP],
 
         UE(x) = \sigma^2(x)
 
-    where:
-    - :math:`\sigma^2(x)` is the predictive variance of the model at the input point :math:`x`.
+    where :math:`\sigma^2(x)` is the predictive variance of the model at the input point :math:`x`.
 
     In the case of HMC, the function leverages multiple predictive posteriors, each associated
     with a different HMC sample of the GP model parameters, to capture both prediction uncertainty
@@ -427,9 +418,8 @@ def KG(rng_key: jnp.ndarray,
 
         KG(x) = \mathbb{E}[V_{n+1}^* - V_n^* | x]
 
-    where:
-    - :math:`V_{n+1}^*` is the optimal expected value of the objective function after \(n+1\) observations.
-    - :math:`V_n^*` is the optimal expected value of the objective function based on the current \(n\) observations.
+    where :math:`V_{n+1}^*` is the optimal expected value of the objective function after \(n+1\) observations and
+    :math:`V_n^*` is the optimal expected value of the objective function based on the current \(n\) observations.
 
     Args:
         rng_key:
