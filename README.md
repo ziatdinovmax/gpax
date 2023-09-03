@@ -242,3 +242,6 @@ If you use GPax in your work, please consider citing our papers:
   year={2021}
 }
 ```
+
+## Funding acknowledgment
+This work was supported by the U.S. Department of Energy, Office of Science, Basic Energy Sciences Program.
