@@ -85,9 +85,22 @@ def test_random_sample_difference():
         'c': jnp.array([10, 20, 30, 40, 50])
     }
     num_samples = 3
-    rng_key1, rng_key2 = get_keys()
+    rng_key1, rng_key2 = jra.split(jra.PRNGKey(0))
     sampled_data1 = random_sample_dict(data, num_samples, rng_key1)
     sampled_data2 = random_sample_dict(data, num_samples, rng_key2)
 
     for key in sampled_data1:
         assert_(not jnp.array_equal(sampled_data1[key], sampled_data2[key]))
+
+
+def test_get_keys():
+    key1, key2 = get_keys()
+    assert_(isinstance(key1, jnp.ndarray))
+    assert_(isinstance(key2, jnp.ndarray))
+
+
+def test_get_keys_different_seeds():
+    key1, key2 = get_keys()
+    key1a, key2a = get_keys(42)
+    assert_(not onp.array_equal(key1, key1a))
+    assert_(not onp.array_equal(key2, key2a))
