@@ -28,8 +28,8 @@ class viMTDKL(viDKL):
         num_latents:
             Number of latent functions. Typically equal to or less than the number of tasks
         shared_input_space:
-            If True (default), assumes that all tasks share the same input space and
-            uses a multivariate kernel (Kronecker product). If False, assumes that different tasks
+            If True, assumes that all tasks share the same input space and
+            uses a multivariate kernel (Kronecker product). If False (default), assumes that different tasks
             have different number of observations and uses a multitask kernel (elementwise multiplication).
             In that case, the task indices must be appended as the last column of the input vector.
         num_tasks:
@@ -62,7 +62,7 @@ class viMTDKL(viDKL):
     """
 
     def __init__(self, input_dim: int, z_dim: int = 2, data_kernel: str = 'RBF',
-                 num_latents: int = None, shared_input_space: bool = True,
+                 num_latents: int = None, shared_input_space: bool = False,
                  num_tasks: int = None, rank: Optional[int] = None,
                  data_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None,
