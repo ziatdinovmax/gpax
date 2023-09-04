@@ -111,11 +111,11 @@ def test_acq_vidkl(acq):
     X = onp.random.randn(8, 10)
     X_new = onp.random.randn(12, 10)
     y = (10 * X**2).mean(-1)
-    m = viDKL(1, 2, 'RBF')
+    m = viDKL(X.shape[-1], 2, 'RBF')
     m.fit(rng_keys[0], X, y, num_steps=10)
     obj = acq(rng_keys[1], m, X_new)
     assert_(isinstance(obj, jnp.ndarray))
-    assert_equal(obj.shape, (len(X_new),))
+    assert_equal(obj.squeeze().shape, (len(X_new),))
 
 
 @pytest.mark.parametrize("acq", [EI, POI, UCB])
