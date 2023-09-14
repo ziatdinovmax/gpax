@@ -1,0 +1,13 @@
+[flake8]
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    docs/source/conf.py
+max-line-length = 127
+show-source = True
+statistics = True
+count = True
+verbose = 1
+ignore = E203, W503
