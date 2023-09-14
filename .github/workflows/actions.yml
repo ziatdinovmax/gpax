@@ -15,11 +15,12 @@ on:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: [ubuntu-latest, osx-latest]
+
     strategy:
       max-parallel: 5
       matrix:
-        python-version: ['3.9', '3.10']
+        python-version: ['3.9', '3.10', '3.11']
 
     steps:
     - uses: actions/checkout@v2
@@ -29,6 +30,7 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+
     - name: Install dependencies
       run: |
         sudo apt-get update -qq
@@ -50,7 +52,7 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     
-    - name: Generate coverage report
+    - name: Run tests and generate coverage report
       run: |
         pip install pytest
         pip install pytest-cov
