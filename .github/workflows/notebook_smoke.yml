@@ -47,8 +47,8 @@ jobs:
     - name: Notebook smoke tests
       run: |
         pip install ipython
-	pip install nbformat
-	pip install seaborn
+      	pip install nbformat
+      	pip install seaborn
         cd examples
         ipython -c "%run simpleGP.ipynb"
 
