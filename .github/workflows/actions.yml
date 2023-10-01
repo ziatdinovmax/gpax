@@ -20,7 +20,7 @@ jobs:
       max-parallel: 5
       matrix:
         python-version: ['3.9', '3.10', '3.11']
-        os: [ubuntu-latest, osx-latest]
+        os: [ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
 
