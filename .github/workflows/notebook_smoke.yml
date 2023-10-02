@@ -1,0 +1,54 @@
+name: notebooks
+  
+on:
+  pull_request:
+    branches:
+      - '*'
+  push:
+    branches:
+      - '*'
+    tags:
+        - '*'
+
+jobs:
+  build-linux:
+    
+
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+        os: [ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update -qq
+        python -m pip install --upgrade pip
+        python -m pip install flake8 pytest
+        python -m pip install jaxlib
+        python -m pip install jax
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+            
+    - name: install package
+      run: |
+        pip install .
+        pip list
+
+    - name: Notebook smoke tests
+      run: |
+        pip install ipython
+        pip install nbformat
+        pip install seaborn
+        cd examples
+        ipython -c "%run simpleGP.ipynb"
+
