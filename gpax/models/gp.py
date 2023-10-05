@@ -390,7 +390,7 @@ class ExactGP:
             self._set_training_data(device=device)
             X_new = jax.device_put(X_new, device)
             samples = jax.device_put(samples, device)
-        num_samples = samples["noise"].shape[0]
+        num_samples = len(next(iter(samples.values())))
         vmap_args = (jra.split(rng_key, num_samples), samples)
         predictive = jax.vmap(lambda prms: self._predict(prms[0], X_new, prms[1], n, noiseless, **kwargs))
         y_means, y_sampled = predictive(vmap_args)
