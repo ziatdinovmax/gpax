@@ -104,8 +104,8 @@ class VarNoiseGP(ExactGP):
         if self.noise_lengthscale_prior_dist is not None:
             noise_length_dist = self.noise_lengthscale_prior_dist
         else:
-            noise_length_dist = dist.HalfNormal(1.0)
-        noise_scale = numpyro.sample("k_noise_scale", dist.HalfNormal(1.0))
+            noise_length_dist = dist.LogNormal(0, 1)
+        noise_scale = numpyro.sample("k_noise_scale", dist.LogNormal(0, 1))
         noise_length = numpyro.sample("k_noise_length", noise_length_dist)
         return {"k_length": noise_length, "k_scale": noise_scale}
 
