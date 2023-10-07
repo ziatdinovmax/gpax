@@ -41,6 +41,10 @@ class VarNoiseGP(ExactGP):
             Optional priors over mean function parameters
         lengthscale_prior_dist:
             Optional custom prior distribution over main kernel lengthscale. Defaults to LogNormal(0, 1).
+        noise_mean_fn:
+            Optional noise mean function
+        noise_mean_fn_prior:
+            Optional priors over noise mean function
         noise_lengthscale_prior_dist:
             Optional custom prior distribution over noise kernel lengthscale. Defaults to LogNormal(0, 1).
     """
@@ -54,26 +58,37 @@ class VarNoiseGP(ExactGP):
         kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
         mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
         lengthscale_prior_dist: Optional[dist.Distribution] = None,
+        noise_mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
+        noise_mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
         noise_lengthscale_prior_dist: Optional[dist.Distribution] = None
     ) -> None:
         args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, None, None, lengthscale_prior_dist)
         super(VarNoiseGP, self).__init__(*args)
         self.noise_kernel = get_kernel(noise_kernel)
+        self.noise_mean_fn = noise_mean_fn
+        self.noise_mean_fn_prior = noise_mean_fn_prior
         self.noise_lengthscale_prior_dist = noise_lengthscale_prior_dist
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray = None, **kwargs: float) -> None:
         """GP probabilistic model with inputs X and targets y"""
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
+        noise_f_loc = jnp.zeros(X.shape[0])
 
         # Sample noise kernel parameters
         noise_kernel_params = self._sample_noise_kernel_params()
+        # Add noise prior mean function (if any)
+        if self.noise_mean_fn is not None:
+            args = [X]
+            if self.noise_mean_fn_prior is not None:
+                args += [self.noise_mean_fn_prior()]
+            noise_f_loc += jnp.log(self.noise_mean_fn(*args)).squeeze()
         # Compute noise kernel
         k_noise = self.noise_kernel(X, X, noise_kernel_params, 0, **kwargs)
         # Compute log variance of the data points
         points_log_var = numpyro.sample(
             "log_var",
-            dist.MultivariateNormal(loc=f_loc, covariance_matrix=k_noise)
+            dist.MultivariateNormal(loc=noise_f_loc, covariance_matrix=k_noise)
         )
 
         # Sample main kernel parameters
@@ -144,8 +159,15 @@ class VarNoiseGP(ExactGP):
             {"k_length": params["k_noise_length"], "k_scale": params["k_noise_scale"]},
             0, **kwargs)
         # Compute noise predictive mean
+        log_var_residual = params["log_var"].copy()
+        if self.noise_mean_fn is not None:
+            args = [self.X_train, params] if self.noise_mean_fn_prior else [self.X_train]
+            log_var_residual -= jnp.log(self.noise_mean_fn(*args)).squeeze()
         K_xx_noise_inv = jnp.linalg.inv(k_XX_noise)
-        predicted_log_var = jnp.matmul(k_pX_noise, jnp.matmul(K_xx_noise_inv, params["log_var"]))
+        predicted_log_var = jnp.matmul(k_pX_noise, jnp.matmul(K_xx_noise_inv, log_var_residual))
+        if self.noise_mean_fn is not None:
+            args = [X_new, params] if self.noise_mean_fn_prior else [X_new]
+            predicted_log_var += jnp.log(self.noise_mean_fn(*args)).squeeze()
         predicted_noise_variance = jnp.exp(predicted_log_var)
 
         # Return the main GP's predictive mean and combined (main + noise) covariance matrix
@@ -154,6 +176,13 @@ class VarNoiseGP(ExactGP):
     def get_data_var_samples(self):
         """Returns inferred (training) data variance samples"""
         samples = self.mcmc.get_samples()
+        log_var = samples["log_var"]
+        if self.noise_mean_fn is not None:
+            if self.noise_mean_fn_prior is not None:
+                mean_ = jax.vmap(self.noise_mean_fn, in_axes=(None, 0))(self.X_train.squeeze(), samples)
+            else:
+                mean_ = self.noise_mean_fn(self.X_train.squeeze())
+            log_var += jnp.log(mean_)
         return jnp.exp(samples["log_var"])
 
     def _print_summary(self):
