@@ -15,6 +15,7 @@ __all__ = [
     "ExactGP",
     "vExactGP",
     "viGP",
+    "VarNoiseGP",
     "sPM",
     "iBNN",
     "vi_iBNN",
