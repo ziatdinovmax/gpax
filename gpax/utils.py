@@ -7,7 +7,8 @@ Utility functions
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
-from typing import Union, Dict, Type, List
+import inspect
+from typing import Union, Dict, Type, List, Callable
 
 import jax
 import jax.numpy as jnp
@@ -264,3 +265,64 @@ def uniform_dist(low: float = None,
     high = high if high is not None else input_vec.max()
 
     return numpyro.distributions.Uniform(low, high)
+
+
+def set_fn(func: Callable) -> Callable:
+    """
+    Transforms the given deterministic function to use a params dictionary
+    for its parameters, excluding the first one (assumed to be the dependent variable).
+
+    Args:
+    - func (Callable): The deterministic function to be transformed.
+
+    Returns:
+    - Callable: The transformed function where parameters are accessed
+                from a `params` dictionary.
+    """
+    # Extract parameter names excluding the first one (assumed to be the dependent variable)
+    params_names = list(inspect.signature(func).parameters.keys())[1:]
+
+    # Create the transformed function definition
+    transformed_code = f"def {func.__name__}(x, params):\n"
+
+    # Retrieve the source code of the function and indent it to be a valid function body
+    source = inspect.getsource(func).split("\n", 1)[1]
+    source = "    " + source.replace("\n", "\n    ")
+
+    # Replace each parameter name with its dictionary lookup
+    for name in params_names:
+        source = source.replace(f" {name}", f' params["{name}"]')
+
+    # Combine to get the full source
+    transformed_code += source
+
+    # Define the transformed function in the local namespace
+    local_namespace = {}
+    exec(transformed_code, globals(), local_namespace)
+
+    # Return the transformed function
+    return local_namespace[func.__name__]
+
+
+def auto_normal_priors(func: Callable, loc: float = 0.0, scale: float = 1.0) -> Callable:
+    """
+    Generates a function that, when invoked, samples from normal distributions
+    for each parameter of the given deterministic function, except the first one.
+
+    Args:
+    - func (Callable): The deterministic function for which to set normal priors.
+    - loc (float, optional): Mean of the normal distribution. Defaults to 0.0.
+    - scale (float, optional): Standard deviation of the normal distribution. Defaults to 1.0.
+
+    Returns:
+    - Callable: A function that, when invoked, returns a dictionary of sampled values
+                from normal distributions for each parameter of the original function.
+    """
+    # Get the names of the parameters of the function excluding the first one (dependent variable)
+    params_names = list(inspect.signature(func).parameters.keys())[1:]
+
+    def sample_priors() -> Dict[str, Union[float, Type[Callable]]]:
+        # Return a dictionary with normal priors for each parameter
+        return {name: place_normal_prior(name, loc, scale) for name in params_names}
+
+    return sample_priors

@@ -10,7 +10,11 @@ sys.path.insert(0, "../gpax/")
 
 from gpax.utils import preprocess_sparse_image, split_dict, random_sample_dict, get_keys
 from gpax.utils import place_normal_prior, place_halfnormal_prior, place_uniform_prior, place_gamma_prior, gamma_dist, uniform_dist, normal_dist, halfnormal_dist
+from gpax.utils import set_fn, auto_normal_priors
 
+
+def sample_function(x, a, b):
+    return a + b * x
 
 def test_sparse_img_processing():
     img = onp.random.randn(16, 16)
@@ -221,4 +225,23 @@ def test_get_gamma_dist_error():
         uniform_dist()  # Neither concentration, nor input_vec
 
 
+def test_set_fn():
+    transformed_fn = set_fn(sample_function)
+    result = transformed_fn(2, {"a": 1, "b": 3})
+    assert result == 7  # Expected output: 1 + 3*2 = 7
+
+
+def test_auto_normal_priors():
+    prior_fn = auto_normal_priors(sample_function, loc=2.0, scale=1.0)
+    with numpyro.handlers.seed(rng_seed=1):
+        with numpyro.handlers.trace() as tr:
+            prior_fn()
+    site1 = tr["a"]
+    assert_(isinstance(site1['fn'], numpyro.distributions.Normal))
+    assert_equal(site1['fn'].loc, 2.0)
+    assert_equal(site1['fn'].scale, 1.0)
+    site2 = tr["b"]
+    assert_(isinstance(site2['fn'], numpyro.distributions.Normal))
+    assert_equal(site2['fn'].loc, 2.0)
+    assert_equal(site2['fn'].scale, 1.0)
 
