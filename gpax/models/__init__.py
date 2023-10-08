@@ -1,6 +1,7 @@
 from .gp import ExactGP
 from .vgp import vExactGP
 from .vigp import viGP
+from .hskgp import VarNoiseGP
 from .spm import sPM
 from .ibnn import iBNN
 from .vi_ibnn import vi_iBNN
@@ -14,6 +15,7 @@ __all__ = [
     "ExactGP",
     "vExactGP",
     "viGP",
+    "VarNoiseGP",
     "sPM",
     "iBNN",
     "vi_iBNN",

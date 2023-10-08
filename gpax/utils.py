@@ -165,3 +165,12 @@ def preprocess_sparse_image(sparse_image):
     # Generate indices for the entire image
     full_indices = onp.array(onp.meshgrid(*[onp.arange(dim) for dim in sparse_image.shape])).T.reshape(-1, sparse_image.ndim)
     return gp_input, targets, full_indices
+
+
+def normal_prior(param_name, loc=0, scale=1):
+    """
+    Samples a value from a normal distribution with the specified mean (loc) and standard deviation (scale),
+    and assigns it to a named random variable in the probabilistic model. Can be useful for defining prior mean functions
+    in structured Gaussian processes.
+    """
+    return numpyro.sample(param_name, numpyro.distributions.Normal(loc, scale))
