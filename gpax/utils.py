@@ -8,6 +8,7 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
 import inspect
+import re
 from typing import Union, Dict, Type, List, Callable
 
 import jax
