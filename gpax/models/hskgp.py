@@ -16,7 +16,7 @@ import numpyro.distributions as dist
 
 from . import ExactGP
 from ..kernels import get_kernel
-from ..utils import set_noise_kernel_fn
+from ..utils import _set_noise_kernel_fn
 
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray], jnp.ndarray]
 
@@ -65,7 +65,7 @@ class VarNoiseGP(ExactGP):
         args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, None, None, lengthscale_prior_dist)
         super(VarNoiseGP, self).__init__(*args)
         noise_kernel_ = get_kernel(noise_kernel)
-        self.noise_kernel = set_noise_kernel_fn(noise_kernel_) if isinstance(noise_kernel, str) else noise_kernel_
+        self.noise_kernel = _set_noise_kernel_fn(noise_kernel_) if isinstance(noise_kernel, str) else noise_kernel_
 
         self.noise_mean_fn = noise_mean_fn
         self.noise_mean_fn_prior = noise_mean_fn_prior

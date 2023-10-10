@@ -235,7 +235,7 @@ def set_kernel_fn(func: Callable,
     return local_namespace[func.__name__]
 
 
-def set_noise_kernel_fn(func: Callable) -> Callable:
+def _set_noise_kernel_fn(func: Callable) -> Callable:
     """
     Modifies the GPax kernel function to append "_noise" after "k" in dictionary keys it accesses.
 
