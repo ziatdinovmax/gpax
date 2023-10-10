@@ -16,6 +16,7 @@ import numpyro.distributions as dist
 
 from . import ExactGP
 from ..kernels import get_kernel
+from ..utils import set_noise_kernel_fn
 
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray], jnp.ndarray]
 
@@ -62,7 +63,9 @@ class VarNoiseGP(ExactGP):
     ) -> None:
         args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, None, None, lengthscale_prior_dist)
         super(VarNoiseGP, self).__init__(*args)
-        self.noise_kernel = get_kernel(noise_kernel)
+        noise_kernel_ = get_kernel(noise_kernel)
+        self.noise_kernel = set_noise_kernel_fn(noise_kernel_) if isinstance(noise_kernel, str) else noise_kernel_
+
         self.noise_mean_fn = noise_mean_fn
         self.noise_mean_fn_prior = noise_mean_fn_prior
         self.noise_lengthscale_prior_dist = noise_lengthscale_prior_dist
@@ -120,7 +123,7 @@ class VarNoiseGP(ExactGP):
             noise_length_dist = dist.LogNormal(0, 1)
         noise_scale = numpyro.sample("k_noise_scale", dist.LogNormal(0, 1))
         noise_length = numpyro.sample("k_noise_length", noise_length_dist)
-        return {"k_length": noise_length, "k_scale": noise_scale}
+        return {"k_noise_length": noise_length, "k_noise_scale": noise_scale}
 
     def get_mvn_posterior(
         self, X_new: jnp.ndarray, params: Dict[str, jnp.ndarray], *args, **kwargs
@@ -148,14 +151,8 @@ class VarNoiseGP(ExactGP):
 
         # Noise GP part
         # Compute noise kernel matrices
-        k_pX_noise = self.noise_kernel(
-            X_new, self.X_train,
-            {"k_length": params["k_noise_length"], "k_scale": params["k_noise_scale"]},
-            jitter=0.0)
-        k_XX_noise = self.noise_kernel(
-            self.X_train, self.X_train,
-            {"k_length": params["k_noise_length"], "k_scale": params["k_noise_scale"]},
-            0, **kwargs)
+        k_pX_noise = self.noise_kernel(X_new, self.X_train, params, jitter=0.0)
+        k_XX_noise = self.noise_kernel(self.X_train, self.X_train, params, 0, **kwargs)
         # Compute noise predictive mean
         log_var_residual = params["log_var"].copy()
         if self.noise_mean_fn is not None:

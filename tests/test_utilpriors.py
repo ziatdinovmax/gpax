@@ -8,7 +8,8 @@ sys.path.insert(0, "../gpax/")
 
 from gpax.utils import place_normal_prior, place_halfnormal_prior, place_uniform_prior, place_gamma_prior, place_lognormal_prior
 from gpax.utils import uniform_dist, normal_dist, halfnormal_dist, lognormal_dist, gamma_dist
-from gpax.utils import set_fn, set_kernel_fn, auto_lognormal_priors, auto_normal_priors, auto_lognormal_kernel_priors, auto_normal_kernel_priors, auto_priors
+from gpax.utils import auto_lognormal_priors, auto_normal_priors, auto_lognormal_kernel_priors, auto_normal_kernel_priors, auto_priors
+from gpax.utils import set_fn, set_kernel_fn, set_noise_kernel_fn
 
 
 def linear_kernel_test(X, Z, k_scale):
@@ -233,3 +234,13 @@ def test_auto_normal_kernel_priors(autopriors):
         with numpyro.handlers.trace() as tr:
             priors_fn()
     assert_('k_scale' in tr)
+
+
+def test_set_noise_kernel_fn():
+    from gpax.kernels import RBFKernel
+
+    X = jnp.array([[1, 2], [3, 4], [5, 6]])
+    params_i = {"k_length": jnp.array([1.0]), "k_scale": jnp.array(1.0)}
+    params = {"k_noise_length": jnp.array([1.0]), "k_noise_scale": jnp.array(1.0)}
+    noise_rbf = set_noise_kernel_fn(RBFKernel)
+    assert_(jnp.array_equal(noise_rbf(X, X, params), RBFKernel(X, X, params_i)))
