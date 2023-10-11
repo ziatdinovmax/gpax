@@ -48,8 +48,36 @@ class VarNoiseGP(ExactGP):
             Optional priors over noise mean function
         noise_lengthscale_prior_dist:
             Optional custom prior distribution over noise kernel lengthscale. Defaults to LogNormal(0, 1).
-    """
+     Examples:
 
+        Use two different kernels with default priors for main and noise processes
+
+        >>> # Get random number generator keys for training and prediction
+        >>> rng_key, rng_key_predict = gpax.utils.get_keys()
+        >>> # Initialize model
+        >>> gp_model = gpax.VarNoiseGP(input_dim=1, kernel='RBF, noise_kernel='Matern')
+        >>> # Run HMC to obtain posterior samples for the GP model parameters
+        >>> gp_model.fit(rng_key, X, y)
+        >>> # Make a prediction on new inputs
+        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new)
+        >>> # Get the inferred noise samples (for training data)
+        >>> data_variance = gp_model.get_data_var_samples()
+
+        Specify custom kernel lengthscale priors for main and noise kernels
+
+        >>> lscale_prior = gpax.utils.gamma_dist(5, 1)  # equivalent to numpyro.distributions.Gamma(5, 1)
+        >>> noise_lscale_prior = gpax.utils.halfnormal_dist(1)  # equivalent to numpyro.distributions.HalfNormal(1)
+        >>> # Initialize model
+        >>> gp_model = gpax.VarNoiseGP(
+        >>>    input_dim=1, kernel='RBF, noise_kernel='Matern',
+        >>>    lengthscale_prior_dist=lscale_prior, noise_lengthscale_prior_dist=noise_lscale_prior)
+        >>> # Run HMC to obtain posterior samples for the GP model parameters
+        >>> gp_model.fit(rng_key, X, y)
+        >>> # Make a prediction on new inputs
+        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new)
+        >>> # Get the inferred noise samples (for training data)
+        >>> data_variance = gp_model.get_data_var_samples()
+    """
     def __init__(
         self,
         input_dim: int,
