@@ -38,6 +38,8 @@ class VarNoiseGP(ExactGP):
             Optional custom priors over main kernel hyperparameters. Use it when passing your custom kernel.
         mean_fn_prior:
             Optional priors over mean function parameters
+        noise_kernel_prior:
+            Optional custom priors over noise kernel hyperparameters. Use it when passing your custom kernel.
         lengthscale_prior_dist:
             Optional custom prior distribution over main kernel lengthscale. Defaults to LogNormal(0, 1).
         noise_mean_fn:
