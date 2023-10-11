@@ -36,4 +36,4 @@ The easiest way to start using GPax is via Google Colab, which is a free researc
    :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/master/examples/gpax_viDKL_plasmons.ipynb
 
 .. |VarNoiseGP| image:: https://colab.research.google.com/assets/colab-badge.svg
-   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/master/examples/gpax_heteroskedasticGP.ipynb
+   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/master/examples/heteroskedasticGP.ipynb
