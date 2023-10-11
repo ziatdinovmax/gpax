@@ -10,7 +10,7 @@ Gaussian Processes - Fully Bayesian Implementation
     :member-order: bysource
     :show-inheritance:
 
-.. autoclass:: gpax.models.gp.VarNoiseGP
+.. autoclass:: gpax.models.hskgp.VarNoiseGP
     :members:
     :inherited-members:
     :undoc-members:
