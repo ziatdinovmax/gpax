@@ -8,12 +8,11 @@ on:
     branches:
       - '*'
     tags:
-        - '*'
+      - '*'
 
 jobs:
   build-linux:
     
-
     strategy:
       matrix:
         python-version: ['3.9', '3.10', '3.11']
@@ -51,4 +50,5 @@ jobs:
         pip install seaborn
         cd examples
         ipython -c "%run simpleGP.ipynb"
+        ipython -c "%run compare_GPs.ipynb"
 
