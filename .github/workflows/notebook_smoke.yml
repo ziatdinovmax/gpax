@@ -48,7 +48,5 @@ jobs:
         pip install ipython
         pip install nbformat
         pip install seaborn
-        cd examples
-        ipython -c "%run simpleGP.ipynb"
-        ipython -c "%run compare_GPs.ipynb"
+        bash scripts/test_notebooks.sh
 
