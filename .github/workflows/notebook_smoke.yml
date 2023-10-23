@@ -1,5 +1,8 @@
 name: notebooks
-  
+
+env:
+  CI_SMOKE: True
+
 on:
   pull_request:
     branches:
