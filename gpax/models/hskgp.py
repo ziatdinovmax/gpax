@@ -213,7 +213,7 @@ class VarNoiseGP(ExactGP):
             else:
                 mean_ = self.noise_mean_fn(self.X_train.squeeze())
             log_var += jnp.log(mean_)
-        return jnp.exp(samples["log_var"])
+        return jnp.exp(log_var)
 
     def _print_summary(self):
         samples = self.get_samples(1)
