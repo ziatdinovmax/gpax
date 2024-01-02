@@ -58,7 +58,9 @@ def optimize_acq(rng_key: jnp.ndarray,
         ) from e
 
     def acq(x):
-        obj = -acq_fn(rng_key, model, jnp.array([x])[None], **kwargs)
+        x = jnp.array([x])
+        x = x[None] if x.ndim == 0 else x
+        obj = -acq_fn(rng_key, model, x, **kwargs)
         return jnp.reshape(obj, ())
 
     lower_bound = ensure_array(lower_bound)
