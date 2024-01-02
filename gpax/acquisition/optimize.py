@@ -7,11 +7,47 @@ Optimize continuous acquisition functions
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
 """
 
+from typing import Type, Callable, Union, List, Tuple
+
 import jax.numpy as jnp
 import jax.random as jra
+import numpy as onp
+
+from ..models.gp import ExactGP
 
 
-def optimize_acq(rng_key, model, acq_fn, num_initial_guesses, lower_bound, upper_bound, **kwargs):
+def optimize_acq(rng_key: jnp.ndarray,
+                 model: Type[ExactGP],
+                 acq_fn: Callable,
+                 num_initial_guesses: int,
+                 lower_bound: Union[List, Tuple, float, onp.ndarray, jnp.ndarray],
+                 upper_bound: Union[List, Tuple, float, onp.ndarray, jnp.ndarray],
+                 **kwargs) -> jnp.ndarray:
+    """
+    Optimizes an acquisition function for a given Gaussian Process model using the JAXopt library.
+
+    This function finds the point that maximizes the acquisition function within the specified bounds.
+    It uses L-BFGS-B algorithm through ScipyBoundedMinimize from JAXopt.
+
+    Args:
+        rng_key: A JAX random key for stochastic processes.
+        model: The Gaussian Process model to be used.
+        acq_fn: The acquisition function to be maximized.
+        num_initial_guesses: Number of random initial guesses for the optimization.
+        lower_bound: Lower bounds for the optimization.
+        upper_bound: Upper bounds for the optimization.
+        **kwargs: Additional keyword arguments to be passed to the acquisition function.
+
+    Returns:
+        Parameter(s) that maximize the acquisition function within the specified bounds.
+
+    Raises:
+        ImportError: If JAXopt is not installed.
+
+    Note:
+        Ensure JAXopt is installed to use this function (`pip install jaxopt`).
+        The acquisition function is minimized using its negative value to find the maximum.
+    """
 
     try:
         import jaxopt  # noqa: F401
@@ -42,7 +78,7 @@ def optimize_acq(rng_key, model, acq_fn, num_initial_guesses, lower_bound, upper
 
 def ensure_array(x):
     if not isinstance(x, jnp.ndarray):
-        if isinstance(x, (list, tuple, float)):
+        if isinstance(x, (list, tuple, float, onp.ndarray)):
             x = jnp.array([x]) if isinstance(x, float) else jnp.array(x)
         else:
             raise TypeError(f"Expected input to be a list, tuple, float, or jnp.ndarray, got {type(x)} instead.")
