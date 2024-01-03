@@ -41,12 +41,22 @@ def optimize_acq(rng_key: jnp.ndarray,
     Returns:
         Parameter(s) that maximize the acquisition function within the specified bounds.
 
-    Raises:
-        ImportError: If JAXopt is not installed.
-
     Note:
         Ensure JAXopt is installed to use this function (`pip install jaxopt`).
         The acquisition function is minimized using its negative value to find the maximum.
+
+    Examples:
+
+        Optimize EI given a trained GP model for 1D problem
+
+        >>> acq_fn = gpax.acquisition.EI
+        >>> num_initial_guesses = 10
+        >>> lower_bound = -2.0
+        >>> upper_bound = 2.0
+        >>> x_next = gpax.acquisition.optimize_acq(
+        >>>    rng_key, gp_model, acq_fn,
+        >>>    num_initial_guesses, lower_bound, upper_bound,
+        >>>    maximize=False, noiseless=True)
     """
 
     try:
