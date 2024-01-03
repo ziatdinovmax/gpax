@@ -3,8 +3,6 @@ import pytest
 import numpy as onp
 import jax
 import jax.numpy as jnp
-import numpyro
-import numpyro.distributions as dist
 from numpy.testing import assert_equal, assert_
 
 sys.path.insert(0, "../gpax/")
