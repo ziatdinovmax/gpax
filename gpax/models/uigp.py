@@ -1,5 +1,5 @@
 """
-sigp.py
+uigp.py
 =======
 
 Fully Bayesian implementation of Gaussian process regression with uncertain (stochastic) inputs
@@ -22,6 +22,30 @@ kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp
 class UIGP(ExactGP):
     """
     Gaussian process with uncertain inputs
+
+    This class extends the standard Gaussian Process model to handle uncertain inputs.
+    It allows for incorporating the uncertainty in input data into the GP model, providing
+    a more robust prediction.
+
+    Args:
+        input_dim:
+            Number of input dimensions
+        kernel:
+            Kernel function ('RBF', 'Matern', 'Periodic', or custom function)
+        mean_fn:
+            Optional deterministic mean function (use 'mean_fn_priors' to make it probabilistic)
+        kernel_prior:
+            Optional custom priors over kernel hyperparameters. Use it when passing your custom kernel.
+        mean_fn_prior:
+            Optional priors over mean function parameters
+        noise_prior_dist:
+            Optional custom prior distribution over observational noise. Defaults to LogNormal(0,1).
+        lengthscale_prior_dist:
+            Optional custom prior distribution over kernel lengthscale. Defaults to LogNormal(0, 1).
+        sigma_x_prior_dist:
+            Optional custom prior for the input uncertainty (sigma_x). Defaults to HalfNormal(0.1)
+            under the assumption that data is normalized to (0, 1).
+
     """
     def __init__(self,
                  input_dim: int,
@@ -95,7 +119,7 @@ class UIGP(ExactGP):
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
-        for a single sample of GP parameters
+        for a single sample of UIGP parameters
         """
         X_train_prime = params["X_prime"]
         noise = params["noise"]
@@ -126,7 +150,7 @@ class UIGP(ExactGP):
         noiseless: bool = False,
         **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """Prediction with a single sample of GP parameters"""
+        """Prediction with a single sample of UIGP parameters"""
         # Sample X_new using the learned standard deviation
         X_new_prime = dist.Normal(X_new, params["sigma_x"]).sample(rng_key, sample_shape=(n,))
         X_new_prime = X_new_prime.mean(0)
