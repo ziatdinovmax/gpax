@@ -110,7 +110,7 @@ class UIGP(ExactGP):
         if self.sigma_x_prior_dist is not None:
             sigma_x_dist = self.sigma_x_prior_dist
         else:
-            sigma_x_dist = dist.HalfNormal(1)
+            sigma_x_dist = dist.HalfNormal(.1)
         sigma_x = numpyro.sample("sigma_x", sigma_x_dist)
         return numpyro.sample("X_prime", dist.Normal(X, sigma_x))
 
