@@ -19,7 +19,7 @@ from . import ExactGP
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray], jnp.ndarray]
 
 
-class siGP(ExactGP):
+class UIGP(ExactGP):
     """
     Gaussian process with uncertain inputs
     """
@@ -35,7 +35,7 @@ class siGP(ExactGP):
                  sigma_x_prior_dist: Optional[dist.Distribution] = None
                  ) -> None:
         args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, noise_prior, noise_prior_dist, lengthscale_prior_dist)
-        super(siGP, self).__init__(*args)
+        super(UIGP, self).__init__(*args)
         self.sigma_x_prior_dist = sigma_x_prior_dist
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray = None, **kwargs: float) -> None:
