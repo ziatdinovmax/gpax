@@ -7,6 +7,7 @@ Fully Bayesian implementation of Gaussian process regression with uncertain (sto
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
 """
 
+import warnings
 from typing import Callable, Dict, Optional, Tuple, Union
 
 import jax.numpy as jnp
@@ -19,7 +20,9 @@ kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp
 
 
 class siGP(ExactGP):
-
+    """
+    Gaussian process with uncertain inputs
+    """
     def __init__(self,
                  input_dim: int,
                  kernel: Union[str, kernel_fn_type],
@@ -39,6 +42,15 @@ class siGP(ExactGP):
         """
         Gaussian process model for uncertain (stochastic) inputs
         """
+        if not (X.max() == 1 and X.min() == 0):
+            warnings.warn(
+                "The default `sigma_x` prior for uncertain (stochastic) inputs assumes data is "
+                "normalized to (0, 1), which is not be the case for your data. Therefore, the default prior "
+                "may not be optimal for your case. Consider passing custom prior for sigma_x. For example, "
+                "`sigma_x_prior_dist=numpyro.distributions.HalfNormal(scale)` if using NumPyro directly "
+                "or `sigma_x_prior_dist=gpax.utils.halfnormal_dist(scale)` if using a GPax wrapper",
+                UserWarning,
+            )
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
 
