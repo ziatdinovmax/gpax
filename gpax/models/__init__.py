@@ -10,6 +10,7 @@ from .vidkl import viDKL
 from .vi_mtdkl import viMTDKL
 from .mtgp import MultiTaskGP
 from .corgp import CoregGP
+from uigp import UIGP
 
 __all__ = [
     "ExactGP",
@@ -23,5 +24,6 @@ __all__ = [
     "viDKL",
     "viMTDKL",
     "MultiTaskGP",
-    "CoregGP"
+    "CoregGP",
+    "UIGP"
 ]
