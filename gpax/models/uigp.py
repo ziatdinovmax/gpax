@@ -46,6 +46,18 @@ class UIGP(ExactGP):
             Optional custom prior for the input uncertainty (sigma_x). Defaults to HalfNormal(0.1)
             under the assumption that data is normalized to (0, 1).
 
+    Examples:
+
+        UIGP with custom prior over sigma_x
+
+        >>> # Get random number generator keys for training and prediction
+        >>> rng_key, rng_key_predict = gpax.utils.get_keys()
+        >>> # Initialize model
+        >>> gp_model = gpax.UIGP(input_dim=1, kernel='Matern', sigma_x_prior_dist=gpax.utils.halfnormal_dist(0.5))
+        >>> # Run HMC to obtain posterior samples for the model parameters
+        >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, m) and (n,)
+        >>> # Make a prediction on new inputs (n>>1 for meaningful MCMC averaging over sampled X_new)
+        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, n=200)
     """
     def __init__(self,
                  input_dim: int,
