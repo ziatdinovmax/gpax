@@ -169,8 +169,8 @@ class UIGP(ExactGP):
             if not (X.max() == 1 and X.min() == 0):
                 warnings.warn(
                     "The default `sigma_x` prior for uncertain (stochastic) inputs assumes data is "
-                    "normalized to (0, 1), which is not be the case for your data. Therefore, the default prior "
-                    "may not be optimal for your case. Consider passing custom prior for sigma_x. For example, "
+                    "normalized to (0, 1), which is not the case for your data. Therefore, the default prior "
+                    "may not be optimal for your case. Consider passing custom prior for sigma_x, for example, "
                     "`sigma_x_prior_dist=numpyro.distributions.HalfNormal(scale)` if using NumPyro directly "
                     "or `sigma_x_prior_dist=gpax.utils.halfnormal_dist(scale)` if using a GPax wrapper",
                     UserWarning,
