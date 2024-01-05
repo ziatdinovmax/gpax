@@ -66,15 +66,6 @@ class UIGP(ExactGP):
         """
         Gaussian process model for uncertain (stochastic) inputs
         """
-        if not (X.max() == 1 and X.min() == 0):
-            warnings.warn(
-                "The default `sigma_x` prior for uncertain (stochastic) inputs assumes data is "
-                "normalized to (0, 1), which is not be the case for your data. Therefore, the default prior "
-                "may not be optimal for your case. Consider passing custom prior for sigma_x. For example, "
-                "`sigma_x_prior_dist=numpyro.distributions.HalfNormal(scale)` if using NumPyro directly "
-                "or `sigma_x_prior_dist=gpax.utils.halfnormal_dist(scale)` if using a GPax wrapper",
-                UserWarning,
-            )
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
 
@@ -159,6 +150,21 @@ class UIGP(ExactGP):
         # draw samples from the posterior predictive for a given set of parameters
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
+
+    def _set_data(self, X: jnp.ndarray, y: Optional[jnp.ndarray] = None) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
+        X = X if X.ndim > 1 else X[:, None]
+        if y is not None:
+            if not (X.max() == 1 and X.min() == 0):
+                warnings.warn(
+                    "The default `sigma_x` prior for uncertain (stochastic) inputs assumes data is "
+                    "normalized to (0, 1), which is not be the case for your data. Therefore, the default prior "
+                    "may not be optimal for your case. Consider passing custom prior for sigma_x. For example, "
+                    "`sigma_x_prior_dist=numpyro.distributions.HalfNormal(scale)` if using NumPyro directly "
+                    "or `sigma_x_prior_dist=gpax.utils.halfnormal_dist(scale)` if using a GPax wrapper",
+                    UserWarning,
+                )
+            return X, y.squeeze()
+        return X
 
     def _print_summary(self):
         samples = self.get_samples(1)
