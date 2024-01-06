@@ -166,7 +166,7 @@ class UIGP(ExactGP):
     def _set_data(self, X: jnp.ndarray, y: Optional[jnp.ndarray] = None) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
         X = X if X.ndim > 1 else X[:, None]
         if y is not None:
-            if not (X.max() == 1 and X.min() == 0):
+            if not (X.max() == 1 and X.min() == 0) and not self.sigma_x_prior_dist:
                 warnings.warn(
                     "The default `sigma_x` prior for uncertain (stochastic) inputs assumes data is "
                     "normalized to (0, 1), which is not the case for your data. Therefore, the default prior "
