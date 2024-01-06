@@ -55,9 +55,9 @@ class UIGP(ExactGP):
         >>> # Initialize model
         >>> gp_model = gpax.UIGP(input_dim=1, kernel='Matern', sigma_x_prior_dist=gpax.utils.halfnormal_dist(0.5))
         >>> # Run HMC to obtain posterior samples for the model parameters
-        >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, m) and (n,)
-        >>> # Make a prediction on new inputs (n>>1 for meaningful MCMC averaging over sampled X_new)
-        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, n=200)
+        >>> gp_model.fit(rng_key, X, y, num_warmup=2000, num_samples=10000)
+        >>> # Make a prediction on new inputs
+        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new)
     """
     def __init__(self,
                  input_dim: int,
