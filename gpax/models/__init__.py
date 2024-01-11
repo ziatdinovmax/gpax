@@ -11,6 +11,7 @@ from .vi_mtdkl import viMTDKL
 from .mtgp import MultiTaskGP
 from .corgp import CoregGP
 from .uigp import UIGP
+from .linreg import LinReg
 
 __all__ = [
     "ExactGP",
@@ -25,5 +26,6 @@ __all__ = [
     "viMTDKL",
     "MultiTaskGP",
     "CoregGP",
-    "UIGP"
+    "UIGP",
+    "LinReg"
 ]
