@@ -122,13 +122,19 @@ class MeasuredNoiseGP(ExactGP):
         noiseless: bool = False,
         **kwargs: float) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Prediction with a single sample of GP parameters"""
+
+        def sigma_sample(rng_key, K, X_new_shape):
+            sig = jnp.sqrt(jnp.clip(jnp.diag(K), a_min=0.0))
+            return sig * jra.normal(rng_key, X_new_shape[:1])
+        
         # Get the predictive mean and covariance
         y_mean, K = self.get_mvn_posterior(X_new, params, noiseless, **kwargs)
         # Add predicted noise to K's diagonal
         K += jnp.diag(noise_predicted)
         # Draw samples from the posterior predictive for a given set of parameters
-        sig = jnp.sqrt(jnp.clip(jnp.diag(K), a_min=0.0)) * jax.random.normal(rng_key, X_new.shape[:1])
-        y_sampled = jnp.expand_dims(y_mean + sig, 0)
+        rng_keys = jra.split(rng_key, n)
+        sig = jax.vmap(sigma_sample, in_axes=(0, None, None))(rng_keys, K, X_new.shape)
+        y_sampled = y_mean + sig
         return y_mean, y_sampled
     
     def predict(
