@@ -38,7 +38,7 @@ class MeasuredNoiseGP(ExactGP):
         else:
             kernel_params = self._sample_kernel_params()
         # Since we provide a measured noise, we don't infer it
-        noise = numpyro.deterministic("noise", jnp.ndarray(0.0))
+        noise = numpyro.deterministic("noise", jnp.array(0.0))
         # Add mean function (if any)
         if self.mean_fn is not None:
             args = [X]
