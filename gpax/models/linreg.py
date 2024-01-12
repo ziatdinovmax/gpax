@@ -13,7 +13,7 @@ class LinReg:
 
     @staticmethod
     def model(x, y=None):
-        beta = numpyro.sample('beta', dist.Normal(jnp.zeros(x.shape[1]), jnp.ones(x.shape[1])))
+        beta = numpyro.sample('beta', dist.Normal(jnp.zeros(x.shape[1]), 10*jnp.ones(x.shape[1])))
         alpha = numpyro.sample('alpha', dist.Normal(0, 10))
         sigma = numpyro.sample('sigma', dist.HalfCauchy(1))
 
