@@ -171,7 +171,7 @@ class MeasuredNoiseGP(ExactGP):
             noise_predicted = self.noise_predicted
         else:
             noise_predicted = self.linreg(self.X_train, self.measured_noise, X_new)
-
+            self.noise_predicted = noise_predicted
         if samples is None:
             samples = self.get_samples(chain_dim=False)
         if device:
