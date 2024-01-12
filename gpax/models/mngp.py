@@ -29,7 +29,7 @@ class MeasuredNoiseGP(ExactGP):
         self.measured_noise = None
         self.noise_predicted = None
 
-    def model(self, X: jnp.ndarray, measured_noise: jnp.ndarray, y: jnp.ndarray = None, **kwargs) -> None:
+    def model(self, X: jnp.ndarray, y: jnp.ndarray = None, measured_noise: jnp.ndarray = None, **kwargs) -> None:
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
         # Sample kernel parameters
@@ -108,7 +108,7 @@ class MeasuredNoiseGP(ExactGP):
             progress_bar=progress_bar,
             jit_model_args=False,
         )
-        self.mcmc.run(rng_key, X, y, **kwargs)
+        self.mcmc.run(rng_key, X, y, measured_noise, **kwargs)
         if print_summary:
             self._print_summary()
 
