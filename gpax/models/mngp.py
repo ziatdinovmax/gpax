@@ -128,7 +128,7 @@ class MeasuredNoiseGP(ExactGP):
         K += jnp.diag(noise_predicted)
         # Draw samples from the posterior predictive for a given set of parameters
         sig = jnp.sqrt(jnp.clip(jnp.diag(K), a_min=0.0)) * jax.random.normal(rng_key, X_new.shape[:1])
-        y_sampled = jnp.expand_dims(y_mean + sig)
+        y_sampled = jnp.expand_dims(y_mean + sig, 0)
         return y_mean, y_sampled
     
     def predict(
