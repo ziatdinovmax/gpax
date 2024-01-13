@@ -208,5 +208,5 @@ class MeasuredNoiseGP(ExactGP):
     def gpreg(self, x, y, x_new, **kwargs):
         keys = get_keys()
         vigp = viGP(self.kernel_dim, 'RBF', **kwargs)
-        vigp.fit(keys[0], x, y, **kwargs)
-        return vigp.predict(keys[1], x_new, noiseless=True)
+        vigp.fit(keys[0], x, y, progress_bar=False, print_summary=False, **kwargs)
+        return vigp.predict(keys[1], x_new, noiseless=True)[0]
