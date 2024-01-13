@@ -10,6 +10,7 @@ from numpyro.infer import MCMC, NUTS, init_to_median
 
 
 from .gp import ExactGP
+from .vigp import viGP
 from .linreg import LinReg
 
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray], jnp.ndarray]
@@ -144,8 +145,9 @@ class MeasuredNoiseGP(ExactGP):
         samples: Optional[Dict[str, jnp.ndarray]] = None,
         n: int = 1,
         filter_nans: bool = False,
-        noiseless: bool = False,
+        noiseless: bool = True,
         device: Type[jaxlib.xla_extension.Device] = None,
+        noise_prediction_method: str = 'linreg',
         **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
@@ -171,13 +173,16 @@ class MeasuredNoiseGP(ExactGP):
         Returns
             Center of the mass of sampled means and all the sampled predictions
         """
+        if noise_prediction_method not in ["linreg", "gpreg"]:
+            raise NotImplementedError(
+                "For noise prediction method, select between 'linreg' and 'gpreg'")
+        noise_pred_fn = self.linreg if noise_prediction_method == "linreg" else self.gpreg
         X_new = self._set_data(X_new)
-
         # Predict noise for X_new
         if self.noise_predicted is not None:
             noise_predicted = self.noise_predicted
         else:
-            noise_predicted = self.linreg(self.X_train, self.measured_noise, X_new)
+            noise_predicted = noise_pred_fn(self.X_train, self.measured_noise, X_new, **kwargs)
             self.noise_predicted = noise_predicted
         if samples is None:
             samples = self.get_samples(chain_dim=False)
@@ -198,3 +203,8 @@ class MeasuredNoiseGP(ExactGP):
         lreg = LinReg()
         lreg.train(x, y, **kwargs)
         return lreg.predict(x_new)
+    
+    def gpreg(self, rng_key, x, y, x_new, **kwargs):
+        vigp = viGP(self.kernel_dim, 'RBF', **kwargs)
+        vigp.fit(rng_key, x, y, **kwargs)
+        return vigp.predict(rng_key, x_new, noiseless=True)
