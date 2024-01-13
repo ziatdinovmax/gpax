@@ -1,3 +1,12 @@
+"""
+mngp.py
+=======
+
+Fully Bayesian Gaussian Process model that incorporates measured noise.
+
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
+"""
+
 from typing import Callable, Dict, Optional, Tuple, Type, Union
 
 import jax
@@ -18,20 +27,52 @@ kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp
 
 
 class MeasuredNoiseGP(ExactGP):
+    """
+    Gaussian Process model that incorporates measured noise.
+    This class extends the ExactGP model by allowing the inclusion of measured noise variances 
+    in the GP framework. Unlike standard GP models where noise is typically inferred, this model 
+    uses noise values obtained from repeated measurements at the same input points.
+
+    Args:
+        input_dim:
+            Number of input dimensions
+        kernel:
+            Kernel function ('RBF', 'Matern', 'Periodic', or custom function)
+        mean_fn:
+            Optional deterministic mean function (use 'mean_fn_priors' to make it probabilistic)
+        kernel_prior:
+            Optional custom priors over kernel hyperparameters. Use it when passing your custom kernel.
+        mean_fn_prior:
+            Optional priors over mean function parameters
+        lengthscale_prior_dist:
+            Optional custom prior distribution over kernel lengthscale. Defaults to LogNormal(0, 1).
+    
+    Examples:
+
+        >>> # Get random number generator keys for training and prediction
+        >>> key1, key2 = gpax.utils.get_keys()
+        >>> # Initialize model
+        >>> gp_model = gpax.MeasuredNoiseGP(input_dim=1, kernel='Matern')
+        >>> # Run HMC to obtain posterior samples for the GP model parameters
+        >>> gp_model.fit(key1, X, y_mean, noise)  # X, y_mean, and noise have dimensions (n, 1), (n,), and (n,)
+        >>> # Make a prediction on new inputs by extrapolating noise variance with either linear regression or gaussian process
+        >>> y_pred, y_samples = gp_model.predict(key2, X_new, noise_prediction_method='linreg')
+    """
     def __init__(self,
                  input_dim: int,
                  kernel: Union[str, kernel_fn_type],
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 lengthscale_prior_dist: Optional[dist.Distribution] = None) -> None:
-        
+                 lengthscale_prior_dist: Optional[dist.Distribution] = None
+                 ) -> None:
         args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, None, None, lengthscale_prior_dist)
         super(MeasuredNoiseGP, self).__init__(*args)
         self.measured_noise = None
         self.noise_predicted = None
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray = None, measured_noise: jnp.ndarray = None, **kwargs) -> None:
+        """GP model that accepts measured noise"""
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
         # Sample kernel parameters
@@ -78,6 +119,7 @@ class MeasuredNoiseGP(ExactGP):
             rng_key: random number generator key
             X: 2D feature vector
             y: 1D target vector
+            measured_noise: 1D vector with measured noise
             num_warmup: number of HMC warmup states
             num_samples: number of HMC samples
             num_chains: number of HMC chains
@@ -167,6 +209,9 @@ class MeasuredNoiseGP(ExactGP):
             device:
                 optionally specify a cpu or gpu device on which to make a prediction;
                 e.g., ```device=jax.devices("gpu")[0]```
+            noise_prediction_method:
+                Method for extrapolating noise variance to new/test data.
+                Choose between 'linreg' and 'gpreg'. Defaults to 'linreg'.
             **jitter:
                 Small positive term added to the diagonal part of a covariance
                 matrix for numerical stability (Default: 1e-6)

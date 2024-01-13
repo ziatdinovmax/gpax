@@ -7,7 +7,7 @@ from numpyro.optim import Adam
 import jax
 
 class LinReg:
-    """Saimple linear regression model"""
+    """Simple linear regression model"""
     def __init__(self):
         self.params = None
 
@@ -37,4 +37,3 @@ class LinReg:
 
     def get_params(self):
         return self.params
-
