@@ -12,6 +12,7 @@ from numpyro.infer import MCMC, NUTS, init_to_median
 from .gp import ExactGP
 from .vigp import viGP
 from .linreg import LinReg
+from ..utils import get_keys
 
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray], jnp.ndarray]
 
@@ -204,7 +205,8 @@ class MeasuredNoiseGP(ExactGP):
         lreg.train(x, y, **kwargs)
         return lreg.predict(x_new)
     
-    def gpreg(self, rng_key, x, y, x_new, **kwargs):
+    def gpreg(self, x, y, x_new, **kwargs):
+        keys = get_keys()
         vigp = viGP(self.kernel_dim, 'RBF', **kwargs)
-        vigp.fit(rng_key, x, y, **kwargs)
-        return vigp.predict(rng_key, x_new, noiseless=True)
+        vigp.fit(keys[0], x, y, **kwargs)
+        return vigp.predict(keys[1], x_new, noiseless=True)
