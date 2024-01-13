@@ -59,7 +59,7 @@ def test_get_mvn_posterior():
 
 
 @pytest.mark.parametrize("noiseless", [True, False])
-def test_predict(noiseless):
+def test_predict_single_sample(noiseless):
     key = get_keys()[0]
     X, y = get_dummy_data()
     X_test, _ = get_dummy_data()
@@ -68,11 +68,14 @@ def test_predict(noiseless):
     params = {"k_length": jnp.array([1.0]),
               "k_scale": jnp.array(1.0),
               "noise": jnp.array(0.1),
-              "k_noise_length": jnp.array(0.5),
               "sigma_x": jnp.array(0.3),
               "X_prime": jnp.array(X + 0.1)
               }
     m = UIGP(1, 'RBF')
     m.X_train = X
     m.y_train = y
-    m._predict(key, X_test, params, 5, noiseless)
+    mean, sample = m._predict(key, X_test, params, 5, noiseless)
+    assert isinstance(mean, jnp.ndarray)
+    assert isinstance(sample, jnp.ndarray)
+    assert_equal(mean.shape, (X_test.shape[0],))
+    assert_equal(sample.shape, (5, X_test.shape[0]))
