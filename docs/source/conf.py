@@ -20,8 +20,8 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'GPax'
-copyright = '2022, Maxim Ziatdinov'
-author = 'Maxim Ziatdinov'
+copyright = '2024, GPax authors'
+author = 'GPax authors'
 
 # The full version, including alpha/beta/rc tags
 module_dir = os.path.dirname(os.path.abspath(__file__))

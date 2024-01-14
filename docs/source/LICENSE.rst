@@ -1,9 +1,6 @@
 MIT License
 
-License
-=======
-
-Copyright (c) 2022 Maxim Ziatdinov
+Copyright (c) 2024 GPax authors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
