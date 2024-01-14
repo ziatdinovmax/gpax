@@ -26,7 +26,7 @@ class CoregGP(ExactGP):
         mean_fn_prior:
             Optional priors over mean function parameters
         noise_prior:
-            Optional custom prior for observation noise; uses LogNormal(0,1) by default.
+            Optional custom prior for observation noise variance; uses LogNormal(0,1) by default.
         task_kernel_prior:
             Optional custom priors over task kernel parameters;
             Defaults to Normal(0, 10) for weights W and LogNormal(0, 1) for variances v.

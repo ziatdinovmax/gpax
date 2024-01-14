@@ -35,7 +35,8 @@ class iBNN(ExactGP):
         mean_fn_prior:
             Optional priors over mean function parameters
         noise_prior_dist:
-            Optional custom prior distribution over observational noise. Defaults to LogNormal(0,1).
+            Optional custom prior distribution over the observational noise variance.
+            Defaults to LogNormal(0,1).
     """
 
     def __init__(self, input_dim: int, depth: int = 3, activation: str = 'erf',

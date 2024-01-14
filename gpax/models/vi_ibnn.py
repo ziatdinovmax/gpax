@@ -36,7 +36,8 @@ class vi_iBNN(viGP):
         mean_fn_prior:
             Optional priors over mean function parameters
         noise_prior:
-            Optional custom prior for observation noise; uses LogNormal(0,1) by default.
+            Optional custom prior for the observation noise variance;
+            uses LogNormal(0,1) by default.
     """
 
     def __init__(self, input_dim: int, depth: int = 3, activation: str = 'erf',

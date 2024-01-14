@@ -36,7 +36,7 @@ class viGP(ExactGP):
         mean_fn_prior:
             Optional priors over mean function parameters
         noise_prior:
-            Optional custom prior for observation noise; uses LogNormal(0,1) by default.
+            Optional custom prior for the observation noise variance; uses LogNormal(0,1) by default.
         guide:
             Auto-guide option, use 'delta' (default) or 'normal'
 

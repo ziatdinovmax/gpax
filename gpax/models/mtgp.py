@@ -37,7 +37,8 @@ class MultiTaskGP(ExactGP):
         mean_fn_prior:
             Optional priors over mean function parameters
         noise_prior_dist:
-            Optional custom prior distribution over observational noise. Defaults to LogNormal(0,1).
+            Optional custom prior distribution over the observational noise variance.
+            Defaults to LogNormal(0,1).
         lengthscale_prior_dist:
             Optional custom prior distribution over kernel lengthscale. Defaults to LogNormal(0, 1)
         W_prior_dist:
