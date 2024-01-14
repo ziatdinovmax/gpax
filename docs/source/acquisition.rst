@@ -20,3 +20,5 @@ Acquisition functions
 .. autofunction:: gpax.acquisition.qPOI
 
 .. autofunction:: gpax.acquisition.qKG
+
+.. autofunction:: gpax.acquisition.optimize_acq
