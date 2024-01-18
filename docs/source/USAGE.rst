@@ -10,7 +10,7 @@ Simple GP
 |Open in Colab|
 
 .. |Open in Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
-   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/simpleGP.ipynb
+   :target: https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_simpleGP.ipynb
 
 The code snippet below shows how to use vanilla GP in a fully Bayesian mode. First, we infer GP model parameters from the available training data
 
