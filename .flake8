@@ -5,7 +5,7 @@ exclude =
     build,
     dist,
     docs/source/conf.py
-max-line-length = 127
+max-line-length = 80
 show-source = True
 statistics = True
 count = True
