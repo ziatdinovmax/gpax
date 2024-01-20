@@ -111,13 +111,15 @@ class UIGP(ExactGP):
         )
 
     def _sample_x(self, X):
+        n_samples, n_features = X.shape
         if self.sigma_x_prior_dist is not None:
             sigma_x_dist = self.sigma_x_prior_dist
         else:
-            sigma_x_dist = dist.HalfNormal(.1 * jnp.ones(self.kernel_dim))  # Since we always use ARD kernels, kernel_dim == input_dim
-        with numpyro.plate("feature_variance", self.kernel_dim):
+            sigma_x_dist = dist.HalfNormal(.1 * jnp.ones(n_features))
+        with numpyro.plate("feature_variance_plate", self.kernel_dim):
             sigma_x = numpyro.sample("sigma_x", sigma_x_dist)
-            X_prime = numpyro.sample("X_prime", dist.Normal(X, sigma_x))
+            with numpyro.plate("X_prime_plate", n_samples, dim=-2):
+                X_prime = numpyro.sample("X_prime", dist.Normal(X, sigma_x))
         return X_prime
 
     def get_mvn_posterior(
