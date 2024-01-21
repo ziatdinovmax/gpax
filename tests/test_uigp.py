@@ -20,6 +20,16 @@ def get_dummy_data():
     return jnp.array(X_prime), jnp.array(y)
 
 
+@pytest.mark.parametrize("n_features", [1, 5])
+def test_sample_x(n_features):
+    X = onp.random.randn(32, n_features)
+    m = UIGP(n_features, 'RBF')
+    with numpyro.handlers.seed(rng_seed=0):
+        X_prime = m._sample_x(X)
+    assert_(isinstance(X_prime, jnp.ndarray))
+    assert_(X_prime.shape[-1], n_features)
+
+
 def test_fit():
     rng_key = get_keys()[0]
     X, y = get_dummy_data()
