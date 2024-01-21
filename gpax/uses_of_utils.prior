@@ -1,0 +1,58 @@
+
+Example 1: Using Individual Prior Placement Functions
+import numpyro
+from utils.priors import (
+    place_normal_prior,
+    place_lognormal_prior,
+    place_halfnormal_prior,
+    place_uniform_prior,
+    place_gamma_prior
+)
+
+# Create a probabilistic model
+def my_probabilistic_model():
+    x = place_normal_prior("x", loc=0.0, scale=1.0)
+    y = place_lognormal_prior("y", loc=0.0, scale=1.0)
+    z = place_halfnormal_prior("z", scale=1.0)
+    w = place_uniform_prior("w", low=0.0, high=1.0)
+    v = place_gamma_prior("v", c=1.0, r=1.0)
+
+    # Rest of the model definition...
+
+    return numpyro.sample("output", my_distribution)
+
+# Run the model
+samples = my_probabilistic_model()
+
+Example 2: Using Auto-Priors Generation Functions
+
+import numpyro
+from utils.priors import auto_priors, auto_normal_priors, auto_lognormal_priors
+
+# Create a deterministic function
+def my_deterministic_function(a, b, c):
+    return a * b + c
+
+# Generate auto-priors functions
+auto_priors_func = auto_priors(my_deterministic_function, params_begin_with=1, dist_type='normal', loc=0.0, scale=1.0)
+auto_normal_priors_func = auto_normal_priors(my_deterministic_function, loc=0.0, scale=1.0)
+auto_lognormal_priors_func = auto_lognormal_priors(my_deterministic_function, loc=0.0, scale=1.0)
+
+# Sample priors
+prior_samples_auto = auto_priors_func()
+prior_samples_normal = auto_normal_priors_func()
+prior_samples_lognormal = auto_lognormal_priors_func()
+
+# Use the sampled priors in a probabilistic model
+def my_probabilistic_model_with_priors():
+    a = prior_samples_auto['a']
+    b = prior_samples_auto['b']
+    c = prior_samples_auto['c']
+
+    # Rest of the model definition...
+
+    return numpyro.sample("output", my_distribution)
+
+# Run the model
+samples_with_priors = my_probabilistic_model_with_priors()
+
