@@ -20,12 +20,22 @@ def get_dummy_data():
     return jnp.array(X_prime), jnp.array(y)
 
 
+@pytest.mark.parametrize("n_features", [1, 5])
+def test_sample_x(n_features):
+    X = onp.random.randn(32, n_features)
+    m = UIGP(n_features, 'RBF')
+    with numpyro.handlers.seed(rng_seed=0):
+        X_prime = m._sample_x(X)
+    assert_(isinstance(X_prime, jnp.ndarray))
+    assert_(X_prime.shape[-1], n_features)
+
+
 def test_fit():
     rng_key = get_keys()[0]
     X, y = get_dummy_data()
     m = UIGP(1, 'RBF')
     m.fit(rng_key, X, y, num_warmup=10, num_samples=10)
-    assert m.mcmc is not None
+    assert_(m.mcmc is not None)
 
 
 def test_fit_with_custom_sigma_x_prior():
@@ -33,7 +43,7 @@ def test_fit_with_custom_sigma_x_prior():
     X, y = get_dummy_data()
     m = UIGP(1, 'RBF', sigma_x_prior_dist=dist.HalfNormal(0.55))
     m.fit(rng_key, X, y, num_warmup=10, num_samples=10)
-    assert m.mcmc is not None
+    assert_(m.mcmc is not None)
 
 
 def test_get_mvn_posterior():
@@ -52,8 +62,8 @@ def test_get_mvn_posterior():
     m.X_train = X
     m.y_train = y
     mean, cov = m.get_mvn_posterior(X_test, params)
-    assert isinstance(mean, jnp.ndarray)
-    assert isinstance(cov, jnp.ndarray)
+    assert_(isinstance(mean, jnp.ndarray))
+    assert_(isinstance(cov, jnp.ndarray))
     assert_equal(mean.shape, (X_test.shape[0],))
     assert_equal(cov.shape, (X_test.shape[0], X_test.shape[0]))
 
@@ -75,7 +85,7 @@ def test_predict_single_sample(noiseless):
     m.X_train = X
     m.y_train = y
     mean, sample = m._predict(key, X_test, params, 5, noiseless)
-    assert isinstance(mean, jnp.ndarray)
-    assert isinstance(sample, jnp.ndarray)
+    assert_(isinstance(mean, jnp.ndarray))
+    assert_(isinstance(sample, jnp.ndarray))
     assert_equal(mean.shape, (X_test.shape[0],))
     assert_equal(sample.shape, (5, X_test.shape[0]))
