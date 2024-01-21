@@ -110,14 +110,20 @@ class UIGP(ExactGP):
             obs=y,
         )
 
-    def _sample_x(self, X):
+    def _sample_x(self, X: jnp.ndarray) -> jnp.ndarray:
+        """
+        Samples new input values (X_prime) based on the original inputs (X)
+        and prior belief about the uncertainty in those inputs.
+        """
         n_samples, n_features = X.shape
         if self.sigma_x_prior_dist is not None:
             sigma_x_dist = self.sigma_x_prior_dist
         else:
             sigma_x_dist = dist.HalfNormal(.1 * jnp.ones(n_features))
+        # Sample variances independently for each feature dimension
         with numpyro.plate("feature_variance_plate", self.kernel_dim):
             sigma_x = numpyro.sample("sigma_x", sigma_x_dist)
+            # Sample input data using the sampled variances
             with numpyro.plate("X_prime_plate", n_samples, dim=-2):
                 X_prime = numpyro.sample("X_prime", dist.Normal(X, sigma_x))
         return X_prime
