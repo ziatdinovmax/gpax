@@ -217,6 +217,80 @@ dkl.fit(rng_key, X_train, y_train, num_steps=100, step_size=0.05)
 obj = gpax.acquisition.UCB(rng_key_predict, dkl, X_unmeasured, maximize=True)
 next_point_idx = obj.argmax()
 ```
+
+### Cost-aware BO
+Tutorial Notebook for 1D problem here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1kB3F_Z0qdErju1NY27O_xrXk2wB9X9Wr?usp=sharing) 
+
+Tutorial Notebook for 2D problem here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1p_6lOL6PseFJs8E9mzlniVGmhxTUCZz0?usp=sharing) 
+
+Cost-aware BO (cBO) is a special BO workflow where the **exploration cost is non-uniform** over the search space. Unlike in any classical BO, in cBO, the acquisiton function considered the cost of exploration of a location in the search space and provide future suggestions based on the trade-off between the value (high mean), uncertainity (high variance) and **cost** of exploration. cBO can be easily combined with structured GP and has been showcased in the tutorials.
+
+**Here is an simple example on how to implement the code for cost aware acquistion function to explore over combinatorial libraies**
+
+Below is a numerical example to represent the combinatorial library exploration. Here, the colors represents separate cells in the library, where time to explore within the cell is lower and increases as sampled from a new cell.
+
+![image](https://github.com/ziatdinovmax/gpax/assets/19354142/593e3a14-db23-43ff-b147-c41da6aad82f)
+
+**Lets define the acqusition function:**
+
+```python3
+import jax.numpy as jnp
+
+def cost_acqfun(models, train_data, Data, cost_params, params, ieval, isnorm=False):
+    """
+    cost based acquisition function- EI based
+    Args:
+        models: Multi-fidelity and low-fidelity krigging model
+        Data: Unexplored data to evaluate for next sample selection in list with actual values and normalized values
+        cost_params: Params required for cost aware acquisition function
+        params: Params required for standard EI acq function
+        ieval: All the current locations explored
+        isnorm: If the data need to be normalized. Default is False
+
+    Returns:
+        array of acquisition function values, maximum acquistion value location and value
+    """
+    ....
+    # Compute cost on non-normalized data
+    prev_x = train_x[-1,:]
+    cost = np.zeros_like(standard_acq)
+    for i in range(data_real.shape[0]):
+        if prev_x[1]==data_real[i,1]:
+            cost[i] = t_m + a*np.absolute(data_real[i,0]-prev_x[0])
+        else:
+            cost[i] = t_m + np.absolute(data_real[i,1]-prev_x[1])*t_c + a*np.absolute(data_real[i,0]-center[int(data_real[i,1])])
+
+    cost_acq = standard_acq/cost
+
+    maxacq_idx = cost_acq.argmax()
+    maxacq_val = cost_acq.max()
+    nextpt = data_real[maxacq_idx]
+    cost_nextpt = cost[maxacq_idx]
+    .....
+    return cost_acq, maxacq_idx, maxacq_val, cost_nextpt
+```
+
+Here, ```t_m, t_c``` are the cost/time to move the probe within the same cell (same color section) and between the cells (next color section). Here, if the probe need to move to a different cell, it goes first to the ```center``` of the cell and then move to the suggested sample location in the new cell. In the BO setting, call the acqusition function as below:
+
+```python3
+    t_m = 1 
+    t_c = 2
+    a = 1
+    test_data = [X_test, X_test_norm]
+    cost_params = [t_m, t_c, a, center]
+    acq, next_point_idx, next_point_val,  cost[i-1] = cost_acqfun(gp_model, train_x, test_data, cost_params, rng_key_predict, idx, isnorm=True)
+```
+
+**Results for classical BO: Total cost= 42.3**
+
+![image](https://github.com/ziatdinovmax/gpax/assets/19354142/65a053f9-ace4-4797-849f-afab979d0557)
+
+**Result for cost BO: Total cost= 34.5**
+
+![image](https://github.com/ziatdinovmax/gpax/assets/19354142/8b67991e-4cfa-4cca-a06f-77dd4e8d755b)
+
+We can see due to the cost, the acq function tries to gradually exploiting the cells and once the exploitation is done, it focus on exploring the next cell with potential better solution (observed from the jump). The height of the jump denotes the difference between the cells, where moving to the next cell has lesser cost than moving to the farther cells. We can see the total cost for cBO is lower than standard BO for better cost awareness acquisition function. The full example is available [here](https://colab.research.google.com/drive/1kB3F_Z0qdErju1NY27O_xrXk2wB9X9Wr?usp=sharing). 
+
 ## Installation
 If you would like to utilize a GPU acceleration, follow these [instructions](https://github.com/google/jax#installation) to install JAX with a GPU support.
 
