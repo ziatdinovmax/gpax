@@ -1,10 +1,10 @@
 """
-gp.py
+vigp.py
 =======
 
-Fully Bayesian implementation of Gaussian process regression
+Variational inference implementation of Gaussian process regression
 
-Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
 """
 
 from typing import Callable, Dict, Optional, Tuple, Type
