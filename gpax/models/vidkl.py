@@ -4,7 +4,7 @@ vidkl.py
 
 Variational inference-based implementation of deep kernel learning
 
-Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
 """
 
 from functools import partial
@@ -68,7 +68,7 @@ class viDKL(ExactGP):
 
     def __init__(self, input_dim: Union[int, Tuple[int]], z_dim: int = 2, kernel: str = 'RBF',
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None, nn_prior: bool = False,
+                 nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None, nn_prior: bool = True,
                  latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None,
                  guide: str = 'delta', **kwargs
                  ) -> None:
