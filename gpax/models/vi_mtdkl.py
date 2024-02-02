@@ -66,7 +66,7 @@ class viMTDKL(viDKL):
                  num_tasks: int = None, rank: Optional[int] = None,
                  data_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None,
-                 nn_prior: bool = True, guide: str = 'delta',
+                 nn_prior: bool = False, guide: str = 'delta',
                  W_prior_dist: Optional[dist.Distribution] = None,
                  v_prior_dist: Optional[dist.Distribution] = None,
                  task_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
