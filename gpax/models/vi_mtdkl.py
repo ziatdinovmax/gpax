@@ -42,6 +42,8 @@ class viMTDKL(viDKL):
         nn:
             Custom neural network ('feature extractor'); uses a 3-layer MLP
             with ReLU activations by default
+        nn_prior:
+            Places probabilistic priors over NN weights and biases (Default: True)
         latent_prior:
             Optional prior over the latent space (NN embedding); uses none by default
         guide:
