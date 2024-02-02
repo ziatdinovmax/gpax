@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpy as onp
 import numpyro
 import numpyro.distributions as dist
-from numpyro.contrib.module import random_haiku_module
+from numpyro.contrib.module import random_haiku_module, haiku_module
 
 from ..kernels import LCMKernel
 from .vidkl import viDKL
@@ -42,6 +42,8 @@ class viMTDKL(viDKL):
         nn:
             Custom neural network ('feature extractor'); uses a 3-layer MLP
             with ReLU activations by default
+        nn_prior:
+            Places probabilistic priors over NN weights and biases (Default: True)
         latent_prior:
             Optional prior over the latent space (NN embedding); uses none by default
         guide:
@@ -66,12 +68,12 @@ class viMTDKL(viDKL):
                  num_tasks: int = None, rank: Optional[int] = None,
                  data_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None,
-                 guide: str = 'delta',
+                 nn_prior: bool = True, guide: str = 'delta',
                  W_prior_dist: Optional[dist.Distribution] = None,
                  v_prior_dist: Optional[dist.Distribution] = None,
                  task_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  **kwargs) -> None:
-        args = (input_dim, z_dim, None, None, nn, None, guide)
+        args = (input_dim, z_dim, None, None, nn, nn_prior, None, guide)
         super(viMTDKL, self).__init__(*args, **kwargs)
         if shared_input_space:
             if num_tasks is None:
@@ -101,9 +103,13 @@ class viMTDKL(viDKL):
             self.rank = self.num_tasks - 1
 
         # NN part
-        feature_extractor = random_haiku_module(
-            "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim),
-            prior=(lambda name, shape: dist.Cauchy() if name.startswith("b") else dist.Normal()))
+        if self.nn_prior:  # MAP
+            feature_extractor = random_haiku_module(
+                "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim),
+                prior=(lambda name, shape: dist.Cauchy() if name.startswith("b") else dist.Normal()))
+        else:  # MLE
+            feature_extractor = haiku_module(
+                "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim))
         z = feature_extractor(X if self.shared_input else X[:, :-1])
         if not self.shared_input:
             z = jnp.column_stack((z, X[:, -1]))
