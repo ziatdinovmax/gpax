@@ -16,6 +16,8 @@ import numpyro
 import jax
 import jax.numpy as jnp
 
+from ..kernels.kernels import square_scaled_distance, add_jitter, _sqrt
+
 
 def place_normal_prior(param_name: str, loc: float = 0.0, scale: float = 1.0):
     """
