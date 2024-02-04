@@ -76,7 +76,18 @@ def normal_dist(loc: float = None, scale: float = None
                 ) -> numpyro.distributions.Distribution:
     """
     Generate a Normal distribution based on provided center (loc) and standard deviation (scale) parameters.
-    I neithere are provided, uses 0 and 1 by default.
+    If neither are provided, uses 0 and 1 by default. It can be used to pass custom priors to GP models.
+
+    Example:
+
+    Assign custom prior to kernel lengthscale during GP model initialization
+
+    >>> model = gpax.ExactGP(input_dim, kernel, lengthscale_prior_dist=gpax.utils.normal_dist(5, 1))
+
+    Train as usual
+
+    >>> model.fit(rng_key, X, y)
+
     """
     loc = loc if loc is not None else 0.0
     scale = scale if scale is not None else 1.0
@@ -86,7 +97,18 @@ def normal_dist(loc: float = None, scale: float = None
 def lognormal_dist(loc: float = None, scale: float = None) -> numpyro.distributions.Distribution:
     """
     Generate a LogNormal distribution based on provided center (loc) and standard deviation (scale) parameters.
-    I neithere are provided, uses 0 and 1 by default.
+    If neither are provided, uses 0 and 1 by default. It can be used to pass custom priors to GP models.
+
+    Example:
+
+    Assign custom prior to kernel lengthscale during GP model initialization
+
+    >>> model = gpax.ExactGP(input_dim, kernel, lengthscale_prior_dist=gpax.utils.lognormal_dist(0, 0.1))
+
+    Train as usual
+
+    >>> model.fit(rng_key, X, y)
+
     """
     loc = loc if loc is not None else 0.0
     scale = scale if scale is not None else 1.0
@@ -96,7 +118,18 @@ def lognormal_dist(loc: float = None, scale: float = None) -> numpyro.distributi
 def halfnormal_dist(scale: float = None) -> numpyro.distributions.Distribution:
     """
     Generate a half-normal distribution based on provided standard deviation (scale).
-    If none is provided, uses 1.0 by default.
+    If none is provided, uses 1.0 by default. It can be used to pass custom priors to GP models.
+
+    Example:
+
+    Assign custom prior to noise variance during GP model initialization
+
+    >>> model = gpax.ExactGP(input_dim, kernel, noise_prior_dist=gpax.utils.halfnormal_dist(0.1))
+
+    Train as usual
+
+    >>> model.fit(rng_key, X, y)
+
     """
     scale = scale if scale is not None else 1.0
     return numpyro.distributions.HalfNormal(scale)
@@ -109,6 +142,18 @@ def gamma_dist(c: float = None,
     """
     Generate a Gamma distribution based on provided shape (c) and rate (r) parameters. If the shape (c) is not provided,
     it attempts to infer it using the range of the input vector divided by 2. The rate parameter defaults to 1.0 if not provided.
+    It can be used to pass custom priors to GP models.
+
+    Example:
+
+    Assign custom prior to kernel lengthscale during GP model initialization
+
+    >>> model = gpax.ExactGP(input_dm, kernel, lengthscale_prior_dist=gpax.utils.gamma_dist(2, 5))
+
+    Train as usual
+
+    >>> model.fit(rng_key, X, y)
+
     """
     if c is None:
         if input_vec is not None:
@@ -127,6 +172,7 @@ def uniform_dist(low: float = None,
     """
     Generate a Uniform distribution based on provided low and high bounds. If one of the bounds is not provided,
     it attempts to infer the missing bound(s) using the minimum or maximum value from the input vector.
+    It can be used to pass custom priors to GP models.
     """
     if (low is None or high is None) and input_vec is None:
         raise ValueError(
