@@ -74,7 +74,7 @@ def normal_dist(loc: float = None, scale: float = None
                 ) -> numpyro.distributions.Distribution:
     """
     Generate a Normal distribution based on provided center (loc) and standard deviation (scale) parameters.
-    I neithere are provided, uses 0 and 1 by default.
+    If neither are provided, uses 0 and 1 by default.
     """
     loc = loc if loc is not None else 0.0
     scale = scale if scale is not None else 1.0
@@ -84,7 +84,7 @@ def normal_dist(loc: float = None, scale: float = None
 def lognormal_dist(loc: float = None, scale: float = None) -> numpyro.distributions.Distribution:
     """
     Generate a LogNormal distribution based on provided center (loc) and standard deviation (scale) parameters.
-    I neithere are provided, uses 0 and 1 by default.
+    If neither are provided, uses 0 and 1 by default.
     """
     loc = loc if loc is not None else 0.0
     scale = scale if scale is not None else 1.0
