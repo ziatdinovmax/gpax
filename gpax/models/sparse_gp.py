@@ -59,8 +59,9 @@ class viSparseGP(ExactGP):
         self.guide_type = AutoNormal if guide == 'normal' else AutoDelta
         self.svi = None
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray = None, **kwargs: float) -> None:
-        
+    def model(self, X: jnp.ndarray, y: jnp.ndarray = None, Xu: jnp.ndarray, **kwargs: float) -> None:
+        if Xu is not None:
+            self.Xu = numpyro.param("Xu", Xu)
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
         # Sample kernel parameters
@@ -137,8 +138,6 @@ class viSparseGP(ExactGP):
         self.X_train = X
         self.y_train = y
 
-        self.Xu = numpyro.param("Xu", Xu)
-
         optim = numpyro.optim.Adam(step_size=step_size, b1=0.5)
         self.svi = SVI(
             self.model,
@@ -147,6 +146,7 @@ class viSparseGP(ExactGP):
             loss=Trace_ELBO(),
             X=X,
             y=y,
+            Xu=Xu,
             **kwargs
         )
 
