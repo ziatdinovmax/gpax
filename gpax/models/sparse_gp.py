@@ -137,7 +137,7 @@ class viSparseGP(ExactGP):
         self.X_train = X
         self.y_train = y
 
-        self.Xu = numpyro.param(Xu)
+        self.Xu = numpyro.param("Xu", Xu)
 
         optim = numpyro.optim.Adam(step_size=step_size, b1=0.5)
         self.svi = SVI(
