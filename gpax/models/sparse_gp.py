@@ -59,7 +59,7 @@ class viSparseGP(ExactGP):
         self.guide_type = AutoNormal if guide == 'normal' else AutoDelta
         self.svi = None
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray = None, Xu: jnp.ndarray, **kwargs: float) -> None:
+    def model(self, X: jnp.ndarray, y: jnp.ndarray = None, Xu: jnp.ndarray = None, **kwargs: float) -> None:
         if Xu is not None:
             self.Xu = numpyro.param("Xu", Xu)
         # Initialize mean function at zeros
