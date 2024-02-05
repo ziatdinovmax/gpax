@@ -55,13 +55,12 @@ class viSparseGP(ExactGP):
         super(viSparseGP, self).__init__(*args)
         self.X_train = None
         self.y_train = None
-        self.Xu = None
         self.guide_type = AutoNormal if guide == 'normal' else AutoDelta
         self.svi = None
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray = None, Xu: jnp.ndarray = None, **kwargs: float) -> None:
         if Xu is not None:
-            self.Xu = numpyro.param("Xu", Xu)
+            Xu = numpyro.param("Xu", Xu)
         # Initialize mean function at zeros
         f_loc = jnp.zeros(X.shape[0])
         # Sample kernel parameters
@@ -82,11 +81,11 @@ class viSparseGP(ExactGP):
                 args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
         # compute kernel between inducing points
-        Kuu = self.kernel(self.Xu, self.Xu, kernel_params) 
+        Kuu = self.kernel(Xu, Xu, kernel_params) 
         # Cholesky decomposition
         Luu = cholesky(Kuu).T
         # Kernel computation
-        Kuf = self.kernel(self.Xu, X, kernel_params)
+        Kuf = self.kernel(Xu, X, kernel_params)
         # Solve triangular system
         W = solve_triangular(Luu, Kuf, lower=True).T
         # Diagonal of the kernel matrix
