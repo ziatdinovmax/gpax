@@ -1,6 +1,6 @@
 """
 sparse_gp.py
-=======
+============
 
 Variational inference implementation of sparse Gaussian process regression
 
@@ -17,15 +17,14 @@ from jax.scipy.linalg import cholesky, solve_triangular
 import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import SVI, Trace_ELBO
-from numpyro.infer.autoguide import AutoDelta, AutoNormal
 
-from .gp import ExactGP
+from .vigp import viGP
 from ..utils import initialize_inducing_points
 
 
-class viSparseGP(ExactGP):
+class viSparseGP(viGP):
     """
-    Variational inference based sparse Gaussian process
+    Variational inference-based sparse Gaussian process
 
     Args:
         input_dim:
@@ -52,13 +51,9 @@ class viSparseGP(ExactGP):
                  lengthscale_prior_dist: Optional[dist.Distribution] = None,
                  guide: str = 'delta') -> None:
         args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, noise_prior,
-                noise_prior_dist, lengthscale_prior_dist)
+                noise_prior_dist, lengthscale_prior_dist, guide)
         super(viSparseGP, self).__init__(*args)
-        self.X_train = None
-        self.y_train = None
         self.Xu = None
-        self.guide_type = AutoNormal if guide == 'normal' else AutoDelta
-        self.svi = None
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray = None, Xu: jnp.ndarray = None, **kwargs: float) -> None:
         if Xu is not None:
@@ -83,7 +78,7 @@ class viSparseGP(ExactGP):
                 args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
         # Xompute kernel between inducing points
-        Kuu = self.kernel(Xu, Xu, kernel_params) 
+        Kuu = self.kernel(Xu, Xu, kernel_params)
         # Cholesky decomposition
         Luu = cholesky(Kuu).T
         # Compute kernel between inducing and training points
@@ -185,7 +180,7 @@ class viSparseGP(ExactGP):
         Kuu = self.kernel(self.Xu, self.Xu, params)
         Luu = cholesky(Kuu, lower=True)
         Kuf = self.kernel(self.Xu, self.X_train, params, jitter=0)
-        
+
         W = solve_triangular(Luu, Kuf, lower=True)
         W_Dinv = W / D
         K = W_Dinv @ W.T
@@ -213,72 +208,3 @@ class viSparseGP(ExactGP):
             mean += self.mean_fn(*args).squeeze()
 
         return mean, cov
-
-    def get_samples(self) -> Dict[str, jnp.ndarray]:
-        """Get posterior samples"""
-        return self.svi.guide.median(self.kernel_params)
-
-    def predict_in_batches(self, rng_key: jnp.ndarray,
-                           X_new: jnp.ndarray,  batch_size: int = 100,
-                           samples: Optional[Dict[str, jnp.ndarray]] = None,
-                           predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
-                           noiseless: bool = False,
-                           device: Type[jaxlib.xla_extension.Device] = None,
-                           **kwargs: float
-                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """
-        Make prediction at X_new with sampled GP parameters
-        by spitting the input array into chunks ("batches") and running
-        predict_fn (defaults to self.predict) on each of them one-by-one
-        to avoid a memory overflow
-        """
-        predict_fn = lambda xi:  self.predict(
-                rng_key, xi, samples, noiseless, **kwargs)
-        y_pred, y_var = self._predict_in_batches(
-            rng_key, X_new, batch_size, 0, samples,
-            predict_fn=predict_fn, noiseless=noiseless,
-            device=device, **kwargs)
-        y_pred = jnp.concatenate(y_pred, 0)
-        y_var = jnp.concatenate(y_var, 0)
-        return y_pred, y_var
-
-    def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
-                samples: Optional[Dict[str, jnp.ndarray]] = None,
-                noiseless: bool = False,
-                device: Type[jaxlib.xla_extension.Device] = None, **kwargs: float
-                ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """
-        Make prediction at X_new points using posterior samples for GP parameters
-
-        Args:
-            rng_key: random number generator key
-            X_new: new inputs with *(number of points, number of features)* dimensions
-            noiseless:
-                Noise-free prediction. It is set to False by default as new/unseen data is assumed
-                to follow the same distribution as the training data. Hence, since we introduce a model noise
-                by default for the training data, we also want to include that noise in our prediction.
-            device:
-                optionally specify a cpu or gpu device on which to make a prediction;
-                e.g., ```device=jax.devices("gpu")[0]```
-            **jitter:
-                Small positive term added to the diagonal part of a covariance
-                matrix for numerical stability (Default: 1e-6)
-
-        Returns
-            Center of the mass of sampled means and all the sampled predictions
-        """
-        X_new = self._set_data(X_new)
-        if device:
-            self._set_training_data(device=device)
-            X_new = jax.device_put(X_new, device)
-        if samples is None:
-            samples = self.get_samples()
-        mean, cov = self.get_mvn_posterior(X_new, samples, noiseless, **kwargs)
-        return mean, cov.diagonal()
-
-    def _print_summary(self) -> None:
-        params_map = self.get_samples()
-        print('\nInferred GP parameters')
-        for (k, vals) in params_map.items():
-            spaces = " " * (15 - len(k))
-            print(k, spaces, jnp.around(vals, 4))
