@@ -1,6 +1,7 @@
 import sys
 import pytest
 import numpy as onp
+import jax
 import jax.numpy as jnp
 import jax.random as jra
 import numpyro
@@ -8,7 +9,7 @@ from numpy.testing import assert_equal, assert_, assert_array_equal
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.utils import preprocess_sparse_image, split_dict, random_sample_dict, get_keys
+from gpax.utils import preprocess_sparse_image, split_dict, random_sample_dict, get_keys, initialize_inducing_points
 from gpax.utils import place_normal_prior, place_halfnormal_prior, place_uniform_prior, place_gamma_prior, gamma_dist, uniform_dist, normal_dist, halfnormal_dist
 from gpax.utils import set_fn, auto_normal_priors
 
@@ -108,3 +109,42 @@ def test_get_keys_different_seeds():
     key1a, key2a = get_keys(42)
     assert_(not onp.array_equal(key1, key1a))
     assert_(not onp.array_equal(key2, key2a))
+
+
+def test_ratio_out_of_bounds():
+    X = jax.random.normal(jax.random.PRNGKey(0), (100, 5))
+    with pytest.raises(ValueError):
+        initialize_inducing_points(X, ratio=-0.1)
+    with pytest.raises(ValueError):
+        initialize_inducing_points(X, ratio=1.5)
+
+
+def test_invalid_method():
+    X = jax.random.normal(jax.random.PRNGKey(0), (100, 5))
+    with pytest.raises(ValueError):
+        initialize_inducing_points(X, method='invalid_method')
+
+
+def test_missing_key_for_random_method():
+    X = jax.random.normal(jax.random.PRNGKey(0), (100, 5))
+    with pytest.raises(ValueError):
+        initialize_inducing_points(X, method='random')
+
+
+@pytest.mark.parametrize("method", ["uniform", "random"])
+def test_output_shape(method):
+    X = jax.random.normal(jax.random.PRNGKey(0), (100, 5))
+    ratio = 0.1
+    inducing_points = initialize_inducing_points(
+        X, ratio=ratio, method=method, key=jax.random.PRNGKey(0))
+    expected_shape = (int(100 * ratio), 5)
+    assert inducing_points.shape == expected_shape, "Output shape is incorrect"
+
+
+@pytest.mark.skipif('sklearn' not in sys.modules, reason="sklearn is not installed")
+def test_kmeans_dependency():
+    X = jax.random.normal(jax.random.PRNGKey(0), (100, 5))
+    try:
+        inducing_points = initialize_inducing_points(X, method='kmeans')
+    except ImportError:
+        pytest.fail("KMeans test failed due to missing sklearn dependency")
