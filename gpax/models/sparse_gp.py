@@ -197,7 +197,7 @@ class viSparseGP(viGP):
 
         Linv_W_Dinv_y = Linv_pack[:, :W_Dinv_y.shape[1]]
         Linv_Ws = Linv_pack[:, W_Dinv_y.shape[1]:]
-        mean = Linv_W_Dinv_y.T @ Linv_Ws
+        mean = (Linv_W_Dinv_y.T @ Linv_Ws).squeeze()
 
         Kss = self.kernel(X_new, X_new, params, noise_p)
         Qss = Ws.T @ Ws
