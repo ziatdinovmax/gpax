@@ -82,11 +82,11 @@ class viSparseGP(ExactGP):
             if self.mean_fn_prior is not None:
                 args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
-        # compute kernel between inducing points
+        # Xompute kernel between inducing points
         Kuu = self.kernel(Xu, Xu, kernel_params) 
         # Cholesky decomposition
         Luu = cholesky(Kuu).T
-        # Kernel computation
+        # Compute kernel between inducing and training points
         Kuf = self.kernel(Xu, X, kernel_params)
         # Solve triangular system
         W = solve_triangular(Luu, Kuf, lower=True).T
@@ -163,6 +163,56 @@ class viSparseGP(ExactGP):
 
         if print_summary:
             self._print_summary()
+
+    def get_mvn_posterior(
+        self, X_new: jnp.ndarray, params: Dict[str, jnp.ndarray], noiseless: bool = False, **kwargs: float
+    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Returns parameters (mean and cov) of multivariate normal posterior
+        for a single sample of GP parameters
+        """
+        noise = params["noise"]
+        N = self.X_train.shape[0]
+        D = jnp.broadcast_to(noise, (N,))
+        noise_p = noise * (1 - jnp.array(noiseless, int))
+
+        y_residual = self.y_train.copy()
+        if self.mean_fn is not None:
+            args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
+            y_residual -= self.mean_fn(*args).squeeze()
+
+        # Compute self- and cross-covariance matrices
+        Kuu = self.kernel(self.Xu, self.Xu, params)
+        Luu = cholesky(Kuu, lower=True)
+        Kuf = self.kernel(self.Xu, self.X_train, params, jitter=0)
+        
+        W = solve_triangular(Luu, Kuf, lower=True)
+        W_Dinv = W / D
+        K = W_Dinv @ W.T
+        K = K.at[jnp.diag_indices(K.shape[0])].add(1)
+        L = cholesky(K, lower=True)
+
+        y_2D = y_residual.reshape(-1, N).T
+        W_Dinv_y = W_Dinv @ y_2D
+
+        Kus = self.kernel(self.Xu, X_new, params, jitter=0)
+        Ws = solve_triangular(Luu, Kus, lower=True)
+        pack = jnp.concatenate((W_Dinv_y, Ws), axis=1)
+        Linv_pack = solve_triangular(L, pack, lower=True)
+
+        Linv_W_Dinv_y = Linv_pack[:, :W_Dinv_y.shape[1]]
+        Linv_Ws = Linv_pack[:, W_Dinv_y.shape[1]:]
+        mean = Linv_W_Dinv_y.T @ Linv_Ws
+
+        Kss = self.kernel(X_new, X_new, params, noise_p)
+        Qss = Ws.T @ Ws
+        cov = Kss - Qss + Linv_Ws.T @ Linv_Ws
+
+        if self.mean_fn is not None:
+            args = [X_new, params] if self.mean_fn_prior else [X_new]
+            mean += self.mean_fn(*args).squeeze()
+
+        return mean, cov
 
     def get_samples(self) -> Dict[str, jnp.ndarray]:
         """Get posterior samples"""
