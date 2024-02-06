@@ -20,6 +20,7 @@ from numpyro.infer import SVI, Trace_ELBO
 from numpyro.infer.autoguide import AutoDelta, AutoNormal
 
 from .gp import ExactGP
+from ..utils import initialize_inducing_points
 
 
 class viSparseGP(ExactGP):
@@ -55,6 +56,7 @@ class viSparseGP(ExactGP):
         super(viSparseGP, self).__init__(*args)
         self.X_train = None
         self.y_train = None
+        self.Xu = None
         self.guide_type = AutoNormal if guide == 'normal' else AutoDelta
         self.svi = None
 
@@ -97,7 +99,7 @@ class viSparseGP(ExactGP):
         # Clamping the trace term
         trace_term = jnp.clip(trace_term, a_min=0)
 
-        # VFE
+        # VFE approximation
         numpyro.factor("trace_term", -trace_term / 2.0)
 
         numpyro.sample(
@@ -106,7 +108,8 @@ class viSparseGP(ExactGP):
             obs=y)
 
     def fit(self,
-            rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray, Xu: jnp.ndarray,
+            rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
+            inducing_points_ratio: float = 0.1, inducing_points_selection: str = 'uniform',
             num_steps: int = 1000, step_size: float = 5e-3,
             progress_bar: bool = True, print_summary: bool = True,
             device: Type[jaxlib.xla_extension.Device] = None,
@@ -119,6 +122,7 @@ class viSparseGP(ExactGP):
             rng_key: random number generator key
             X: 2D feature vector with *(number of points, number of features)* dimensions
             y: 1D target vector with *(n,)* dimensions
+            Xu: Inducing points ratio. Must be a float between 0 and 1. Default value is 0.1.
             num_steps: number of SVI steps
             step_size: step size schedule for Adam optimizer
             progress_bar: show progress bar
@@ -134,6 +138,9 @@ class viSparseGP(ExactGP):
         if device:
             X = jax.device_put(X, device)
             y = jax.device_put(y, device)
+        Xu = initialize_inducing_points(
+            X.copy(), inducing_points_ratio,
+            inducing_points_selection, rng_key)
         self.X_train = X
         self.y_train = y
 
@@ -151,6 +158,8 @@ class viSparseGP(ExactGP):
 
         self.kernel_params = self.svi.run(
             rng_key, num_steps, progress_bar=progress_bar)[0]
+
+        self.Xu = self.kernel_params['Xu']
 
         if print_summary:
             self._print_summary()
