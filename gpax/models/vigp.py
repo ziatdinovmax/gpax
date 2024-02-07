@@ -35,8 +35,12 @@ class viGP(ExactGP):
             Optional custom priors over kernel hyperparameters; uses LogNormal(0,1) by default
         mean_fn_prior:
             Optional priors over mean function parameters
-        noise_prior:
-            Optional custom prior for the observation noise variance; uses LogNormal(0,1) by default.
+        noise_prior_dist:
+            Optional custom prior distribution over the observational noise variance.
+            Defaults to LogNormal(0,1).
+        lengthscale_prior_dist:
+            Optional custom prior distribution over kernel lengthscale.
+            Defaults to LogNormal(0, 1).
         guide:
             Auto-guide option, use 'delta' (default) or 'normal'
 

@@ -165,3 +165,47 @@ def preprocess_sparse_image(sparse_image):
     # Generate indices for the entire image
     full_indices = onp.array(onp.meshgrid(*[onp.arange(dim) for dim in sparse_image.shape])).T.reshape(-1, sparse_image.ndim)
     return gp_input, targets, full_indices
+
+
+def initialize_inducing_points(X, ratio=0.1, method='uniform', key=None):
+    """
+    Initialize inducing points for a sparse Gaussian Process in JAX.
+
+    Parameters:
+    - X: A (n_samples, num_features) array of training data.
+    - ratio: A float between 0 and 1 indicating the fraction of inducing points.
+    - method: A string indicating the method for selecting inducing points ('uniform', 'random', 'kmeans').
+    - key: A JAX random key, required if method is 'random'.
+
+    Returns:
+    - inducing_points: A subset of X used as inducing points.
+    """
+    if not 0 < ratio < 1:
+        raise ValueError("The 'ratio' value must be between 0 and 1")
+
+    n_samples = X.shape[0]
+    n_inducing = int(n_samples * ratio)
+
+    if method == 'uniform':
+        indices = jnp.linspace(0, n_samples - 1, n_inducing, dtype=jnp.int8)
+        inducing_points = X[indices]
+    elif method == 'random':
+        if key is None:
+            raise ValueError("A JAX random key must be provided for random selection")
+        indices = jax.random.choice(key, n_samples, shape=(n_inducing,), replace=False)
+        inducing_points = X[indices]
+    elif method == 'kmeans':
+        try:
+            from sklearn.cluster import KMeans  # noqa: F401
+        except ImportError as e:
+            raise ImportError(
+                "You need to install `seaborn` to be able to use this feature. "
+                "It can be installed with `pip install scikit-learn`."
+            ) from e
+        # Use sklearn for KMeans clustering, then convert result to JAX array
+        kmeans = KMeans(n_clusters=n_inducing, random_state=0).fit(X)
+        inducing_points = jnp.array(kmeans.cluster_centers_)
+    else:
+        raise ValueError("Method must be 'uniform', 'random', or 'kmeans'")
+
+    return inducing_points
