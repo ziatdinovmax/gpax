@@ -156,6 +156,7 @@ def preprocess_sparse_image(sparse_image):
     and an array of full indices of the shape (N_full, D) for reconstructing the full image. D is
     the image dimensionality (D=2 for a 2D image)
     """
+    dtype = sparse_image.dtype
     # Find non-zero element indices
     non_zero_indices = onp.nonzero(sparse_image)
     # Create the GP input using the indices
@@ -164,7 +165,7 @@ def preprocess_sparse_image(sparse_image):
     targets = sparse_image[non_zero_indices]
     # Generate indices for the entire image
     full_indices = onp.array(onp.meshgrid(*[onp.arange(dim) for dim in sparse_image.shape])).T.reshape(-1, sparse_image.ndim)
-    return gp_input, targets, full_indices
+    return gp_input.astype(dtype), targets.astype(dtype), full_indices.astype(dtype)
 
 
 def initialize_inducing_points(X, ratio=0.1, method='uniform', key=None):
