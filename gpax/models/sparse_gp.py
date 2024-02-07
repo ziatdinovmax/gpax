@@ -55,7 +55,11 @@ class viSparseGP(viGP):
         super(viSparseGP, self).__init__(*args)
         self.Xu = None
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray = None, Xu: jnp.ndarray = None, **kwargs: float) -> None:
+    def model(self,
+              X: jnp.ndarray,
+              y: jnp.ndarray = None,
+              Xu: jnp.ndarray = None,
+              **kwargs: float) -> None:
         if Xu is not None:
             Xu = numpyro.param("Xu", Xu)
         # Initialize mean function at zeros
@@ -77,8 +81,8 @@ class viSparseGP(viGP):
             if self.mean_fn_prior is not None:
                 args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
-        # Xompute kernel between inducing points
-        Kuu = self.kernel(Xu, Xu, kernel_params)
+        # Compute kernel between inducing points
+        Kuu = self.kernel(Xu, Xu, kernel_params, **kwargs)
         # Cholesky decomposition
         Luu = cholesky(Kuu).T
         # Compute kernel between inducing and training points
@@ -177,7 +181,7 @@ class viSparseGP(viGP):
             y_residual -= self.mean_fn(*args).squeeze()
 
         # Compute self- and cross-covariance matrices
-        Kuu = self.kernel(self.Xu, self.Xu, params)
+        Kuu = self.kernel(self.Xu, self.Xu, params, **kwargs)
         Luu = cholesky(Kuu, lower=True)
         Kuf = self.kernel(self.Xu, self.X_train, params, jitter=0)
 
@@ -199,7 +203,7 @@ class viSparseGP(viGP):
         Linv_Ws = Linv_pack[:, W_Dinv_y.shape[1]:]
         mean = (Linv_W_Dinv_y.T @ Linv_Ws).squeeze()
 
-        Kss = self.kernel(X_new, X_new, params, noise_p)
+        Kss = self.kernel(X_new, X_new, params, noise_p, **kwargs)
         Qss = Ws.T @ Ws
         cov = Kss - Qss + Linv_Ws.T @ Linv_Ws
 
