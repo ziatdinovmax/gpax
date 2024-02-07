@@ -111,7 +111,7 @@ class viSparseGP(viGP):
 
     def fit(self,
             rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
-            inducing_points_ratio: float = 0.1, inducing_points_selection: str = 'uniform',
+            inducing_points_ratio: float = 0.1, inducing_points_selection: str = 'random',
             num_steps: int = 1000, step_size: float = 5e-3,
             progress_bar: bool = True, print_summary: bool = True,
             device: Type[jaxlib.xla_extension.Device] = None,
