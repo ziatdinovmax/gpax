@@ -60,6 +60,9 @@ class viSparseGP(viGP):
               y: jnp.ndarray = None,
               Xu: jnp.ndarray = None,
               **kwargs: float) -> None:
+        """
+        Probabilistic sparse Gaussian process regression model
+        """
         if Xu is not None:
             Xu = numpyro.param("Xu", Xu)
         # Initialize mean function at zeros
@@ -115,7 +118,7 @@ class viSparseGP(viGP):
             **kwargs: float
             ) -> None:
         """
-        Run variational inference to learn GP (hyper)parameters
+        Run variational inference to learn sparse GP (hyper)parameters
 
         Args:
             rng_key: random number generator key
@@ -163,9 +166,11 @@ class viSparseGP(viGP):
         if print_summary:
             self._print_summary()
 
-    def get_mvn_posterior(
-        self, X_new: jnp.ndarray, params: Dict[str, jnp.ndarray], noiseless: bool = False, **kwargs: float
-    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def get_mvn_posterior(self, X_new: jnp.ndarray,
+                          params: Dict[str, jnp.ndarray],
+                          noiseless: bool = False,
+                          **kwargs: float
+                          ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of GP parameters
