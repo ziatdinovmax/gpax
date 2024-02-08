@@ -56,7 +56,7 @@ y_pred, y_var = gp_model.predict(rng_key_predict, X_full)
 ```
 ![viGP](https://github.com/ziatdinovmax/gpax/assets/34245227/ac9043be-dc91-46ea-88f4-42471308d149)
 
-See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viGP.ipynb).
+Finally, for larger images or hyperspecteral data, one can use the [inducing inputs](https://www.jmlr.org/papers/volume6/quinonero-candela05a/quinonero-candela05a.pdf) approximation to GP, which is also available in GPax. See the full example [here](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/gpax_viGP.ipynb).
 
 ### Structured GP
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ziatdinovmax/gpax/blob/main/examples/GP_sGP.ipynb)
