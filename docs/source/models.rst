@@ -47,6 +47,13 @@ Gaussian Processes - Approximate Bayesian
     :member-order: bysource
     :show-inheritance:
 
+.. autoclass:: gpax.models.sparse_gp.viSparseGP
+    :members:
+    :inherited-members:
+    :undoc-members:
+    :member-order: bysource
+    :show-inheritance:
+
 Deep Kernel Learning - Fully Bayesian Implementation
 ----------------------------------------------------
 .. autoclass:: gpax.models.dkl.DKL
