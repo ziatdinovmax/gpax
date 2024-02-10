@@ -70,6 +70,8 @@ Note that it returns flattened numpy arrays that you will need to reshape back t
 .. image:: imgs/viGP.jpg
   :alt: viGP
 
+Finally, for larger images or hyperspecteral data, one can use the `inducing inputs <https://www.jmlr.org/papers/volume6/quinonero-candela05a/quinonero-candela05a.pdf>`_ approximation of viGP, which is also available in GPax.
+
 
 Structured GP
 -------------
