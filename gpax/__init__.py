@@ -5,7 +5,7 @@ from . import acquisition
 from .hypo import sample_next
 from .models import (DKL, CoregGP, ExactGP, MultiTaskGP, iBNN, vExactGP,
                      vi_iBNN, viDKL, viGP, sPM, viMTDKL, VarNoiseGP, UIGP,
-                     MeasuredNoiseGP, viSparseGP, CoregGP)
+                     MeasuredNoiseGP, viSparseGP)
 
 __all__ = ["utils", "kernels", "mtkernels", "acquisition", "ExactGP", "vExactGP", "DKL",
            "viDKL", "iBNN", "vi_iBNN", "MultiTaskGP", "viMTDKL", "viGP", "sPM", "VarNoiseGP",
