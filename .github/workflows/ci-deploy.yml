@@ -1,0 +1,60 @@
+name: CI/Deploy
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+
+  unit:
+    uses: ./.github/workflows/unit.yml
+
+  notebooks:
+    uses: ./.github/workflows/notebook_smoke.yml
+
+  check_semantic_version_placeholder:
+    name: Check semantic version placeholder exists in the __init__
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - uses: actions/checkout@v3
+
+    - name: Check lines exist
+      run: |
+        grep -x "__version__ = ...  # semantic-version-placeholder" gpax/__init__.py
+
+  build_and_publish:
+    name: Upload release to PyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/gpax
+    permissions:
+      id-token: write
+
+    needs:
+      - check_semantic_version_placeholder
+      - unit
+      - notebooks
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+
+    - name: Build and apply version
+      run: bash scripts/build_project.sh
+
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        # CURRENTLY USING TEST SERVER FOR NOW!!!!
+        repository-url: https://test.pypi.org/legacy/
