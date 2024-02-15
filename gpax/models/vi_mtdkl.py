@@ -1,3 +1,12 @@
+"""
+vi_mtdkl.py
+========
+
+Variational inference-based implementation of multi-task deep kernel learning
+
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
+"""
+
 from functools import partial
 from typing import Callable, Dict, Optional, Tuple
 
@@ -15,7 +24,7 @@ from .vidkl import viDKL
 
 class viMTDKL(viDKL):
     """
-    Implementation of the variational infernece-based deep kernel learning
+    Implementation of the variational inference-based deep kernel learning
     for multi-task/fidelity problems
 
     Args:
