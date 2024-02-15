@@ -34,3 +34,15 @@ __all__ = [
 # build.
 __version__ = ...  # semantic-version-placeholder
 # DO NOT CHANGE ABOVE ---------------------------------------------------------
+
+# Useful for local development
+if __version__ == ...:
+    try:
+        from dunamai import Version
+        version = Version.from_any_vcs()
+        __version__ = version.serialize()
+    except ImportError:
+        print("You are running a local copy of gpax (not installed via pip)")
+        print("__version__ = ...; pip install dunamai to track local version")
+        pass
+    
