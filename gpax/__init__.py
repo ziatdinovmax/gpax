@@ -29,13 +29,14 @@ __all__ = [
 ]
 
 # DO NOT CHANGE BELOW ---------------------------------------------------------
+# ALSO DO NOT CALL __version__ ANYWHERE ABOVE THIS
 # This is replaced at build time automatically during deployment and
 # installation. Replacing anything will mess that up and crash the entire
 # build.
 __version__ = ...  # semantic-version-placeholder
 # DO NOT CHANGE ABOVE ---------------------------------------------------------
 
-# Useful for local development
+# Silly hack. Useful for local development
 if __version__ == ...:
     try:
         from dunamai import Version
