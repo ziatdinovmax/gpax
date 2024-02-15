@@ -1,4 +1,3 @@
-from .__version__ import version as __version__
 from . import utils
 from . import kernels
 from . import acquisition
