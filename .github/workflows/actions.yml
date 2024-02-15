@@ -1,17 +1,10 @@
-name: build
+name: build/test
 
 env:
   PYTHON_MAIN_VERSION: 3.9
   
 on:
-  pull_request:
-    branches:
-      - '*'
-  push:
-    branches:
-      - '*'
-    tags:
-        - '*'
+  workflow_call:
 
 jobs:
   build-linux:

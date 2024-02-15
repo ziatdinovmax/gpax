@@ -1,0 +1,12 @@
+name: CI
+
+on:
+
+  pull_request:
+    branches: ["master", "dev/*", issue-59]
+
+  push:
+    branches: ["master", "dev/*", issue-59]
+
+  unit:
+    uses: ./.github/workflows/unit.yml
