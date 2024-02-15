@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PACKAGE_NAME="gpax"
-SEMANTIC_PLACEHOLDER="...  # semantic-version-placeholder/"
+SEMANTIC_PLACEHOLDER="...  # semantic-version-placeholder"
 INIT_FILE_NAME="$PACKAGE_NAME"/__init__.py
 
 
@@ -11,6 +11,7 @@ replace_version_in_init () {
     version="$(dunamai from git --style pep440 --no-metadata)"
     dunamai check "$version" --style pep440
     sed_command="s/'$SEMANTIC_PLACEHOLDER'/'$version'/g"
+    echo "$sed_command"
     cp "$INIT_FILE_NAME" "$INIT_FILE_NAME".bak
     if [[ "$OSTYPE" == "darwin"* ]]; then
         sed -i '' "$sed_command" "$INIT_FILE_NAME"
