@@ -17,7 +17,8 @@ replace_version_in_init () {
 }
 
 reset_version_to_ellipsis () {
-    current_version=$(grep "__version__" "$PACKAGE_NAME"/__init__.py)
+    # we only grep the first instance of __version__
+    current_version=$(grep -m 1 "__version__" "$PACKAGE_NAME"/__init__.py)
     sed_command="s/$current_version/__version__ = ...  # semantic-version-placeholder/g"
     if [[ "$OSTYPE" == "darwin"* ]]; then
         sed -i '' "$sed_command" "$PACKAGE_NAME"/__init__.py
