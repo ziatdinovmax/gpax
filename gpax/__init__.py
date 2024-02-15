@@ -25,7 +25,6 @@ __all__ = [
     "viSparseGP",
     "CoregGP",
     "sample_next",
-    "__version__",
 ]
 
 # DO NOT CHANGE BELOW ---------------------------------------------------------
