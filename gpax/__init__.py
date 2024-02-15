@@ -28,7 +28,7 @@ __all__ = [
 ]
 
 # DO NOT CHANGE BELOW ---------------------------------------------------------
-# ALSO DO NOT CALL __version__ ANYWHERE ABOVE THIS
+# ALSO DO NOT TYPE dunder version ANYWHERE ABOVE THIS
 # This is replaced at build time automatically during deployment and
 # installation. Replacing anything will mess that up and crash the entire
 # build.
