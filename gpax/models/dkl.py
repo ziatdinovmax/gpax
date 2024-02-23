@@ -16,10 +16,10 @@ import numpyro
 import numpyro.distributions as dist
 from jax import jit
 
-from .vgp import vExactGP
+from .gp import ExactGP
 
 
-class DKL(vExactGP):
+class DKL(ExactGP):
     """
     Fully Bayesian implementation of deep kernel learning
 
@@ -89,8 +89,8 @@ class DKL(vExactGP):
         jitter = kwargs.get("jitter", 1e-6)
         task_dim = X.shape[0]
         # BNN part
-        bnn_params = self.nn_prior(task_dim)
-        z = jax.jit(jax.vmap(self.nn))(X, bnn_params)
+        nn_params = self.nn_prior(task_dim)
+        z = self.nn(X, nn_params)
         if self.latent_prior:  # Sample latent variable
             z = self.latent_prior(z)
         # Sample GP kernel parameters
@@ -99,13 +99,11 @@ class DKL(vExactGP):
         else:
             kernel_params = self._sample_kernel_params(task_dim)
         # Sample noise
-        noise = self._sample_noise(task_dim)
+        noise = self._sample_noise()
         # GP's mean function
-        f_loc = jnp.zeros(z.shape[:2])
-        # compute kernel(s)
-        jitter = jnp.array(jitter).repeat(task_dim)
-        k_args = (z, z, kernel_params, noise)
-        k = jax.vmap(self.kernel)(*k_args, jitter=jitter)
+        f_loc = jnp.zeros(z.shape[0])
+        # compute kernel
+        k = self.kernel(z, z, kernel_params, noise, jitter=jitter)
         # Sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
@@ -113,15 +111,16 @@ class DKL(vExactGP):
             obs=y,
         )
 
-    def _get_mvn_posterior(self,
-                           X_train: jnp.ndarray, y_train: jnp.ndarray,
-                           X_new: jnp.ndarray, params: Dict[str, jnp.ndarray],
-                           noiseless: bool = False, **kwargs: float
-                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def get_mvn_posterior(self,
+                          X_new: jnp.ndarray,
+                          params: Dict[str, jnp.ndarray],
+                          noiseless: bool = False,
+                          **kwargs: float
+                          ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         noise = params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
         # embed data into the latent space
-        z_train = self.nn(X_train, params)
+        z_train = self.nn(self.X_train, params)
         z_new = self.nn(X_new, params)
         # compute kernel matrices for train and new ('test') data
         k_pp = self.kernel(z_new, z_new, params, noise_p, **kwargs)
@@ -130,7 +129,7 @@ class DKL(vExactGP):
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
-        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_train))
+        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, self.y_train))
         return mean, cov
 
     @partial(jit, static_argnames='self')
@@ -144,16 +143,6 @@ class DKL(vExactGP):
         z = predictive(samples)
         return z
 
-    def _set_data(self,
-                  X: jnp.ndarray,
-                  y: Optional[jnp.ndarray] = None
-                  ) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
-        X = X[None] if X.ndim == 2 else X  # add task pseudo-dimension
-        if y is not None:
-            y = y[None] if y.ndim == 1 else y  # add task pseudo-dimension
-            return X, y
-        return X
-
     def _print_summary(self):
         list_of_keys = ["k_scale", "k_length", "noise", "period"]
         samples = self.get_samples(1)
@@ -163,18 +152,16 @@ class DKL(vExactGP):
 
 def sample_weights(name: str, in_channels: int, out_channels: int, task_dim: int) -> jnp.ndarray:
     """Sampling weights matrix"""
-    with numpyro.plate("batch_dim", task_dim, dim=-3):
-        w = numpyro.sample(name=name, fn=dist.Normal(
-            loc=jnp.zeros((in_channels, out_channels)),
-            scale=jnp.ones((in_channels, out_channels))))
+    w = numpyro.sample(name=name, fn=dist.Normal(
+        loc=jnp.zeros((in_channels, out_channels)),
+        scale=jnp.ones((in_channels, out_channels))))
     return w
 
 
 def sample_biases(name: str, channels: int, task_dim: int) -> jnp.ndarray:
     """Sampling bias vector"""
-    with numpyro.plate("batch_dim", task_dim, dim=-3):
-        b = numpyro.sample(name=name, fn=dist.Normal(
-            loc=jnp.zeros((channels)), scale=jnp.ones((channels))))
+    b = numpyro.sample(name=name, fn=dist.Normal(
+        loc=jnp.zeros((channels)), scale=jnp.ones((channels))))
     return b
 
 
