@@ -164,7 +164,7 @@ def sample_biases(name: str, channels: int) -> jnp.ndarray:
     return b
 
 
-def get_mlp(architecture: List[int]) -> Callable:
+def get_mlp(architecture: List[int]) -> Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]:
     """Returns a function that represents an MLP for a given architecture."""
     def mlp(X: jnp.ndarray, params: Dict[str, jnp.ndarray]) -> jnp.ndarray:
         """MLP for a single MCMC sample of weights and biases, handling arbitrary number of layers."""
@@ -177,7 +177,7 @@ def get_mlp(architecture: List[int]) -> Callable:
     return mlp
 
 
-def get_mlp_prior(input_dim: int, output_dim: int, architecture: List[int]) -> Dict[str, jnp.ndarray]:
+def get_mlp_prior(input_dim: int, output_dim: int, architecture: List[int]) -> Callable[[], Dict[str, jnp.ndarray]]:
     """Priors over weights and biases for a Bayesian MLP"""
     def mlp_prior():
         params = {}
