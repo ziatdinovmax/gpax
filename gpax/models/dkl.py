@@ -87,9 +87,8 @@ class DKL(ExactGP):
               ) -> None:
         """DKL probabilistic model"""
         jitter = kwargs.get("jitter", 1e-6)
-        task_dim = X.shape[0]
         # BNN part
-        nn_params = self.nn_prior(task_dim)
+        nn_params = self.nn_prior()
         z = self.nn(X, nn_params)
         if self.latent_prior:  # Sample latent variable
             z = self.latent_prior(z)
@@ -97,7 +96,7 @@ class DKL(ExactGP):
         if self.kernel_prior:
             kernel_params = self.kernel_prior()
         else:
-            kernel_params = self._sample_kernel_params(task_dim)
+            kernel_params = self._sample_kernel_params()
         # Sample noise
         noise = self._sample_noise()
         # GP's mean function
@@ -150,7 +149,7 @@ class DKL(ExactGP):
             {k: v for (k, v) in samples.items() if k in list_of_keys})
 
 
-def sample_weights(name: str, in_channels: int, out_channels: int, task_dim: int) -> jnp.ndarray:
+def sample_weights(name: str, in_channels: int, out_channels: int) -> jnp.ndarray:
     """Sampling weights matrix"""
     w = numpyro.sample(name=name, fn=dist.Normal(
         loc=jnp.zeros((in_channels, out_channels)),
@@ -158,7 +157,7 @@ def sample_weights(name: str, in_channels: int, out_channels: int, task_dim: int
     return w
 
 
-def sample_biases(name: str, channels: int, task_dim: int) -> jnp.ndarray:
+def sample_biases(name: str, channels: int) -> jnp.ndarray:
     """Sampling bias vector"""
     b = numpyro.sample(name=name, fn=dist.Normal(
         loc=jnp.zeros((channels)), scale=jnp.ones((channels))))
@@ -180,15 +179,15 @@ def get_mlp(architecture: List[int]) -> Callable:
 
 def get_mlp_prior(input_dim: int, output_dim: int, architecture: List[int]) -> Dict[str, jnp.ndarray]:
     """Priors over weights and biases for a Bayesian MLP"""
-    def mlp_prior(task_dim: int):
+    def mlp_prior():
         params = {}
         in_channels = input_dim
         for i, out_channels in enumerate(architecture):
-            params[f"w{i}"] = sample_weights(f"w{i}", in_channels, out_channels, task_dim)
-            params[f"b{i}"] = sample_biases(f"b{i}", out_channels, task_dim)
+            params[f"w{i}"] = sample_weights(f"w{i}", in_channels, out_channels)
+            params[f"b{i}"] = sample_biases(f"b{i}", out_channels)
             in_channels = out_channels
         # Output layer
-        params[f"w{len(architecture)}"] = sample_weights(f"w{len(architecture)}", in_channels, output_dim, task_dim)
-        params[f"b{len(architecture)}"] = sample_biases(f"b{len(architecture)}", output_dim, task_dim)
+        params[f"w{len(architecture)}"] = sample_weights(f"w{len(architecture)}", in_channels, output_dim)
+        params[f"b{len(architecture)}"] = sample_biases(f"b{len(architecture)}", output_dim)
         return params
     return mlp_prior
