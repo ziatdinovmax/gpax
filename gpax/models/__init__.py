@@ -14,6 +14,7 @@ from .uigp import UIGP
 from .mngp import MeasuredNoiseGP
 from .linreg import LinReg
 from .sparse_gp import viSparseGP
+from .bnn import BNN
 
 __all__ = [
     "ExactGP",
@@ -30,6 +31,7 @@ __all__ = [
     "CoregGP",
     "UIGP",
     "LinReg",
-    "MeasuredNoiseGP"
-    "viSparseGP"
+    "MeasuredNoiseGP",
+    "viSparseGP",
+    "BNN"
 ]
