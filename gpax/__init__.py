@@ -1,3 +1,5 @@
+from gpax._version import __version__
+
 from . import acquisition, kernels, utils
 from .hypo import sample_next
 from .models import (
@@ -42,12 +44,3 @@ __all__ = [
     "CoregGP",
     "sample_next",
 ]
-
-try:
-    # _version.py is only written dynamically during build time
-    from gpax._version import __version__
-except ImportError:
-    import dunamai as _dunamai
-
-    __version__ = _dunamai.Version.from_any_vcs().serialize()
-    del _dunamai
