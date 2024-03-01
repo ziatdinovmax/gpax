@@ -121,11 +121,11 @@ def test_acq_dkl(acq):
     rng_keys = get_keys()
     X = onp.random.randn(12, 8)
     y = onp.random.randn(12,)
-    X_new = onp.random.randn(10, 8)[None]
+    X_new = onp.random.randn(10, 8)
     m = DKL(X.shape[-1], 2, 'RBF')
     m.fit(rng_keys[0], X, y, num_samples=5, num_warmup=5)
     obj = acq(rng_keys[1], m, X_new, subsample_size=4)
-    assert_equal(obj.shape, (X_new.shape[1],))
+    assert_equal(obj.shape, (X_new.shape[0],))
 
 
 def test_UCB_beta():

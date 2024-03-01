@@ -8,7 +8,6 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
 import warnings
-from functools import partial
 from typing import Callable, Dict, Optional, Tuple, Type, Union
 
 import jax
@@ -17,7 +16,6 @@ import jax.numpy as jnp
 import jax.random as jra
 import numpyro
 import numpyro.distributions as dist
-from jax import jit
 from numpyro.infer import MCMC, NUTS, init_to_median, Predictive
 
 from ..kernels import get_kernel
@@ -252,7 +250,6 @@ class ExactGP:
         """Get posterior samples (after running the MCMC chains)"""
         return self.mcmc.get_samples(group_by_chain=chain_dim)
 
-    # @partial(jit, static_argnames='self')
     def get_mvn_posterior(
         self, X_new: jnp.ndarray, params: Dict[str, jnp.ndarray], noiseless: bool = False, **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:

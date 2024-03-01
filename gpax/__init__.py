@@ -1,5 +1,6 @@
+from gpax._version import __version__
+
 from . import acquisition, kernels, utils
-from .__version__ import version as __version__
 from .hypo import sample_next
 from .models import (
     BNN,

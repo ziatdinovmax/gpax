@@ -32,39 +32,44 @@ def test_get_mvn_posterior():
     rng_key = get_keys()[0]
     X, y = get_dummy_data()
     X_test, _ = get_dummy_data()
-    params = {"w1": jax.random.normal(rng_key, shape=(36, 64)),
-              "w2": jax.random.normal(rng_key, shape=(64, 32)),
-              "w3": jax.random.normal(rng_key, shape=(32, 2)),
-              "b1": jax.random.normal(rng_key, shape=(64,)),
-              "b2": jax.random.normal(rng_key, shape=(32,)),
-              "b3": jax.random.normal(rng_key, shape=(2,)),
+    params = {"w0": jax.random.normal(rng_key, shape=(36, 64)),
+              "w1": jax.random.normal(rng_key, shape=(64, 32)),
+              "w2": jax.random.normal(rng_key, shape=(32, 2)),
+              "b0": jax.random.normal(rng_key, shape=(64,)),
+              "b1": jax.random.normal(rng_key, shape=(32,)),
+              "b2": jax.random.normal(rng_key, shape=(2,)),
               "k_length": jnp.array([1.0]),
               "k_scale": jnp.array(1.0),
               "noise": jnp.array(0.1)}
     m = DKL(X.shape[-1], kernel='RBF')
-    mean, cov = m._get_mvn_posterior(X, y, X_test, params)
+    m.X_train = X
+    m.y_train = y
+    mean, cov = m.get_mvn_posterior(X_test, params)
     assert isinstance(mean, jnp.ndarray)
     assert isinstance(cov, jnp.ndarray)
     assert_equal(mean.shape, (X_test.shape[0],))
     assert_equal(cov.shape, (X_test.shape[0], X_test.shape[0]))
 
+
 def test_get_mvn_posterior_noiseless():
     rng_key = get_keys()[0]
     X, y = get_dummy_data()
     X_test, _ = get_dummy_data()
-    params = {"w1": jax.random.normal(rng_key, shape=(36, 64)),
-              "w2": jax.random.normal(rng_key, shape=(64, 32)),
-              "w3": jax.random.normal(rng_key, shape=(32, 2)),
-              "b1": jax.random.normal(rng_key, shape=(64,)),
-              "b2": jax.random.normal(rng_key, shape=(32,)),
-              "b3": jax.random.normal(rng_key, shape=(2,)),
+    params = {"w0": jax.random.normal(rng_key, shape=(36, 64)),
+              "w1": jax.random.normal(rng_key, shape=(64, 32)),
+              "w2": jax.random.normal(rng_key, shape=(32, 2)),
+              "b0": jax.random.normal(rng_key, shape=(64,)),
+              "b1": jax.random.normal(rng_key, shape=(32,)),
+              "b2": jax.random.normal(rng_key, shape=(2,)),
               "k_length": jnp.array([1.0]),
               "k_scale": jnp.array(1.0),
               "noise": jnp.array(0.1)}
     m = DKL(X.shape[-1], kernel='RBF')
-    mean1, cov1 = m._get_mvn_posterior(X, y, X_test, params, noiseless=False)
-    mean1_, cov1_ = m._get_mvn_posterior(X, y, X_test, params, noiseless=False)
-    mean2, cov2 = m._get_mvn_posterior(X, y, X_test, params, noiseless=True)
+    m.X_train = X
+    m.y_train = y
+    mean1, cov1 = m.get_mvn_posterior(X_test, params, noiseless=False)
+    mean1_, cov1_ = m.get_mvn_posterior(X_test, params, noiseless=False)
+    mean2, cov2 = m.get_mvn_posterior(X_test, params, noiseless=True)
     assert_array_equal(mean1, mean1_)
     assert_array_equal(cov1, cov1_)
     assert_array_equal(mean1, mean2)
@@ -94,19 +99,19 @@ def test_jitter_mvn_posterior():
     # X = X[None]
     # y = y[None]
     # X_test = X_test[None]
-    params = {"w1": jax.random.normal(rng_key, shape=(36, 64)),
-              "w2": jax.random.normal(rng_key, shape=(64, 32)),
-              "w3": jax.random.normal(rng_key, shape=(32, 2)),
-              "b1": jax.random.normal(rng_key, shape=(64,)),
-              "b2": jax.random.normal(rng_key, shape=(32,)),
-              "b3": jax.random.normal(rng_key, shape=(2,)),
+    params = {"w0": jax.random.normal(rng_key, shape=(36, 64)),
+              "w1": jax.random.normal(rng_key, shape=(64, 32)),
+              "w2": jax.random.normal(rng_key, shape=(32, 2)),
+              "b0": jax.random.normal(rng_key, shape=(64,)),
+              "b1": jax.random.normal(rng_key, shape=(32,)),
+              "b2": jax.random.normal(rng_key, shape=(2,)),
               "k_length": jnp.array([1.0]),
               "k_scale": jnp.array(1.0),
               "noise": jnp.array(0.1)}
     m = DKL(X.shape[-1], 2, 'RBF')
     m.X_train = X
     m.y_train = y
-    mean1, cov1 = m._get_mvn_posterior(X, y, X_test, params, jitter=1e-6)
-    mean2, cov2 = m._get_mvn_posterior(X, y, X_test, params, jitter=1e-5)
+    mean1, cov1 = m.get_mvn_posterior(X_test, params, jitter=1e-6)
+    mean2, cov2 = m.get_mvn_posterior(X_test, params, jitter=1e-5)
     assert_(onp.count_nonzero(mean1 - mean2) > 0)
     assert_(onp.count_nonzero(cov1 - cov2) > 0)
