@@ -32,7 +32,7 @@ class BNN(sPM):
                   ) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
         X = X if X.ndim > 1 else X[:, None]
         if y is not None:
-            y = y[:, None] if y.ndim < 1 else y
+            y = y[:, None] if y.ndim < 2 else y
             return X, y
         return X
 
