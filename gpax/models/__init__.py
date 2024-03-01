@@ -15,6 +15,7 @@ from .mngp import MeasuredNoiseGP
 from .linreg import LinReg
 from .sparse_gp import viSparseGP
 from .bnn import BNN
+from .vibnn import viBNN
 
 __all__ = [
     "ExactGP",
@@ -33,5 +34,6 @@ __all__ = [
     "LinReg",
     "MeasuredNoiseGP",
     "viSparseGP",
-    "BNN"
+    "BNN",
+    "viBNN"
 ]
