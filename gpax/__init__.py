@@ -1,8 +1,7 @@
+from gpax import acquisition, kernels, utils
 from gpax._version import __version__
-
-from . import acquisition, kernels, utils
-from .hypo import sample_next
-from .models import (
+from gpax.hypo import sample_next
+from gpax.models import (
     BNN,
     DKL,
     UIGP,
