@@ -18,6 +18,8 @@ from .models import (
     viSparseGP,
 )
 
+# WARNING: I don't think __all__ is really needed, and I'm not sure it's
+# actually accurate
 __all__ = [
     "utils",
     "kernels",
@@ -41,8 +43,11 @@ __all__ = [
     "sample_next",
 ]
 
+try:
+    # _version.py is only written dynamically during build time
+    from gpax._version import __version__
+except ImportError:
+    import dunamai as _dunamai
 
-import dunamai as _dunamai
-
-__version__ = _dunamai.get_version("gpax", third_choice=_dunamai.Version.from_any_vcs).serialize()
-del _dunamai
+    __version__ = _dunamai.Version.from_any_vcs().serialize()
+    del _dunamai
