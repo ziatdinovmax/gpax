@@ -1,8 +1,8 @@
-from gpax._version import __version__
-
 from . import acquisition, kernels, utils
+from .__version__ import version as __version__
 from .hypo import sample_next
 from .models import (
+    BNN,
     DKL,
     UIGP,
     CoregGP,
@@ -20,8 +20,6 @@ from .models import (
     viSparseGP,
 )
 
-# WARNING: I don't think __all__ is really needed, and I'm not sure it's
-# actually accurate
 __all__ = [
     "utils",
     "kernels",
@@ -42,5 +40,7 @@ __all__ = [
     "MeasuredNoiseGP",
     "viSparseGP",
     "CoregGP",
+    "BNN",
     "sample_next",
+    "__version__",
 ]
