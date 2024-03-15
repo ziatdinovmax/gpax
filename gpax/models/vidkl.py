@@ -42,8 +42,10 @@ class viDKL(ExactGP):
             with ReLU activations by default
         nn_prior:
             Places probabilistic priors over NN weights and biases (Default: True)
-        latent_prior:
-            Optional prior over the latent space (NN embedding); uses none by default
+        latent_mean_fn:
+            Optional mean function over the latent space (NN embedding); uses none by default
+        latent_mean_fn_prior:
+            Optional latent mean function prior ; uses none by default
         guide:
             Auto-guide option, use 'delta' (default) or 'normal'
 
@@ -71,7 +73,8 @@ class viDKL(ExactGP):
     def __init__(self, input_dim: Union[int, Tuple[int]], z_dim: int = 2, kernel: str = 'RBF',
                  kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None, nn_prior: bool = True,
-                 latent_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None,
+                 latent_mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
+                 latent_mean_fn_prior: Optional[Callable[[jnp.ndarray], Dict[str, jnp.ndarray]]] = None,
                  guide: str = 'delta', **kwargs
                  ) -> None:
         super(viDKL, self).__init__(input_dim, kernel, None, kernel_prior, **kwargs)
@@ -82,9 +85,10 @@ class viDKL(ExactGP):
         self.nn_prior = nn_prior
         self.kernel_dim = z_dim
         self.data_dim = (input_dim,) if isinstance(input_dim, int) else input_dim
-        self.latent_prior = latent_prior
+        self.latent_mean_fn = latent_mean_fn
+        self.latent_mean_fn_prior = latent_mean_fn_prior
         self.guide_type = AutoNormal if guide == 'normal' else AutoDelta
-        self.kernel_params = None
+        self.gp_params = None
         self.nn_params = None
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray = None, **kwargs) -> None:
@@ -98,8 +102,13 @@ class viDKL(ExactGP):
             feature_extractor = haiku_module(
                 "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim))
         z = feature_extractor(X)
-        if self.latent_prior:  # Sample latent variable
-            z = self.latent_prior(z)
+        # GP's mean function
+        f_loc = jnp.zeros(z.shape[0])
+        if self.latent_mean_fn is not None:
+            args = [z]
+            if self.latent_mean_fn_prior is not None:
+                args += [self.latent_mean_fn_prior()]
+            f_loc += self.latent_mean_fn(*args).squeeze()
         # Sample GP kernel parameters
         if self.kernel_prior:
             kernel_params = self.kernel_prior()
@@ -107,8 +116,6 @@ class viDKL(ExactGP):
             kernel_params = self._sample_kernel_params()
         # Sample noise
         noise = self._sample_noise()
-        # GP's mean function
-        f_loc = jnp.zeros(z.shape[0])
         # compute kernel
         k = self.kernel(
             z, z,
@@ -150,15 +157,15 @@ class viDKL(ExactGP):
             # Get NN weights
             nn_params = get_haiku_dict(params_map)
             # Get GP kernel hyperparmeters
-            kernel_params = {k: v for (k, v) in params_map.items()
-                            if not k.startswith("feature_extractor")}
+            gp_params = {k: v for (k, v) in params_map.items()
+                         if not k.startswith("feature_extractor")}
         else:  # MLE
             # Get NN weights
             nn_params = params["feature_extractor$params"]
             # Get kernel parameters from the guide
-            kernel_params = svi.guide.median(params)
+            gp_params = svi.guide.median(params)
         
-        return nn_params, kernel_params, losses
+        return nn_params, gp_params, losses
 
     def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
             num_steps: int = 1000, step_size: float = 5e-3,
@@ -187,7 +194,7 @@ class viDKL(ExactGP):
                     print_summary=False, progress_bar=False, **kwargs)
             # Apply vmap to the wrapper function
             vfit = jax.vmap(_single_fit)
-            self.nn_params, self.kernel_params, self.loss = vfit(y)
+            self.nn_params, self.gp_params, self.loss = vfit(y)
             # Poor man version of the progress bar
             if progress_bar:
                 avg_bw = [num_steps - num_steps // 20, num_steps]
@@ -196,7 +203,7 @@ class viDKL(ExactGP):
                     self.loss.mean(0)[avg_bw[0]:avg_bw[1]].mean().round(4)))
 
         else:  # no channel dimension so we use the regular single_fit
-            self.nn_params, self.kernel_params, self.loss = self.single_fit(
+            self.nn_params, self.gp_params, self.loss = self.single_fit(
                 rng_key, X, y, num_steps, step_size, print_summary, progress_bar
             )
         if print_summary:
@@ -206,7 +213,7 @@ class viDKL(ExactGP):
     def get_mvn_posterior(self,
                           X_new: jnp.ndarray,
                           nn_params: Dict[str, jnp.ndarray],
-                          k_params: Dict[str, jnp.ndarray],
+                          gp_params: Dict[str, jnp.ndarray],
                           noiseless: bool = False,
                           y_residual: jnp.ndarray = None,
                           **kwargs
@@ -217,22 +224,35 @@ class viDKL(ExactGP):
         given a single set of DKL parameters
         """
         if y_residual is None:
-            y_residual = self.y_train
-        noise = k_params["noise"]
+            y_residual = self.y_train.copy()
+        noise = gp_params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
+        
         # embed data into the latent space
         z_train = self.nn_module.apply(
             nn_params, jax.random.PRNGKey(0), self.X_train)
-        z_test = self.nn_module.apply(
+        z_new = self.nn_module.apply(
             nn_params, jax.random.PRNGKey(0), X_new)
+        
+        # Appply latent mean function
+        if self.latent_mean_fn is not None:
+            args = [z_train, gp_params] if self.latent_mean_fn_prior else [z_train]
+            y_residual -= self.latent_mean_fn(*args).squeeze()
+
         # compute kernel matrices for train and test data
-        k_pp = self.kernel(z_test, z_test, k_params, noise_p, **kwargs)
-        k_pX = self.kernel(z_test, z_train, k_params, jitter=0.0)
-        k_XX = self.kernel(z_train, z_train, k_params, noise, **kwargs)
+        k_pp = self.kernel(z_new, z_new, gp_params, noise_p, **kwargs)
+        k_pX = self.kernel(z_new, z_train, gp_params, jitter=0.0)
+        k_XX = self.kernel(z_train, z_train, gp_params, noise, **kwargs)
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
         mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
+
+        # Apply latent mean function
+        if self.latent_mean_fn is not None:
+            args = [z_new, gp_params] if self.latent_mean_fn_prior else [z_new]
+            mean += self.latent_mean_fn(*args).squeeze()
+
         return mean, cov
 
     def sample_from_posterior(self, rng_key: jnp.ndarray,
@@ -246,13 +266,13 @@ class viDKL(ExactGP):
         if self.y_train.ndim > 1:
             raise NotImplementedError("Currently does not support a multi-channel regime")
         y_mean, K = self.get_mvn_posterior(
-            X_new, self.nn_params, self.kernel_params, noiseless, **kwargs)
+            X_new, self.nn_params, self.gp_params, noiseless, **kwargs)
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
     
     def get_samples(self) -> Tuple[Dict['str', jnp.ndarray]]:
         """Returns a tuple with trained NN weights and kernel hyperparameters"""
-        return self.nn_params, self.kernel_params
+        return self.nn_params, self.gp_params
 
     def predict_in_batches(self, rng_key: jnp.ndarray,
                            X_new: jnp.ndarray,  batch_size: int = 100,
@@ -295,24 +315,24 @@ class viDKL(ExactGP):
         """
         if params is None:
             nn_params = self.nn_params
-            k_params = self.kernel_params
+            gp_params = self.gp_params
         else:
-            nn_params, k_params = params
+            nn_params, gp_params = params
 
         if self.y_train.ndim == 2:  # y has shape (channels, samples)
             # Define a wrapper to use with vmap
-            def _get_mvn_posterior(nn_params_i, k_params_i, yi):
+            def _get_mvn_posterior(nn_params_i, gp_params_i, yi):
                 mean, cov = self.get_mvn_posterior(
-                    X_new, nn_params_i, k_params_i, noiseless, yi)
+                    X_new, nn_params_i, gp_params_i, noiseless, yi)
                 return mean, cov.diagonal()
             # vectorize posterior predictive computation over the y's channel dimension
             predictive = jax.vmap(_get_mvn_posterior)
-            mean, var = predictive(nn_params, k_params, self.y_train)
+            mean, var = predictive(nn_params, gp_params, self.y_train)
 
         else:  # y has shape (samples,)
             # Standard prediction
             mean, cov = self.get_mvn_posterior(
-                X_new, nn_params, k_params, noiseless)
+                X_new, nn_params, gp_params, noiseless)
             var = cov.diagonal()
 
         return mean, var
@@ -384,14 +404,14 @@ class viDKL(ExactGP):
         return z
 
     def _print_summary(self) -> None:
-        if isinstance(self.kernel_params, dict):
+        if isinstance(self.gp_params, dict):
             print('\nInferred GP kernel parameters')
             if self.X_train.ndim == len(self.data_dim) + 1:
-                for (k, vals) in self.kernel_params.items():
+                for (k, vals) in self.gp_params.items():
                     spaces = " " * (15 - len(k))
                     print(k, spaces, jnp.around(vals, 4))
             else:
-                for (k, vals) in self.kernel_params.items():
+                for (k, vals) in self.gp_params.items():
                     for i, v in enumerate(vals):
                         spaces = " " * (15 - len(k))
                         print(k+"[{}]".format(i), spaces, jnp.around(v, 4))
