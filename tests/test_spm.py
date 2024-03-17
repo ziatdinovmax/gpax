@@ -55,12 +55,24 @@ def test_get_samples():
 def test_prediction():
     rng_keys = get_keys()
     X, y = get_dummy_data()
-    X_test, _ = get_dummy_data()
-    samples = {"a": jax.random.normal(rng_keys[0], shape=(100, 1)),
-               "b": jax.random.normal(rng_keys[0], shape=(100,))}
+    X_test = onp.linspace(X.min(), X.max(), 200)
+    samples = {"a": jax.random.normal(rng_keys[0], shape=(100,)),
+               "b": jax.random.normal(rng_keys[0], shape=(100,)),
+               "noise": jax.random.normal(rng_keys[0], shape=(100,))}
     m =sPM(model, model_priors)
     y_mean, y_sampled = m.predict(rng_keys[1], X_test, samples)
     assert isinstance(y_mean, jnp.ndarray)
     assert isinstance(y_sampled, jnp.ndarray)
+    assert_equal(y_mean.shape, X_test.squeeze().shape)
+    assert_equal(y_sampled.shape, (100, X_test.shape[0]))
+
+
+def test_fit_predict():
+    key1, key2 = get_keys()
+    X, y = get_dummy_data()
+    X_test = onp.linspace(X.min(), X.max(), 200)
+    m = sPM(model, model_priors)
+    m.fit(key1, X, y, num_warmup=100, num_samples=100)
+    y_mean, y_sampled = m.predict(key2, X_test)
     assert_equal(y_mean.shape, X_test.squeeze().shape)
     assert_equal(y_sampled.shape, (100, X_test.shape[0]))
