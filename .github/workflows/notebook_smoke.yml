@@ -4,14 +4,7 @@ env:
   CI_SMOKE: True
 
 on:
-  pull_request:
-    branches:
-      - '*'
-  push:
-    branches:
-      - '*'
-    tags:
-      - '*'
+  workflow_call:
 
 jobs:
   build-linux:
@@ -34,22 +27,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get update -qq
-        python -m pip install --upgrade pip
-        python -m pip install flake8 pytest
-        python -m pip install jaxlib
-        python -m pip install jax
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-            
-    - name: install package
-      run: |
-        pip install .
-        pip list
+        bash scripts/install.sh
 
     - name: Notebook smoke tests
       run: |
-        pip install ipython
-        pip install nbformat
-        pip install seaborn
         bash scripts/test_notebooks.sh
 

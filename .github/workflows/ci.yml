@@ -1,0 +1,17 @@
+name: CI
+
+on:
+
+  pull_request:
+    branches: ["master", "dev/*", mc/issue-59]
+
+  push:
+    branches: ["master", "dev/*", mc/issue-59]
+
+jobs: 
+
+  unit:
+    uses: ./.github/workflows/unit.yml
+
+  notebooks:
+    uses: ./.github/workflows/notebook_smoke.yml
