@@ -10,9 +10,10 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
 import inspect
 import re
 
-from typing import List, Callable, Optional
+from typing import List, Callable, Optional, Dict
 
 import jax
+import jax.numpy as jnp
 
 from ..kernels.kernels import square_scaled_distance, add_jitter, _sqrt
 
