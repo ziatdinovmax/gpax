@@ -1,39 +1,16 @@
 Utilities
 =========
 
-Priors
-------
+Automatic function setters
+--------------------------
 
-.. autofunction:: gpax.utils.normal_dist
+.. autofunction:: gpax.utils.set_fn
 
-.. autofunction:: gpax.utils.lognormal_dist
-
-.. autofunction:: gpax.utils.halfnormal_dist
-
-.. autofunction:: gpax.utils.gamma_dist
-
-.. autofunction:: gpax.utils.uniform_dist
-
-.. autofunction:: gpax.utils.place_normal_prior
-
-.. autofunction:: gpax.utils.place_lognormal_prior
-
-.. autofunction:: gpax.utils.place_halfnormal_prior
-
-.. autofunction:: gpax.utils.place_uniform_prior
-
-.. autofunction:: gpax.utils.place_gamma_prior
+.. autofunction:: gpax.utils.set_kernel_fn
 
 
 Other utilities
 ---------------
-
-.. autoclass:: gpax.models.spm.sPM
-    :members:
-    :inherited-members:
-    :undoc-members:
-    :member-order: bysource
-    :show-inheritance:
 
 .. autofunction:: gpax.utils.dviz
 
