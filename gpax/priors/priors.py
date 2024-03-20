@@ -78,7 +78,7 @@ def normal_dist(loc: float = None, scale: float = None
 
     Assign custom prior to kernel lengthscale during GP model initialization
 
-    >>> model = gpax.ExactGP(input_dim, kernel, lengthscale_prior_dist=gpax.utils.normal_dist(5, 1))
+    >>> model = gpax.ExactGP(input_dim, kernel, lengthscale_prior_dist=gpax.priors.normal_dist(5, 1))
 
     Train as usual
 
@@ -99,7 +99,7 @@ def lognormal_dist(loc: float = None, scale: float = None) -> numpyro.distributi
 
     Assign custom prior to kernel lengthscale during GP model initialization
 
-    >>> model = gpax.ExactGP(input_dim, kernel, lengthscale_prior_dist=gpax.utils.lognormal_dist(0, 0.1))
+    >>> model = gpax.ExactGP(input_dim, kernel, lengthscale_prior_dist=gpax.priors.lognormal_dist(0, 0.1))
 
     Train as usual
 
@@ -120,7 +120,7 @@ def halfnormal_dist(scale: float = None) -> numpyro.distributions.Distribution:
 
     Assign custom prior to noise variance during GP model initialization
 
-    >>> model = gpax.ExactGP(input_dim, kernel, noise_prior_dist=gpax.utils.halfnormal_dist(0.1))
+    >>> model = gpax.ExactGP(input_dim, kernel, noise_prior_dist=gpax.priors.halfnormal_dist(0.1))
 
     Train as usual
 
@@ -144,7 +144,7 @@ def gamma_dist(c: float = None,
 
     Assign custom prior to kernel lengthscale during GP model initialization
 
-    >>> model = gpax.ExactGP(input_dm, kernel, lengthscale_prior_dist=gpax.utils.gamma_dist(2, 5))
+    >>> model = gpax.ExactGP(input_dm, kernel, lengthscale_prior_dist=gpax.priors.gamma_dist(2, 5))
 
     Train as usual
 
