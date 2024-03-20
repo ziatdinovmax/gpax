@@ -11,13 +11,13 @@ Priors
 
 .. autofunction:: gpax.priors.uniform_dist
 
-.. autofunction:: gpax.priors.place_normal_prior
+.. autofunction:: gpax.priors.auto_normal_priors
 
-.. autofunction:: gpax.priors.place_lognormal_prior
+.. autofunction:: gpax.priors.auto_lognormal_priors
 
-.. autofunction:: gpax.priors.place_halfnormal_prior
+.. autofunction:: gpax.priors.auto_normal_kernel_priors
 
-.. autofunction:: gpax.priors.place_uniform_prior
+.. autofunction:: gpax.priors.auto_lognormal_kernel_priors
 
-.. autofunction:: gpax.priors.place_gamma_prior
+
 
