@@ -96,3 +96,13 @@ Multi-Task Learning
     :undoc-members:
     :member-order: bysource
     :show-inheritance:
+
+Structured Probabilistic Models
+-------------------------------
+.. autoclass:: gpax.models.spm.sPM
+    :members:
+    :inherited-members:
+    :undoc-members:
+    :member-order: bysource
+    :show-inheritance:
+
