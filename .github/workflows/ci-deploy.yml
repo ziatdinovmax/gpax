@@ -39,7 +39,7 @@ jobs:
         python-version: 3.9
 
     - name: Build and apply version
-      run: bash scripts/build_project.sh
+      run: bash scripts/build.sh
 
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
