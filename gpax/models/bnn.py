@@ -32,7 +32,7 @@ class BNN(sPM):
                   ) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
         X = X if X.ndim > 1 else X[:, None]
         if y is not None:
-            y = y[:, None] if y.ndim < 1 else y
+            y = y[:, None] if y.ndim < 2 else y
             return X, y
         return X
 
@@ -47,7 +47,7 @@ def sample_weights(name: str, in_channels: int, out_channels: int) -> jnp.ndarra
 
 def sample_biases(name: str, channels: int) -> jnp.ndarray:
     """Sampling bias vector"""
-    b = numpyro.sample(name=name, fn=dist.Normal(
+    b = numpyro.sample(name=name, fn=dist.Cauchy(
         loc=jnp.zeros((channels)), scale=jnp.ones((channels))))
     return b
 

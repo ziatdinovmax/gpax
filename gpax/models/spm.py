@@ -16,6 +16,8 @@ from typing import Callable, Optional, Tuple, Type, Dict
 import jax
 import jaxlib
 import jax.numpy as jnp
+import jax.random as jra
+from jax import vmap
 import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS, Predictive, init_to_median
@@ -144,19 +146,44 @@ class sPM:
         prior_predictive = Predictive(self.model, num_samples=num_samples)
         samples = prior_predictive(rng_key, X)
         return samples['y']
+    
+    def sample_single_posterior_predictive(self, rng_key, X_new, params, n_draws):
+        sigma = params["noise"]
+        loc = self._model(X_new, params)
+        sample = dist.Normal(loc, sigma).sample(rng_key, (n_draws,)).mean(0)
+        return loc, sample
+    
+    def _vmap_predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
+                      samples: Optional[Dict[str, jnp.ndarray]] = None, 
+                      n_draws: int = 1, 
+                      ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Helper method to vectorize predictions over posterior samples
+        """
+        if samples is None:
+            samples = self.get_samples(chain_dim=False)
+        num_samples = len(next(iter(samples.values())))
+        vmap_args = (jra.split(rng_key, num_samples), samples)
+
+        predictive = lambda p1, p2: self.sample_single_posterior_predictive(p1, X_new, p2, n_draws)
+        loc, f_samples = vmap(predictive)(*vmap_args)
+
+        return loc, f_samples
 
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
+                n: int = 1,
                 filter_nans: bool = False, take_point_predictions_mean: bool = True,
                 device: Type[jaxlib.xla_extension.Device] = None
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Make prediction at X_new points using sampled GP hyperparameters
+        Make prediction at X_new points using posterior model parameters
 
         Args:
             rng_key: random number generator key
             X_new: 2D vector with new/'test' data of :math:`n x num_features` dimensionality
             samples: optional posterior samples
+            n: number of samples to draw from normal distribution per single HMC sample
             filter_nans: filter out samples containing NaN values (if any)
             take_point_predictions_mean: take a mean of point predictions (without sampling from the normal distribution)
             device:
@@ -172,10 +199,7 @@ class sPM:
         if device:
             X_new = jax.device_put(X_new, device)
             samples = jax.device_put(samples, device)
-        predictive = Predictive(
-            self.model, posterior_samples=samples, parallel=True)
-        y_pred = predictive(rng_key, X_new)
-        y_pred, y_sampled = y_pred["mu"], y_pred["y"]
+        y_pred, y_sampled = self._vmap_predict(rng_key, X_new, samples, n)
         if filter_nans:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
             y_sampled = jnp.array(y_sampled_)

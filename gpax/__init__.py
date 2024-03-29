@@ -21,6 +21,7 @@ from gpax.models import (
 )
 
 __all__ = [
+    "priors",
     "utils",
     "kernels",
     "mtkernels",

@@ -10,8 +10,6 @@ from numpy.testing import assert_equal, assert_, assert_array_equal
 sys.path.insert(0, "../gpax/")
 
 from gpax.utils import preprocess_sparse_image, split_dict, random_sample_dict, get_keys, initialize_inducing_points
-from gpax.utils import place_normal_prior, place_halfnormal_prior, place_uniform_prior, place_gamma_prior, gamma_dist, uniform_dist, normal_dist, halfnormal_dist
-from gpax.utils import set_fn, auto_normal_priors
 
 
 def test_sparse_img_processing():

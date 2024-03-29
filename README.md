@@ -24,9 +24,9 @@ gp_model = gpax.ExactGP(1, kernel='RBF')
 # Run Hamiltonian Monte Carlo to obtain posterior samples for the GP model parameters
 gp_model.fit(rng_key, X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
 ```
-In the fully Bayesian mode, we get a pair of predictive mean and covariance for each Hamiltonian Monte Carlo sample containing the GP parameters (in this case, the RBF kernel hyperparameters and model noise). Hence, a prediction on new inputs with a trained GP model returns the center of the mass of all the predictive means (```y_pred```) and samples from multivariate normal distributions for all the pairs of predictive means and covariances (```y_sampled```).
+In the fully Bayesian mode, we get a pair of predictive mean and covariance for each Hamiltonian Monte Carlo sample containing the GP parameters (in this case, the RBF kernel hyperparameters and model noise). Hence, a prediction on new inputs with a trained GP model returns the center of the mass of all the predictive means (```posterior_mean```) and samples from multivariate normal distributions for all the pairs of predictive means and covariances (```f_samples```).
 ```python3
-y_pred, y_sampled = gp_model.predict(rng_key_predict, X_test)
+posterior_mean, f_samples = gp_model.predict(rng_key_predict, X_test)
 ```
 
 <img src = "https://user-images.githubusercontent.com/34245227/167945293-8cb5b88a-1f64-4f7d-95ab-26863b90d1e5.jpg" height="60%" width="60%">
@@ -96,7 +96,7 @@ sgp_model = gpax.ExactGP(1, kernel='Matern', mean_fn=piecewise, mean_fn_prior=pi
 # Run MCMC to obtain posterior samples
 sgp_model.fit(rng_key, X, y)
 # Get GP prediction on new/test data
-y_pred, y_sampled = sgp_model.predict(rng_key_predict, X_test)
+posterior_mean, f_samples = sgp_model.predict(rng_key_predict, X_test)
 ```
 
 ![GP_vs_sGP2](https://github.com/ziatdinovmax/gpax/assets/34245227/89de341c-f00c-468c-afe6-c0b1c1140725)
@@ -150,7 +150,7 @@ Note that X has (N, D+1) dimensions where the last column contains task/fidelity
 X_unmeasured2 = np.column_stack((X_full_range, np.ones_like(X_full_range)))
 
 # Make a prediction with the trained model
-y_mean2, y_sampled2 = model.predict(key2, X_unmeasured2, noiseless=True)
+posterior_mean2, f_samples2  = model.predict(key2, X_unmeasured2, noiseless=True)
 ```
 
 ![GP_vs_MTGP](https://github.com/ziatdinovmax/gpax/assets/34245227/5a36d3cd-c904-4345-abc3-b1bea5025cc8)

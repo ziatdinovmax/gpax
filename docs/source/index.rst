@@ -19,9 +19,10 @@ GPax is a small Python package for physics-based Gaussian processes (GPs) built 
    :caption: Package Content
 
    models
-   hypo
    acquisition
    kernels
+   priors
+   hypo
    utils
 
 .. toctree::
