@@ -1,0 +1,48 @@
+name: CI/Deploy
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+
+  unit:
+    uses: ./.github/workflows/unit.yml
+
+  notebooks:
+    uses: ./.github/workflows/notebook_smoke.yml
+
+  build_and_publish:
+    name: Upload release to PyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/gpax
+    permissions:
+      id-token: write
+
+    needs:
+      - unit
+      - notebooks
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+
+    - name: Build and apply version
+      run: bash scripts/build.sh
+
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        # CURRENTLY USING TEST SERVER FOR NOW!!!!
+        repository-url: https://test.pypi.org/legacy/

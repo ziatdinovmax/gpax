@@ -1,3 +1,45 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "gpax"
+authors = [
+    {"name" = "Maxim Ziatdinov", "email" = "maxim.ziatdinov@ai4microcopy.com"}
+]
+readme = "README.md"
+requires-python = ">=3.9"
+license = {"file" = "LICENSE"}
+description='Gaussian processes in NumPyro and JAX'
+classifiers=[
+    'Programming Language :: Python',
+    'Development Status :: 3 - Alpha',
+    'Intended Audience :: Science/Research',
+    'Operating System :: POSIX :: Linux',
+    'Operating System :: MacOS :: MacOS X',
+    'Topic :: Scientific/Engineering'
+]
+
+# Core dependencies
+dependencies = [
+    "matplotlib>=3.1.1",
+    "jax>=0.4.8",
+    "numpyro>=0.11.0",
+    "dm-haiku>=0.0.5",
+    "dunamai==1.19.2",
+    "jaxopt", # TODO: do we want to require this?
+]
+
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = [
+    "flake8",
+    "jaxlib",
+    "pytest",
+    "pytest-cov",
+]
+
 [tool.black]
 line-length = 127
 include = '\.pyi?$'
