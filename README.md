@@ -1,5 +1,6 @@
 # GPax
-[![build](https://github.com/ziatdinovmax/gpax/actions/workflows/actions.yml/badge.svg)](https://github.com/ziatdinovmax/gpax/actions/workflows/actions.yml)
+[![build](https://github.com/ziatdinovmax/gpax/actions/workflows/ci.yml/badge.svg)](https://github.com/ziatdinovmax/gpax/actions/workflows/ci.yml)
+[![notebooks](https://github.com/ziatdinovmax/gpax/actions/workflows/notebook_smoke.yml/badge.svg)](https://github.com/ziatdinovmax/gpax/actions/workflows/notebook_smoke.yml)
 [![codecov](https://codecov.io/gh/ziatdinovmax/gpax/branch/main/graph/badge.svg?token=FFA8XB0FED)](https://codecov.io/gh/ziatdinovmax/gpax)
 [![Documentation Status](https://readthedocs.org/projects/gpax/badge/?version=latest)](https://gpax.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/gpax.svg)](https://badge.fury.io/py/gpax)
