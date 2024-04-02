@@ -221,9 +221,17 @@ next_point_idx = obj.argmax()
 ## Installation
 If you would like to utilize a GPU acceleration, follow these [instructions](https://github.com/google/jax#installation) to install JAX with a GPU support.
 
-Then, install GPax using pip:
+Then, install GPax using pip. We recommend installing the latest stable deployment from PyPI using
 
-```$ pip install git+https://github.com/ziatdinovmax/gpax```
+```bash
+pip install gpax
+```
+
+Otherwise, if you are confident in what's on the `main` branch of GPax, you can also install directly from the GitHub repository:
+
+```bash
+pip install git+https://github.com/ziatdinovmax/gpax
+```
 
 If you are a Windows user, we recommend to use the Windows Subsystem for Linux (WSL2), which comes free on Windows 10 and 11.
 
