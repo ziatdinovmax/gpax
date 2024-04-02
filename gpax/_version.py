@@ -6,5 +6,5 @@ try:
 
     __version__ = _dunamai.Version.from_any_vcs().serialize()
     del _dunamai
-except ImportError:
+except (ImportError, RuntimeError):
     __version__ = "dev"
