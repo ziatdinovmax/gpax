@@ -8,3 +8,4 @@ typing-extensions>=4.4.0
 jax>=0.4.8
 numpyro>=0.11.0
 dm-haiku>=0.0.5
+dunamai==1.19.2
