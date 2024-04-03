@@ -13,6 +13,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../../'))
+from gpax._version import __version__
 
 #autodoc_mock_imports = ['jax', 'jax.numpy', 'jax.random', 'numpyro', 'jaxlib',
 #                        'numpyro.distributions', 'numpyro.infer', 'haiku', 'numpy']
@@ -24,10 +25,7 @@ copyright = '2024, GPax authors'
 author = 'GPax authors'
 
 # The full version, including alpha/beta/rc tags
-module_dir = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(module_dir, '../../gpax/__version__.py')) as f:
-    release = f.read().split("'")[1]
-
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 
