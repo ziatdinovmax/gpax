@@ -41,11 +41,11 @@ def square_scaled_distance(X: jnp.ndarray, Z: jnp.ndarray,
     return r2.clip(0)
 
 
-@jit
 def RBFKernel(X: jnp.ndarray, Z: jnp.ndarray,
               params: Dict[str, jnp.ndarray],
               noise: int = 0, jitter: float = 1e-6,
-              **kwargs) -> jnp.ndarray:
+              **kwargs
+              ) -> jnp.ndarray:
     """
     Radial basis function kernel
 
@@ -54,22 +54,23 @@ def RBFKernel(X: jnp.ndarray, Z: jnp.ndarray,
         Z: 2D vector with *(number of points, number of features)* dimension
         params: Dictionary with kernel hyperparameters 'k_length' and 'k_scale'
         noise: optional noise vector with dimension (n,)
+        jitter: small jitter for the numerical stability
 
     Returns:
         Computed kernel matrix betwenen X and Z
     """
     r2 = square_scaled_distance(X, Z, params["k_length"])
     k = params["k_scale"] * jnp.exp(-0.5 * r2)
-    if X.shape == Z.shape:
-        k += add_jitter(noise, jitter) * jnp.eye(X.shape[0])
+    if Z is X:
+        k += (noise + jitter) * jnp.eye(X.shape[0])
     return k
 
 
-@jit
 def MaternKernel(X: jnp.ndarray, Z: jnp.ndarray,
                  params: Dict[str, jnp.ndarray],
                  noise: int = 0, jitter: float = 1e-6,
-                 **kwargs) -> jnp.ndarray:
+                 **kwargs
+                 ) -> jnp.ndarray:
     """
     Matern52 kernel
 
@@ -78,6 +79,7 @@ def MaternKernel(X: jnp.ndarray, Z: jnp.ndarray,
         Z: 2D vector with *(number of points, number of features)* dimension
         params: Dictionary with kernel hyperparameters 'k_length' and 'k_scale'
         noise: optional noise vector with dimension (n,)
+        jitter: small jitter for the numerical stability
 
     Returns:
         Computed kernel matrix between X and Z
@@ -86,12 +88,11 @@ def MaternKernel(X: jnp.ndarray, Z: jnp.ndarray,
     r = _sqrt(r2)
     sqrt5_r = 5**0.5 * r
     k = params["k_scale"] * (1 + sqrt5_r + (5/3) * r2) * jnp.exp(-sqrt5_r)
-    if X.shape == Z.shape:
-        k += add_jitter(noise, jitter) * jnp.eye(X.shape[0])
+    if Z is X:
+        k += (noise + jitter) * jnp.eye(X.shape[0])
     return k
 
 
-@jit
 def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
                    params: Dict[str, jnp.ndarray],
                    noise: int = 0, jitter: float = 1e-6,
@@ -105,6 +106,7 @@ def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
         Z: 2D vector with *(number of points, number of features)* dimension
         params: Dictionary with kernel hyperparameters 'k_length', 'k_scale', and 'period'
         noise: optional noise vector with dimension (n,)
+        jitter: small jitter for the numerical stability
 
     Returns:
         Computed kernel matrix between X and Z
@@ -112,8 +114,8 @@ def PeriodicKernel(X: jnp.ndarray, Z: jnp.ndarray,
     d = X[:, None] - Z[None]
     scaled_sin = jnp.sin(math.pi * d / params["period"]) / params["k_length"]
     k = params["k_scale"] * jnp.exp(-2 * (scaled_sin ** 2).sum(-1))
-    if X.shape == Z.shape:
-        k += add_jitter(noise, jitter) * jnp.eye(X.shape[0])
+    if Z is X:
+        k += (noise + jitter) * jnp.eye(X.shape[0])
     return k
 
 
@@ -217,8 +219,8 @@ def NNGPKernel(activation: str = 'erf', depth: int = 3
         var_b = params["var_b"]
         var_w = params["var_w"]
         k = vmap(lambda x: vmap(lambda z: nngp_single_pair_(x, z, var_b, var_w, depth))(Z))(X)
-        if X.shape == Z.shape:
-            k += add_jitter(noise, jitter) * jnp.eye(X.shape[0])
+        if Z is X:
+            k += (noise + jitter) * jnp.eye(X.shape[0])
         return k
 
     return NNGPKernel_func
