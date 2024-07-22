@@ -63,7 +63,7 @@ def index_kernel(indices1, indices2, params):
     return B[jnp.ix_(indices1, indices2)]
 
 
-def MultitaskKernel(base_kernel, **kwargs1):
+def MultitaskKernel(base_kernel, **kwargs):
     r"""
     Constructs a multi-task kernel given a base data kernel.
     The multi-task kernel is defined as
@@ -90,9 +90,9 @@ def MultitaskKernel(base_kernel, **kwargs1):
         The constructed multi-task kernel function.
     """
 
-    data_kernel = get_kernel(base_kernel, **kwargs1)
+    data_kernel = get_kernel(base_kernel, **kwargs)
 
-    def multi_task_kernel(X, Z, params, noise=0, **kwargs2):
+    def multi_task_kernel(X, Z, params, noise=0, jitter=1e-6):
         """
         Computes multi-task kernel matrix, given two input arrays and
         a dictionary wuth kernel parameters. The input arrays must have the
@@ -105,20 +105,20 @@ def MultitaskKernel(base_kernel, **kwargs1):
         Z_data, indices_Z = Z[:, :-1], Z[:, -1].astype(int)
 
         # Compute data and task kernels
-        k_data = data_kernel(X_data, Z_data, params, 0, **kwargs2) # noise will be added later
+        k_data = data_kernel(X_data, Z_data, params, 0, 0)  # noise will be added later
         k_task = index_kernel(indices_X, indices_Z, params)
 
         # Compute the multi-task kernel
         K = k_data * k_task
 
         # Add noise associated with each task
-        if X.shape == Z.shape:
+        if Z is X:
             # Get the noise corresponding to each sample's task
             if isinstance(noise, (int, float)):
                 noise = jnp.ones(1) * noise
             sample_noise = noise[indices_X]
             # Add small jitter for numerical stability
-            sample_noise = add_jitter(sample_noise, **kwargs2)
+            sample_noise = sample_noise + jitter
             # Add the noise to the diagonal of the kernel matrix
             K = K.at[jnp.diag_indices(K.shape[0])].add(sample_noise)
 
@@ -127,7 +127,7 @@ def MultitaskKernel(base_kernel, **kwargs1):
     return multi_task_kernel
 
 
-def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
+def MultivariateKernel(base_kernel, num_tasks, **kwargs):
     r"""
     Construct a multivariate kernel given a base data kernel asssuming
     that all tasks share the same input space. For situations where not all
@@ -158,9 +158,9 @@ def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
         The constructed multi-task kernel function.
     """
 
-    data_kernel = get_kernel(base_kernel, **kwargs1)
+    data_kernel = get_kernel(base_kernel, **kwargs)
 
-    def multivariate_kernel(X, Z, params, noise=0, **kwargs2):
+    def multivariate_kernel(X, Z, params, noise=0, jitter=1e-6):
         """
         Computes multivariate kernel matrix, given two input arrays and
         a dictionary wuth kernel parameters. The input arrays must have the
@@ -170,7 +170,7 @@ def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
 
         # Compute data and task kernels
         task_labels = jnp.arange(num_tasks)
-        k_data = data_kernel(X, Z, params, 0, **kwargs2)  # noise will be added later
+        k_data = data_kernel(X, Z, params, 0, 0)  # noise will be added later
         k_task = index_kernel(task_labels, task_labels, params)
 
         # Compute the multi-task kernel
@@ -182,7 +182,7 @@ def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
             if isinstance(noise, (float, int)):
                 noise = jnp.ones(num_tasks) * noise
             # Add small jitter for numerical stability
-            noise = add_jitter(noise, **kwargs2)
+            noise = noise + jitter
             # Create a block-diagonal noise matrix with the noise terms
             # on the diagonal of each block
             noise_matrix = jnp.kron(jnp.eye(k_data.shape[0]), jnp.diag(noise))
@@ -194,7 +194,7 @@ def MultivariateKernel(base_kernel, num_tasks, **kwargs1):
     return multivariate_kernel
 
 
-def LCMKernel(base_kernel, shared_input_space=True, num_tasks=None, **kwargs1):
+def LCMKernel(base_kernel, shared_input_space=True, num_tasks=None, **kwargs):
     """
     Construct kernel for a Linear Model of Coregionalization (LMC)
 
@@ -221,13 +221,13 @@ def LCMKernel(base_kernel, shared_input_space=True, num_tasks=None, **kwargs1):
     """
 
     if shared_input_space:
-        multi_kernel = MultivariateKernel(base_kernel, num_tasks, **kwargs1)
+        multi_kernel = MultivariateKernel(base_kernel, num_tasks, **kwargs)
     else:
-        multi_kernel = MultitaskKernel(base_kernel, **kwargs1)
+        multi_kernel = MultitaskKernel(base_kernel, **kwargs)
 
-    def lcm_kernel(X, Z, params, noise=0, **kwargs2):
+    def lcm_kernel(X, Z, params, noise=0, jitter=1e-6):
         axes = get_in_axes(params)
-        k = vmap(lambda p: multi_kernel(X, Z, p, noise, **kwargs2), in_axes=axes)(params)
+        k = vmap(lambda p: multi_kernel(X, Z, p, noise, jitter), in_axes=axes)(params)
         return k.sum(0)
 
     return lcm_kernel
