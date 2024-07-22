@@ -379,7 +379,7 @@ class ExactGP:
         X_new = self.set_data(X_new)
         samples = self.get_samples(chain_dim=False)
         self.X_train, self.y_train, X_new, samples = put_on_device(
-            device, self.X, self.y, X_new, samples)
+            device, self.X_train, self.y_train, X_new, samples)
 
         num_samples = len(next(iter(samples.values())))
         vmap_args = (jra.split(key, num_samples), samples)
