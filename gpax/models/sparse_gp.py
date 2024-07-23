@@ -12,14 +12,16 @@ from typing import Callable, Dict, Optional, Tuple, Type
 import jax
 import jaxlib
 import jax.numpy as jnp
+import jax.random as jra
 from jax.scipy.linalg import cholesky, solve_triangular
 
 import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import SVI, Trace_ELBO
+from numpyro.infer.autoguide import AutoDelta
 
 from .vigp import viGP
-from ..utils import initialize_inducing_points
+from ..utils import initialize_inducing_points, put_on_device
 
 
 class viSparseGP(viGP):
@@ -43,8 +45,8 @@ class viSparseGP(viGP):
         lengthscale_prior_dist:
             Optional custom prior distribution over kernel lengthscale.
             Defaults to LogNormal(0, 1).
-        guide:
-            Auto-guide option, use 'delta' (default) or 'normal'
+        jitter:
+            Small jitter for the numerical stability
     """
     def __init__(self, input_dim: int, kernel: str,
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
@@ -53,9 +55,9 @@ class viSparseGP(viGP):
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior_dist: Optional[dist.Distribution] = None,
                  lengthscale_prior_dist: Optional[dist.Distribution] = None,
-                 guide: str = 'delta') -> None:
+                 jitter: float = 1e-6) -> None:
         args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, noise_prior,
-                noise_prior_dist, lengthscale_prior_dist, guide)
+                noise_prior_dist, lengthscale_prior_dist, jitter)
         super(viSparseGP, self).__init__(*args)
         self.Xu = None
 
@@ -63,7 +65,7 @@ class viSparseGP(viGP):
               X: jnp.ndarray,
               y: jnp.ndarray = None,
               Xu: jnp.ndarray = None,
-              **kwargs: float) -> None:
+              ) -> None:
         """
         Probabilistic sparse Gaussian process regression model
         """
@@ -89,7 +91,7 @@ class viSparseGP(viGP):
                 args += [self.mean_fn_prior()]
             f_loc += self.mean_fn(*args).squeeze()
         # Compute kernel between inducing points
-        Kuu = self.kernel(Xu, Xu, kernel_params, **kwargs)
+        Kuu = self.kernel(Xu, Xu, kernel_params, self.jitter)
         # Cholesky decomposition
         Luu = cholesky(Kuu).T
         # Compute kernel between inducing and training points
@@ -114,12 +116,12 @@ class viSparseGP(viGP):
             obs=y)
 
     def fit(self,
-            rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
+            X: jnp.ndarray, y: jnp.ndarray,
             inducing_points_ratio: float = 0.1, inducing_points_selection: str = 'random',
             num_steps: int = 1000, step_size: float = 5e-3,
             progress_bar: bool = True, print_summary: bool = True,
             device: Type[jaxlib.xla_extension.Device] = None,
-            **kwargs: float
+            rng_key: Optional[jnp.array] = None,
             ) -> None:
         """
         Run variational inference to learn sparse GP (hyper)parameters
@@ -140,59 +142,58 @@ class viSparseGP(viGP):
                 Small positive term added to the diagonal part of a covariance
                 matrix for numerical stability (Default: 1e-6)
         """
-        X, y = self._set_data(X, y)
-        if device:
-            X = jax.device_put(X, device)
-            y = jax.device_put(y, device)
+        key = rng_key if rng_key is not None else jra.PRNGKey(0)
+        X, y = self.set_data(X, y)
+        X, y = put_on_device(device, X, y)
         Xu = initialize_inducing_points(
             X.copy(), inducing_points_ratio,
-            inducing_points_selection, rng_key)
+            inducing_points_selection, key)
         self.X_train = X
         self.y_train = y
 
         optim = numpyro.optim.Adam(step_size=step_size, b1=0.5)
         self.svi = SVI(
             self.model,
-            guide=self.guide_type(self.model),
+            AutoDelta(self.model),
             optim=optim,
             loss=Trace_ELBO(),
             X=X,
             y=y,
             Xu=Xu,
-            **kwargs
         )
 
-        self.kernel_params = self.svi.run(
-            rng_key, num_steps, progress_bar=progress_bar)[0]
+        self.params = self.svi.run(
+            key, num_steps, progress_bar=progress_bar)[0]
 
-        self.Xu = self.kernel_params['Xu']
+        self.Xu = self.params['Xu']
 
         if print_summary:
             self._print_summary()
 
-    def get_mvn_posterior(self, X_new: jnp.ndarray,
-                          params: Dict[str, jnp.ndarray],
-                          noiseless: bool = False,
-                          **kwargs: float
-                          ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def compute_gp_posterior(self,
+                             X_new: jnp.ndarray,
+                             X_train: jnp.ndarray, y_train: jnp.ndarray,
+                             params: Dict[str, jnp.ndarray],
+                             noiseless: bool = False,
+                             ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of GP parameters
         """
         noise = params["noise"]
-        N = self.X_train.shape[0]
+        N = X_train.shape[0]
         D = jnp.broadcast_to(noise, (N,))
         noise_p = noise * (1 - jnp.array(noiseless, int))
 
-        y_residual = self.y_train.copy()
+        y_residual = y_train.copy()
         if self.mean_fn is not None:
-            args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
+            args = [X_train, params] if self.mean_fn_prior else [X_train]
             y_residual -= self.mean_fn(*args).squeeze()
 
         # Compute self- and cross-covariance matrices
-        Kuu = self.kernel(self.Xu, self.Xu, params, **kwargs)
+        Kuu = self.kernel(self.Xu, self.Xu, params, self.jitter)
         Luu = cholesky(Kuu, lower=True)
-        Kuf = self.kernel(self.Xu, self.X_train, params, jitter=0)
+        Kuf = self.kernel(self.Xu, X_train, params)
 
         W = solve_triangular(Luu, Kuf, lower=True)
         W_Dinv = W / D
@@ -203,7 +204,7 @@ class viSparseGP(viGP):
         y_2D = y_residual.reshape(-1, N).T
         W_Dinv_y = W_Dinv @ y_2D
 
-        Kus = self.kernel(self.Xu, X_new, params, jitter=0)
+        Kus = self.kernel(self.Xu, X_new, params)
         Ws = solve_triangular(Luu, Kus, lower=True)
         pack = jnp.concatenate((W_Dinv_y, Ws), axis=1)
         Linv_pack = solve_triangular(L, pack, lower=True)
@@ -212,7 +213,7 @@ class viSparseGP(viGP):
         Linv_Ws = Linv_pack[:, W_Dinv_y.shape[1]:]
         mean = (Linv_W_Dinv_y.T @ Linv_Ws).squeeze()
 
-        Kss = self.kernel(X_new, X_new, params, noise_p, **kwargs)
+        Kss = self.kernel(X_new, X_new, params, noise_p, self.jitter)
         Qss = Ws.T @ Ws
         cov = Kss - Qss + Linv_Ws.T @ Linv_Ws
 

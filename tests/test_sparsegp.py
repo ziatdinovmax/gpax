@@ -26,37 +26,33 @@ def get_dummy_data(jax_ndarray=True, unsqueeze=False):
 @pytest.mark.parametrize("jax_ndarray", [True, False])
 @pytest.mark.parametrize("unsqueeze", [True, False])
 def test_fit(jax_ndarray, unsqueeze):
-    rng_key = get_keys()[0]
     X, y = get_dummy_data(jax_ndarray, unsqueeze)
     m = viSparseGP(1, 'Matern')
-    m.fit(rng_key, X, y, num_steps=100)
+    m.fit(X, y, num_steps=100)
     assert m.svi is not None
     assert isinstance(m.Xu, jnp.ndarray)
 
 
 def test_inducing_points_optimization():
-    rng_key = get_keys()[0]
     X, y = get_dummy_data()
     m1 = viSparseGP(1, 'Matern')
-    m1.fit(rng_key, X, y, num_steps=1)
+    m1.fit(X, y, num_steps=1)
     m2 = viSparseGP(1, 'Matern')
-    m2.fit(rng_key, X, y, num_steps=100)
+    m2.fit(X, y, num_steps=100)
     assert not jnp.array_equal(m1.Xu, m2.Xu)
     
    
-def test_get_mvn_posterior():
-    rng_keys = get_keys()
+def test_compute_gp_posterior():
+    rng_key = get_keys()[0]
     X, y = get_dummy_data(unsqueeze=True)
     X_test, _ = get_dummy_data(unsqueeze=True)
-    params = {"k_length": jax.random.normal(rng_keys[0], shape=(1, 1)),
-              "k_scale": jax.random.normal(rng_keys[0], shape=(1,)),
-               "noise": jax.random.normal(rng_keys[0], shape=(1,))}
+    params = {"k_length": jax.random.normal(rng_key, shape=(1, 1)),
+              "k_scale": jax.random.normal(rng_key, shape=(1,)),
+               "noise": jax.random.normal(rng_key, shape=(1,))}
     m = viSparseGP(1, 'RBF')
-    m.X_train = X
-    m.y_train = y
     m.Xu = X[::2].copy()
 
-    mean, cov = m.get_mvn_posterior(X_test, params)
+    mean, cov = m.compute_gp_posterior(X_test, X, y, params)
 
     assert isinstance(mean, jnp.ndarray)
     assert isinstance(cov, jnp.ndarray)
