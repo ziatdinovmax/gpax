@@ -162,10 +162,10 @@ class viSparseGP(viGP):
             Xu=Xu,
         )
 
-        self.params = self.svi.run(
+        params = self.svi.run(
             key, num_steps, progress_bar=progress_bar)[0]
-
-        self.Xu = self.params['Xu']
+        self.Xu = params['Xu']
+        self.params = self.svi.guide.median(params)
 
         if print_summary:
             self._print_summary()
