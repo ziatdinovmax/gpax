@@ -14,7 +14,6 @@ kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp
 
 
 class viGP(ExactGP):
-    ss viGP(ExactGP):
     """
     Variational inference based Gaussian process
 
