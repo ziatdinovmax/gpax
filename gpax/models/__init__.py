@@ -15,6 +15,7 @@ from .mngp import MeasuredNoiseGP
 from .linreg import LinReg
 from .sparse_gp import viSparseGP
 from .bnn import BNN
+from .nets import HaikuMLP
 
 __all__ = [
     "ExactGP",

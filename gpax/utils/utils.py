@@ -87,25 +87,26 @@ def random_sample_dict(data: Dict[str, jnp.ndarray],
     return {key: value[indices] for key, value in data.items()}
 
 
-def get_haiku_dict(kernel_params: Dict[str, jnp.ndarray]) -> Dict[str, Dict[str, jnp.ndarray]]:
+def get_haiku_compatible_dict(numpyro_params_dict: Dict[str, jnp.ndarray]) -> Dict[str, Dict[str, jnp.ndarray]]:
     """
     Extracts weights and biases from viDKL dictionary into a separate
     dictionary compatible with haiku's .apply() method
     """
-    all_weights = {}
-    all_biases = {}
-    for key, val in kernel_params.items():
+    params_all = {}
+    weights, biases = {}, {}
+    for key, val in numpyro_params_dict.items():
         if key.startswith('feature_extractor'):
             name_split = key.split('/')
             name_new = name_split[1] + '/' + name_split[2][:-2]
             if name_split[2][-1] == 'b':
-                all_biases[name_new] = val
+                biases[name_new] = val
             else:
-                all_weights[name_new] = val
-    nn_params = {}
-    for (k, v1), (_, v2) in zip(all_weights.items(), all_biases.items()):
-        nn_params[k] = {"w": v1, "b": v2}
-    return nn_params
+                weights[name_new] = val
+        else:
+            params_all[key] = val
+    for (k, v1), (_, v2) in zip(weights.items(), biases.items()):
+        params_all[k] = {"w": v1, "b": v2}
+    return params_all
 
 
 def dviz(d: Type[numpyro.distributions.Distribution], samples: int = 1000) -> None:

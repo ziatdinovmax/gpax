@@ -3,12 +3,13 @@ import pytest
 import numpy as onp
 import jax.numpy as jnp
 import jax
-from numpy.testing import assert_equal, assert_array_equal, assert_
-
+import haiku as hk
+from numpy.testing import assert_equal
 sys.path.insert(0, "../gpax/")
 
 from gpax.models.dkl import DKL
 from gpax.utils import get_keys
+from gpax.models.nets import HaikuMLP
 
 
 def get_dummy_data(jax_ndarray=True):
@@ -19,99 +20,44 @@ def get_dummy_data(jax_ndarray=True):
     return X, y
 
 
+def get_transformed_model(z_dim=2):
+    return hk.transform(lambda x: HaikuMLP([32, 16, 8], z_dim, 'tanh')(x))
+
+
 @pytest.mark.parametrize("jax_ndarray", [True, False])
 def test_fit(jax_ndarray):
     X, y = get_dummy_data(jax_ndarray)
-    rng_key = get_keys()[0]
     m = DKL(X.shape[-1])
-    m.fit(rng_key, X, y, num_warmup=5, num_samples=5)
+    m.fit(X, y, num_warmup=5, num_samples=5)
     assert m.mcmc is not None
 
 
-def test_get_mvn_posterior():
+def test_compute_gp_posterior_posterior():
     rng_key = get_keys()[0]
     X, y = get_dummy_data()
     X_test, _ = get_dummy_data()
-    params = {"w0": jax.random.normal(rng_key, shape=(36, 64)),
-              "w1": jax.random.normal(rng_key, shape=(64, 32)),
-              "w2": jax.random.normal(rng_key, shape=(32, 2)),
-              "b0": jax.random.normal(rng_key, shape=(64,)),
-              "b1": jax.random.normal(rng_key, shape=(32,)),
-              "b2": jax.random.normal(rng_key, shape=(2,)),
-              "k_length": jnp.array([1.0]),
-              "k_scale": jnp.array(1.0),
-              "noise": jnp.array(0.1)}
+    transformed_model = get_transformed_model()
+    params = transformed_model.init(rng_key, X)
+    params["k_length"] = jnp.array([1.0])
+    params["k_scale"] = jnp.array(1.0)
+    params["noise"] = jnp.array(0.1)
+
     m = DKL(X.shape[-1], kernel='RBF')
-    m.X_train = X
-    m.y_train = y
-    mean, cov = m.get_mvn_posterior(X_test, params)
+    mean, cov = m.compute_gp_posterior(X_test, X, y, params)
     assert isinstance(mean, jnp.ndarray)
     assert isinstance(cov, jnp.ndarray)
     assert_equal(mean.shape, (X_test.shape[0],))
     assert_equal(cov.shape, (X_test.shape[0], X_test.shape[0]))
 
 
-def test_get_mvn_posterior_noiseless():
-    rng_key = get_keys()[0]
+@pytest.mark.parametrize("z_dim", [2, 3])
+def test_fit_embed(z_dim):
     X, y = get_dummy_data()
     X_test, _ = get_dummy_data()
-    params = {"w0": jax.random.normal(rng_key, shape=(36, 64)),
-              "w1": jax.random.normal(rng_key, shape=(64, 32)),
-              "w2": jax.random.normal(rng_key, shape=(32, 2)),
-              "b0": jax.random.normal(rng_key, shape=(64,)),
-              "b1": jax.random.normal(rng_key, shape=(32,)),
-              "b2": jax.random.normal(rng_key, shape=(2,)),
-              "k_length": jnp.array([1.0]),
-              "k_scale": jnp.array(1.0),
-              "noise": jnp.array(0.1)}
-    m = DKL(X.shape[-1], kernel='RBF')
-    m.X_train = X
-    m.y_train = y
-    mean1, cov1 = m.get_mvn_posterior(X_test, params, noiseless=False)
-    mean1_, cov1_ = m.get_mvn_posterior(X_test, params, noiseless=False)
-    mean2, cov2 = m.get_mvn_posterior(X_test, params, noiseless=True)
-    assert_array_equal(mean1, mean1_)
-    assert_array_equal(cov1, cov1_)
-    assert_array_equal(mean1, mean2)
-    assert onp.count_nonzero(cov1 - cov2) > 0
+    m = DKL(X.shape[-1], z_dim)
+    m.fit(X, y, num_warmup=5, num_samples=5)
+    z = m.embed(X_test)
+    assert_equal(z.shape[0], 5)
+    assert_equal(z.shape[1], X.shape[0])
+    assert_equal(z.shape[2], z_dim)
 
-
-def test_jitter_fit():
-    rng_key, _ = get_keys()
-    X, y = get_dummy_data()
-    m = DKL(X.shape[-1], 2, 'RBF')
-    m.fit(rng_key, X, y, num_samples=5, num_warmup=5, jitter=1e-6)
-    samples1 = m.get_samples()
-    m = DKL(X.shape[-1], 2, 'RBF')
-    m.fit(rng_key, X, y, num_samples=5, num_warmup=5, jitter=1e-6)
-    samples1a = m.get_samples()
-    m = DKL(X.shape[-1], 2, 'RBF')
-    m.fit(rng_key, X, y, num_samples=5, num_warmup=5, jitter=1e-5)
-    samples2 = m.get_samples()
-    assert_(onp.count_nonzero(samples1["k_length"] - samples1a["k_length"]) == 0)
-    assert_(onp.count_nonzero(samples1["k_length"] - samples2["k_length"]) > 0)
-
-
-def test_jitter_mvn_posterior():
-    rng_key = get_keys()[0]
-    X, y = get_dummy_data()
-    X_test, _ = get_dummy_data()
-    # X = X[None]
-    # y = y[None]
-    # X_test = X_test[None]
-    params = {"w0": jax.random.normal(rng_key, shape=(36, 64)),
-              "w1": jax.random.normal(rng_key, shape=(64, 32)),
-              "w2": jax.random.normal(rng_key, shape=(32, 2)),
-              "b0": jax.random.normal(rng_key, shape=(64,)),
-              "b1": jax.random.normal(rng_key, shape=(32,)),
-              "b2": jax.random.normal(rng_key, shape=(2,)),
-              "k_length": jnp.array([1.0]),
-              "k_scale": jnp.array(1.0),
-              "noise": jnp.array(0.1)}
-    m = DKL(X.shape[-1], 2, 'RBF')
-    m.X_train = X
-    m.y_train = y
-    mean1, cov1 = m.get_mvn_posterior(X_test, params, jitter=1e-6)
-    mean2, cov2 = m.get_mvn_posterior(X_test, params, jitter=1e-5)
-    assert_(onp.count_nonzero(mean1 - mean2) > 0)
-    assert_(onp.count_nonzero(cov1 - cov2) > 0)
