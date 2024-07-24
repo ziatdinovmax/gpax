@@ -23,6 +23,38 @@ from ..utils import get_haiku_compatible_dict, put_on_device
 class viDKL(DKL):
     """
     Variational Inference-based Deep Kernel Learning
+
+    Args:
+        input_dim:
+            Number of input dimensions
+        z_dim:
+            Latent space dimensionality (defaults to 2)
+        kernel:
+            Kernel function ('RBF', 'Matern', 'Periodic', or custom function)
+        nn:
+            Optionally provide a custom neural network in haiku; if not provided,
+            the model uses a 3-layer MLP with hyperbolic tangent activations by default
+        hidden_dim:
+            Optional custom MLP architecture. For example [16, 8, 4] corresponds to a 3-layer
+            neural network backbone containing 16, 8, and 4 neurons activated by tanh(). The latent
+            layer is added autoamtically and doesn't have to be specified here. Defaults to [32, 16, 8].
+
+        **kwargs:
+            Optional custom prior distributions over observational noise (noise_dist_prior)
+            and kernel lengthscale (lengthscale_prior_dist) or over the entire kernel if custom kernel is used.
+
+        Examples:
+
+        vi-DKL with image patches as inputs and a 1-d vector as targets
+
+        >>> # Since we use MLP by default, the input data dimensions are (n, height*width*channels)
+        >>> data_dim = X.shape[-1]
+        >>> # Initialize vi-DKL model with 2 latent dimensions
+        >>> dkl = gpax.viDKL(input_dim=data_dim, z_dim=2, kernel='RBF')
+        >>> Train a model
+        >>> dkl.fit(X_train, y_train, num_steps=1000, step_size=0.005)
+        >>> # Obtain posterior mean and variance ('uncertainty') at new inputs
+        >>> y_mean, y_var = dkl.predict(X_new)
     """
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
