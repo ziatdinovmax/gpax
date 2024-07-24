@@ -52,25 +52,23 @@ class ExactGP:
 
         Regular GP for sparse noisy obervations
 
-        >>> # Get random number generator keys for training and prediction
-        >>> rng_key, rng_key_predict = gpax.utils.get_keys()
         >>> # Initialize model
         >>> gp_model = gpax.ExactGP(input_dim=1, kernel='Matern')
         >>> # Run HMC to obtain posterior samples for the GP model parameters
-        >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
+        >>> gp_model.fit(X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
         >>> # Make a noiseless prediction on new inputs
-        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
+        >>> y_pred, y_samples = gp_model.predict(X_new, noiseless=True)
 
         GP with custom noise prior
 
         >>> gp_model = gpax.ExactGP(
         >>>     input_dim=1, kernel='RBF',
-        >>>     noise_prior_dist = numpyro.distributions.HalfNormal(.1)
+        >>>     noise_prior_dist = gpax.priors.halfnormal_dist(0.1)
         >>> )
         >>> # Run HMC to obtain posterior samples for the GP model parameters
-        >>> gp_model.fit(rng_key, X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
+        >>> gp_model.fit(X, y)  # X and y are arrays with dimensions (n, 1) and (n,)
         >>> # Make a noiselsess prediction on new inputs
-        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
+        >>> y_pred, y_samples = gp_model.predict(X_new, noiseless=True)
 
         GP with custom probabilistic model as its mean function
 
@@ -79,18 +77,18 @@ class ExactGP:
         >>>
         >>> # Define priors over the mean function parameters (to make it probabilistic)
         >>> def mean_fn_prior():
-        >>>     a = numpyro.sample("a", numpyro.distributions.Normal(3, 1))
-        >>>     b = numpyro.sample("b", numpyro.distributions.Normal(0, 1))
+        >>>     a = gpax.priors.place_normal_prior("a", loc=3, scale=1)
+        >>>     b = gpax.priors.place_normal_prior("a", loc=0, scale=1)
         >>>     return {"a": a, "b": b}
         >>>
-        >>> # Initialize structural GP model
+        >>> # Initialize structured GP model
         >>> sgp_model = gpax.ExactGP(
                 input_dim=1, kernel='Matern',
                 mean_fn=mean_fn, mean_fn_prior=mean_fn_prior)
         >>> # Run HMC to obtain posterior samples for the GP model parameters
-        >>> sgp_model.fit(rng_key, X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
+        >>> sgp_model.fit(X, y)  # X and y are numpy arrays with dimensions (n, d) and (n,)
         >>> # Make a noiselsess prediction on new inputs
-        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new, noiseless=True)
+        >>> y_pred, y_samples = gp_model.predict(X_new, noiseless=True)
     """
 
     def __init__(
