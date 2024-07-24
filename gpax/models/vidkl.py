@@ -26,7 +26,7 @@ class viDKL(DKL):
     """
 
     def __init__(self, input_dim: int, z_dim: int = 2, kernel: str = 'RBF',
-                 hidden_dim: Optional[List[int]] = None, activation: str = 'tanh',
+                 hidden_dim: Optional[List[int]] = None, activation: str = 'relu',
                  nn: Type[hk.Module] = None, **kwargs
                  ) -> None:
         super(viDKL, self).__init__(input_dim, z_dim, kernel, hidden_dim, activation, nn, **kwargs)
