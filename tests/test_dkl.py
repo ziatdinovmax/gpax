@@ -17,7 +17,23 @@ def get_dummy_data(jax_ndarray=True):
     y = onp.random.randn(10,)
     if jax_ndarray:
         return jnp.array(X), jnp.array(y)
+    jnp.array(y)
     return X, y
+
+
+class CustomMLP(hk.Module):
+    """Simple MLP"""
+    def __init__(self, zdim=1):
+        super().__init__()
+        self.zdim = zdim
+
+    def __call__(self, x):
+        x = hk.Linear(8)(x)
+        x = jax.nn.relu(x)
+        x = hk.Linear(8)(x)
+        x = jax.nn.relu(x)
+        x = hk.Linear(self.zdim)(x)
+        return x
 
 
 def get_transformed_model(z_dim=2):
@@ -61,3 +77,10 @@ def test_fit_embed(z_dim):
     assert_equal(z.shape[1], X.shape[0])
     assert_equal(z.shape[2], z_dim)
 
+
+def test_custom_MLP():
+    X, y = get_dummy_data()
+    m = DKL(X.shape[-1], nn=CustomMLP)
+    m.fit(X, y, num_warmup=5, num_samples=5)
+    z = m.embed(X)
+    assert_equal(z.shape[-1], 1)

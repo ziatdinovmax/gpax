@@ -70,7 +70,7 @@ class DKL(ExactGP):
                  ) -> None:
         super(DKL, self).__init__(z_dim, kernel, **kwargs)
         if nn is not None:
-            self.nn_module = nn
+            self.nn_module = hk.transform(lambda x: nn()(x))
         else:
             hdim = hidden_dim if hidden_dim is not None else [32, 16, 8]
             self.nn_module = hk.transform(lambda x: HaikuMLP(hdim, z_dim, activation)(x))
