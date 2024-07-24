@@ -87,7 +87,7 @@ def random_sample_dict(data: Dict[str, jnp.ndarray],
     return {key: value[indices] for key, value in data.items()}
 
 
-def get_haiku_compatible_dict(numpyro_params_dict: Dict[str, jnp.ndarray]) -> Dict[str, Dict[str, jnp.ndarray]]:
+def get_haiku_compatible_dict(numpyro_params_dict: Dict[str, jnp.ndarray], map: bool = False) -> Dict[str, Dict[str, jnp.ndarray]]:
     """
     Extracts weights and biases from viDKL dictionary into a separate
     dictionary compatible with haiku's .apply() method
@@ -103,9 +103,9 @@ def get_haiku_compatible_dict(numpyro_params_dict: Dict[str, jnp.ndarray]) -> Di
             else:
                 weights[name_new] = val
         else:
-            params_all[key] = val
+            params_all[key] = val[None] if map else val
     for (k, v1), (_, v2) in zip(weights.items(), biases.items()):
-        params_all[k] = {"w": v1, "b": v2}
+        params_all[k] = {"w": v1[None] if map else v1, "b": v2[None] if map else v2}
     return params_all
 
 
