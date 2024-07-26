@@ -12,8 +12,8 @@ from gpax.models.bnn import BNN
 from gpax.utils import get_keys
 
 
-def get_dummy_data(feature_dim=1, target_dim=1, squeezed=False):
-    X = onp.random.randn(8, feature_dim)
+def get_dummy_data(length=8, feature_dim=1, target_dim=1, squeezed=False):
+    X = onp.random.randn(length, feature_dim)
     y = onp.random.randn(X.shape[0], target_dim)
     if squeezed:
         return X.squeeze(), y.squeeze()
@@ -63,10 +63,22 @@ def test_bnn_predict_with_samples():
 @pytest.mark.parametrize("target_dim", [1, 2])
 @pytest.mark.parametrize("feature_dim", [1, 2])
 def test_bnn_fit_predict(feature_dim, target_dim, squeezed):
-    X, y = get_dummy_data(feature_dim, target_dim, squeezed)
-    X_test, _ = get_dummy_data(feature_dim, target_dim, squeezed)
+    X, y = get_dummy_data(8, feature_dim, target_dim, squeezed)
+    X_test, _ = get_dummy_data(8, feature_dim, target_dim, squeezed)
     bnn = BNN(feature_dim, target_dim, hidden_dim=[4, 2])
     bnn.fit(X, y, num_warmup=5, num_samples=5)
     f_pred, f_var = bnn.predict(X_test)
     assert_equal(f_pred.shape, (len(X_test), target_dim))
     assert_equal(f_pred.shape, f_var.shape)
+
+
+def test_bnn_predict_in_batches():
+    X, y = get_dummy_data(8, 5, 1)
+    X_test, _ = get_dummy_data(50, 5, 1)
+    bnn = BNN(5, 1, hidden_dim=[4, 2])
+    bnn.fit(X, y, num_warmup=5, num_samples=5)
+    f_pred, f_var = bnn.predict(X_test)
+    f_pred_b, f_var_b = bnn.predict_in_batches(X_test, batch_size=20)
+
+    assert_array_equal(f_pred, f_pred_b)
+    assert_array_equal(f_var, f_var_b)

@@ -1,4 +1,5 @@
 from typing import Dict, Tuple, Optional, Union, List, Type
+import jax
 import jax.random as jra
 import jax.numpy as jnp
 
@@ -185,28 +186,28 @@ class BNN:
         )
         return predictive(rng_key, X_new)
 
-    # def predict_in_batches(self, X_new: jnp.ndarray,
-    #                        batch_size: int = 100,
-    #                        n_draws: int = 1,
-    #                        device: Optional[str] = None,
-    #                        rng_key: Optional[jnp.ndarray] = None
-    #                        ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    #     """
-    #     Make prediction in batches (to avoid memory overflow)
-    #     at X_new points a trained BNN model
-    #     """
-    #     samples = self.get_samples(chain_dim=False)
-    #     mean_chunks, f_samples_chunks = [], []
-    #     for batch in split_dict(samples, batch_size):
-    #         mean_i, f_samples_i = self._vmap_predict(X_new, batch, n_draws, rng_key, device)
-    #         mean_i = jax.device_put(mean_i, jax.devices("cpu")[0])
-    #         f_samples_i = jax.device_put(f_samples_i, jax.devices("cpu")[0])
-    #         mean_chunks.append(mean_i[None])
-    #         f_samples_chunks.append(f_samples_i)
-    #     mean_chunks = jnp.concatenate(mean_chunks, axis=0)
-    #     f_samples_chunks = jnp.concatenate(f_samples_chunks)
-        
-    #     return mean_chunks.mean(0), f_samples_chunks.var(0)
+    def predict_in_batches(self, X_new: jnp.ndarray,
+                           batch_size: int = 100,
+                           device: Optional[str] = None,
+                           rng_key: Optional[jnp.ndarray] = None
+                           ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Make prediction in batches (to avoid memory overflow)
+        at X_new points a trained BNN model
+        """
+        sites_to_return = ["mu", "y"]
+        samples = self.get_samples(chain_dim=False)
+        mean_chunks, f_samples_chunks = [], []
+        for batch in split_dict(samples, batch_size):
+            prediction = self.compute_predictive(
+                X_new, sites_to_return, batch, device, rng_key)
+            prediction = put_on_device("cpu", prediction)
+            mean_chunks.append(prediction["mu"])
+            f_samples_chunks.append(prediction["y"])
+        mean_chunks = jnp.concatenate(mean_chunks, axis=0)
+        f_samples_chunks = jnp.concatenate(f_samples_chunks)
+
+        return mean_chunks.mean(0), f_samples_chunks.var(0)
 
     def set_data(self, X: jnp.ndarray, y: Optional[jnp.ndarray] = None
                  ) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
