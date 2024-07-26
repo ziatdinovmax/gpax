@@ -238,5 +238,6 @@ def put_on_device(device=None, *data_items):
     """
     if device is not None:
         device = infer_device(device)
-        return tuple(jax.device_put(item, device) for item in data_items)
+        data_items_pr = tuple(jax.device_put(item, device) for item in data_items)
+        return data_items_pr[0] if len(data_items_pr) == 1 else data_items_pr
     return data_items
