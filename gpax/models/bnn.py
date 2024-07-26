@@ -120,37 +120,65 @@ class BNN:
             X_new:
                 New input data for predictions.
             samples:
-                Dictionary of posterior samples with inferred model parameters (weights and biases)
+                Optional dictionary of posterior samples with inferred model parameters (weights and biases)
             device:
-                The device (e.g. "cpu" or "gpu") perform computation on ('cpu', 'gpu'). If None, computation
-                is performed on the JAX default device.
+                Optionally specify the device (e.g. "cpu" or "gpu") perform computation on ('cpu', 'gpu').
+                If None is specified, computation is performed on the JAX default device.
             rng_key:
-                Random number generator key for JAX operations.
+                Optional random number generator key for JAX operations.
 
         Returns:
             Tuple containing the means and samples from the posterior predictive distribution.
         """
-        X_new = self.set_data(X_new)
+        sites_to_return = ["mu", "y"]
+        predictions = self.compute_predictive(
+            X_new, sites_to_return, samples, device, rng_key)
+        posterior_mean = predictions["mu"].mean(0)
+        posterior_var = predictions["y"].var(0)
+        return posterior_mean, posterior_var
+    
+    def sample_from_posterior(self,
+                              X_new: jnp.ndarray,
+                              samples: Optional[Dict[str, jnp.ndarray]] = None,
+                              device: Optional[str] = None,
+                              rng_key: Optional[jnp.ndarray] = None
+                              ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Returns samples from posterior predictive distributions at new inputs.
 
+        Args:
+            X_new:
+                New input data for predictions.
+            samples:
+                Optional dictionary of posterior samples with inferred model parameters (weights and biases)
+            device:
+                Optionally specify the device (e.g. "cpu" or "gpu") perform computation on ('cpu', 'gpu').
+                If None is specified, computation is performed on the JAX default device.
+            rng_key:
+                Optional random number generator key for JAX operations.
+
+        Returns:
+            Array with samples from the posterior predictive distribution.
+        """
+        site_to_return = ["y"]
+        samples = self.compute_predictive(
+            X_new, site_to_return, samples, device, rng_key)
+        return samples
+
+    def compute_predictive(self,
+                           X_new: jnp.ndarray,
+                           return_sites: List[str],
+                           samples: Optional[Dict[str, jnp.ndarray]] = None,
+                           device: Optional[str] = None,
+                           rng_key: Optional[jnp.ndarray] = None,
+                           ) -> jnp.ndarray:
+
+        X_new = self.set_data(X_new)
         if rng_key is None:
             rng_key = jra.PRNGKey(0)
         if samples is None:
             samples = self.get_samples(chain_dim=False)
         X_new, samples = put_on_device(device, X_new, samples)
-
-        predictions = self.sample_from_posterior(
-            rng_key, X_new, samples, return_sites=["mu", "y"])
-        posterior_mean = predictions["mu"].mean(0)
-        posterior_var = predictions["y"].var(0)
-        return posterior_mean, posterior_var
-
-    def sample_from_posterior(self,
-                              rng_key: jnp.ndarray,
-                              X_new: jnp.ndarray,
-                              samples: Dict[str, jnp.ndarray],
-                              return_sites: Optional[List[str]] = None,
-                              ) -> jnp.ndarray:
-   
         predictive = Predictive(
             self.model, samples,
             return_sites=return_sites
