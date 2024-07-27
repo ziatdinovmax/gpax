@@ -31,18 +31,18 @@ class BNN:
                  output_dim: int,
                  hidden_dim: List[int] = None,
                  activation: str = 'tanh',
-                 noise_prior: Optional[dist.Distribution] = None,
+                 noise_prior_dist: Optional[dist.Distribution] = None,
                  nn: Type[hk.Module] = None
                  ) -> None:
-        if noise_prior is None:
-            noise_prior = dist.HalfNormal(1.0)
+        if noise_prior_dist is None:
+            noise_prior_dist = dist.HalfNormal(1.0)
         if nn is not None:
             self.nn_module = hk.transform(lambda x: nn()(x))
         else:
             hdim = hidden_dim if hidden_dim is not None else [32, 16, 8]
             self.nn_module = hk.transform(lambda x: HaikuMLP(hdim, output_dim, activation)(x))
         self.data_dim = (input_dim,) if isinstance(input_dim, int) else input_dim
-        self.noise_prior = noise_prior
+        self.noise_prior_dist = noise_prior_dist
 
     def model(self, X: jnp.ndarray, y: jnp.ndarray = None, **kwargs) -> None:
         """BNN probabilistic model"""
@@ -106,7 +106,7 @@ class BNN:
         """
         Sample observational noise variance
         """
-        return numpyro.sample("sig", self.noise_prior)
+        return numpyro.sample("sig", self.noise_prior_dist)
 
     def predict(self,
                 X_new: jnp.ndarray,
