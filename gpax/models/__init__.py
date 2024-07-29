@@ -9,6 +9,7 @@ from .dkl import DKL
 from .vidkl import viDKL
 from .vi_mtdkl import viMTDKL
 from .mtgp import MultiTaskGP
+from .vi_mtgp import viMultiTaskGP
 from .corgp import CoregGP
 from .uigp import UIGP
 from .mngp import MeasuredNoiseGP
