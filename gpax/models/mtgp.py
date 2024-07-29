@@ -65,9 +65,10 @@ class MultiTaskGP(ExactGP):
                  lengthscale_prior_dist: Optional[dist.Distribution] = None,
                  W_prior_dist: Optional[dist.Distribution] = None,
                  v_prior_dist: Optional[dist.Distribution] = None,
-                 output_scale: bool = False, **kwargs) -> None:
+                 output_scale: bool = False, jitter: float = 1e-6,
+                 **kwargs) -> None:
         args = (input_dim, None, mean_fn, None, mean_fn_prior, noise_prior)
-        super(MultiTaskGP, self).__init__(*args)
+        super(MultiTaskGP, self).__init__(*args, jitter=jitter)
         if shared_input_space:
             if num_tasks is None:
                 raise ValueError("Please specify num_tasks")
@@ -128,7 +129,7 @@ class MultiTaskGP(ExactGP):
             noise = self._sample_noise()
         
         # Compute multitask_kernel
-        k = self.kernel(X, X, kernel_params, noise, **kwargs)
+        k = self.kernel(X, X, kernel_params, noise, self.jitter)
 
         # Add mean function (if any)
         if self.mean_fn is not None:
