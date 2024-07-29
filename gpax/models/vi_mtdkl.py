@@ -8,7 +8,7 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
 """
 
 from functools import partial
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple, Type, List
 
 import jax
 from jax import jit
@@ -17,9 +17,12 @@ import numpy as onp
 import numpyro
 import numpyro.distributions as dist
 from numpyro.contrib.module import random_haiku_module, haiku_module
+import haiku as hk
 
 from ..kernels import LCMKernel
 from .vidkl import viDKL
+
+remap = lambda data: {k: v for k, v in data.items() if not k.startswith('haiku_mlp')}
 
 
 class viMTDKL(viDKL):
@@ -76,14 +79,15 @@ class viMTDKL(viDKL):
                  num_latents: int = None, shared_input_space: bool = False,
                  num_tasks: int = None, rank: Optional[int] = None,
                  data_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 nn: Optional[Callable[[jnp.ndarray], jnp.ndarray]] = None,
-                 nn_prior: bool = True, guide: str = 'delta',
+                 hidden_dim: Optional[List[int]] = None, activation: str = 'relu',
+                 nn: Type[hk.Module] = None,
                  W_prior_dist: Optional[dist.Distribution] = None,
                  v_prior_dist: Optional[dist.Distribution] = None,
                  task_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 jitter: float = 1e-6,
                  **kwargs) -> None:
-        args = (input_dim, z_dim, None, None, nn, nn_prior, None, guide)
-        super(viMTDKL, self).__init__(*args, **kwargs)
+        args = (input_dim, z_dim, None, hidden_dim, activation, nn)
+        super(viMTDKL, self).__init__(*args, jitter=jitter, **kwargs)
         if shared_input_space:
             if num_tasks is None:
                 raise ValueError("Please specify num_tasks")
@@ -112,13 +116,10 @@ class viMTDKL(viDKL):
             self.rank = self.num_tasks - 1
 
         # NN part
-        if self.nn_prior:  # MAP
-            feature_extractor = random_haiku_module(
-                "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim),
-                prior=(lambda name, shape: dist.Cauchy() if name.startswith("b") else dist.Normal()))
-        else:  # MLE
-            feature_extractor = haiku_module(
-                "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim))
+        feature_extractor = random_haiku_module(
+            "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim),
+            prior=(lambda name, shape: dist.Cauchy() if name.startswith("b") else dist.Normal()))
+        
         z = feature_extractor(X if self.shared_input else X[:, :-1])
         if not self.shared_input:
             z = jnp.column_stack((z, X[:, -1]))
@@ -208,40 +209,36 @@ class viMTDKL(viDKL):
             scale = numpyro.sample("k_scale", dist.Normal(1.0, 1e-4))
         return {"k_length": squeezer(length), "k_scale": squeezer(scale)}
 
-    #@partial(jit, static_argnames='self')
-    def get_mvn_posterior(self,
-                          X_new: jnp.ndarray,
-                          nn_params: Dict[str, jnp.ndarray],
-                          k_params: Dict[str, jnp.ndarray],
-                          noiseless: bool = False,
-                          y_residual: jnp.ndarray = None,
-                          **kwargs
-                          ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def compute_gp_posterior(self,
+                             X_new: jnp.ndarray,
+                             X_train: jnp.ndarray,
+                             y_train: jnp.ndarray,
+                             params: Dict[str, jnp.ndarray],
+                             noiseless: bool = False,
+                             ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns predictive mean and covariance at new points
         (mean and cov, where cov.diagonal() is 'uncertainty')
         given a single set of DKL parameters
         """
-        if y_residual is None:
-            y_residual = self.y_train
-        noise = k_params["noise"]
+        noise = params["noise"]
         noise_p = noise * (1 - jnp.array(noiseless, int))
         # embed data into the latent space
         z_train = self.nn_module.apply(
-            nn_params, jax.random.PRNGKey(0),
-            self.X_train if self.shared_input else self.X_train[:, :-1])
+            params, jax.random.PRNGKey(0),
+            X_train if self.shared_input else X_train[:, :-1])
         z_test = self.nn_module.apply(
-            nn_params, jax.random.PRNGKey(0),
+            params, jax.random.PRNGKey(0),
             X_new if self.shared_input else X_new[:, :-1])
         if not self.shared_input:
             z_train = jnp.column_stack((z_train, self.X_train[:, -1]))
             z_test = jnp.column_stack((z_test, X_new[:, -1]))
         # compute kernel matrices for train and test data
-        k_pp = self.kernel(z_test, z_test, k_params, noise_p, **kwargs)
-        k_pX = self.kernel(z_test, z_train, k_params, jitter=0.0)
-        k_XX = self.kernel(z_train, z_train, k_params, noise, **kwargs)
+        k_pp = self.kernel(z_test, z_test, remap(params), noise_p, self.jitter)
+        k_pX = self.kernel(z_test, z_train, remap(params))
+        k_XX = self.kernel(z_train, z_train, remap(params), noise, self.jitter)
         # compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
-        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
+        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_train))
         return mean, cov
