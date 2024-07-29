@@ -52,14 +52,12 @@ class VarNoiseGP(ExactGP):
 
         Use two different kernels with default priors for main and noise processes
 
-        >>> # Get random number generator keys for training and prediction
-        >>> rng_key, rng_key_predict = gpax.utils.get_keys()
         >>> # Initialize model
         >>> gp_model = gpax.VarNoiseGP(input_dim=1, kernel='RBF, noise_kernel='Matern')
         >>> # Run HMC to obtain posterior samples for the GP model parameters
-        >>> gp_model.fit(rng_key, X, y)
+        >>> gp_model.fit(X, y)
         >>> # Make a prediction on new inputs
-        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new)
+        >>> y_pred, y_samples = gp_model.predict(X_new)
         >>> # Get the inferred noise samples (for training data)
         >>> data_variance = gp_model.get_data_var_samples()
 
@@ -72,9 +70,9 @@ class VarNoiseGP(ExactGP):
         >>>    input_dim=1, kernel='RBF, noise_kernel='Matern',
         >>>    lengthscale_prior_dist=lscale_prior, noise_lengthscale_prior_dist=noise_lscale_prior)
         >>> # Run HMC to obtain posterior samples for the GP model parameters
-        >>> gp_model.fit(rng_key, X, y)
+        >>> gp_model.fit(X, y)
         >>> # Make a prediction on new inputs
-        >>> y_pred, y_samples = gp_model.predict(rng_key_predict, X_new)
+        >>> y_pred, y_samples = gp_model.predict(X_new)
         >>> # Get the inferred noise samples (for training data)
         >>> data_variance = gp_model.get_data_var_samples()
     """
@@ -90,9 +88,10 @@ class VarNoiseGP(ExactGP):
         lengthscale_prior_dist: Optional[dist.Distribution] = None,
         noise_mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
         noise_mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-        noise_lengthscale_prior_dist: Optional[dist.Distribution] = None
+        noise_lengthscale_prior_dist: Optional[dist.Distribution] = None,
+        jitter: float = 1e-6
     ) -> None:
-        args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, None, None, lengthscale_prior_dist)
+        args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, None, None, lengthscale_prior_dist, jitter)
         super(VarNoiseGP, self).__init__(*args)
         noise_kernel_ = get_kernel(noise_kernel)
         self.noise_kernel = _set_noise_kernel_fn(noise_kernel_) if isinstance(noise_kernel, str) else noise_kernel_
@@ -160,22 +159,24 @@ class VarNoiseGP(ExactGP):
         noise_length = numpyro.sample("k_noise_length", noise_length_dist)
         return {"k_noise_length": noise_length, "k_noise_scale": noise_scale}
 
-    def get_mvn_posterior(
-        self, X_new: jnp.ndarray, params: Dict[str, jnp.ndarray], *args, **kwargs
-    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def compute_gp_posterior(
+        self, X_new: jnp.ndarray,
+        X_train: jnp.ndarray, y_train: jnp.ndarray,
+        params: Dict[str, jnp.ndarray], *args, **kwargs
+        ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of heteroskedastic GP parameters
         """
         # Main GP part
-        y_residual = self.y_train.copy()
+        y_residual = y_train.copy()
         if self.mean_fn is not None:
-            args = [self.X_train, params] if self.mean_fn_prior else [self.X_train]
+            args = [X_train, params] if self.mean_fn_prior else [X_train]
             y_residual -= self.mean_fn(*args).squeeze()
         # Compute main kernel matrices for train and test data
         k_pp = self.kernel(X_new, X_new, params, 0, **kwargs)
-        k_pX = self.kernel(X_new, self.X_train, params, jitter=0.0)
-        k_XX = self.kernel(self.X_train, self.X_train, params, 0, **kwargs)
+        k_pX = self.kernel(X_new, X_train, params, jitter=0.0)
+        k_XX = self.kernel(X_train, X_train, params, 0, **kwargs)
         # Compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
@@ -186,12 +187,12 @@ class VarNoiseGP(ExactGP):
 
         # Noise GP part
         # Compute noise kernel matrices
-        k_pX_noise = self.noise_kernel(X_new, self.X_train, params, jitter=0.0)
-        k_XX_noise = self.noise_kernel(self.X_train, self.X_train, params, 0, **kwargs)
+        k_pX_noise = self.noise_kernel(X_new, X_train, params, jitter=0.0)
+        k_XX_noise = self.noise_kernel(X_train, X_train, params, 0, **kwargs)
         # Compute noise predictive mean
         log_var_residual = params["log_var"].copy()
         if self.noise_mean_fn is not None:
-            args = [self.X_train, params] if self.noise_mean_fn_prior else [self.X_train]
+            args = [X_train, params] if self.noise_mean_fn_prior else [X_train]
             log_var_residual -= jnp.log(self.noise_mean_fn(*args)).squeeze()
         K_xx_noise_inv = jnp.linalg.inv(k_XX_noise)
         predicted_log_var = jnp.matmul(k_pX_noise, jnp.matmul(K_xx_noise_inv, log_var_residual))

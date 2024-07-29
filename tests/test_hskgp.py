@@ -33,35 +33,31 @@ def noise_fn_prior():
 
 @pytest.mark.parametrize("noise_kernel", ['RBF', 'Matern'])
 def test_fit(noise_kernel):
-    rng_key = get_keys()[0]
     X, y = get_dummy_data()
     m = VarNoiseGP(1, 'RBF', noise_kernel=noise_kernel)
-    m.fit(rng_key, X, y, num_warmup=10, num_samples=10)
+    m.fit(X, y, num_warmup=10, num_samples=10)
     assert m.mcmc is not None
 
 
 def test_fit_with_custom_noise_lscale():
-    rng_key = get_keys()[0]
     X, y = get_dummy_data()
     m = VarNoiseGP(1, 'RBF', noise_lengthscale_prior_dist=dist.HalfNormal(1))
-    m.fit(rng_key, X, y, num_warmup=10, num_samples=10)
+    m.fit(X, y, num_warmup=10, num_samples=10)
     assert m.mcmc is not None
 
 
 def test_fit_with_noise_mean_fn():
-    rng_key = get_keys()[0]
     X, y = get_dummy_data()
     m = VarNoiseGP(1, 'RBF', noise_mean_fn=noise_fn, noise_mean_fn_prior=noise_fn_prior)
-    m.fit(rng_key, X, y, num_warmup=10, num_samples=10)
+    m.fit(X, y, num_warmup=10, num_samples=10)
     assert m.mcmc is not None
 
 
 def test_fit_with_noise_and_regular_mean_fn():
-    rng_key = get_keys()[0]
     X, y = get_dummy_data()
     m = VarNoiseGP(1, 'RBF', mean_fn = lambda x: 8*x**2,
                    noise_mean_fn=noise_fn, noise_mean_fn_prior=noise_fn_prior)
-    m.fit(rng_key, X, y, num_warmup=10, num_samples=10)
+    m.fit(X, y, num_warmup=10, num_samples=10)
     assert m.mcmc is not None
 
 
@@ -75,9 +71,7 @@ def test_get_mvn_posterior():
               "k_noise_scale": jnp.array(1.0),
               "log_var": jnp.ones(len(X))}
     m = VarNoiseGP(1, 'RBF', noise_kernel='RBF')
-    m.X_train = X
-    m.y_train = y
-    mean, cov = m.get_mvn_posterior(X_test, params)
+    mean, cov = m.compute_gp_posterior(X_test, X, y, params)
     assert isinstance(mean, jnp.ndarray)
     assert isinstance(cov, jnp.ndarray)
     assert_equal(mean.shape, (X_test.shape[0],))
@@ -97,9 +91,7 @@ def test_get_mvn_posterior_with_mean_fn():
               "b": jnp.array(1.0)
               }
     m = VarNoiseGP(1, 'RBF', noise_kernel='RBF', noise_mean_fn=noise_fn, noise_mean_fn_prior=noise_fn_prior)
-    m.X_train = X
-    m.y_train = y
-    mean, cov = m.get_mvn_posterior(X_test, params)
+    mean, cov = m.compute_gp_posterior(X_test, X, y, params)
     assert isinstance(mean, jnp.ndarray)
     assert isinstance(cov, jnp.ndarray)
     assert_equal(mean.shape, (X_test.shape[0],))
@@ -121,9 +113,7 @@ def test_get_mvn_posterior_with_noise_and_regular_mean_fn():
     m = VarNoiseGP(1, 'RBF', noise_kernel='RBF',
                    mean_fn = lambda x: 8*x**2,
                    noise_mean_fn=noise_fn, noise_mean_fn_prior=noise_fn_prior)
-    m.X_train = X
-    m.y_train = y
-    mean, cov = m.get_mvn_posterior(X_test, params)
+    mean, cov = m.compute_gp_posterior(X_test, X, y, params)
     assert isinstance(mean, jnp.ndarray)
     assert isinstance(cov, jnp.ndarray)
     assert_equal(mean.shape, (X_test.shape[0],))
@@ -131,18 +121,16 @@ def test_get_mvn_posterior_with_noise_and_regular_mean_fn():
 
 
 def test_get_noise_samples():
-    rng_key = get_keys()[0]
     X, y = get_dummy_data()
     m = VarNoiseGP(1, 'RBF')
-    m.fit(rng_key, X, y, num_warmup=10, num_samples=10)
+    m.fit(X, y, num_warmup=10, num_samples=10)
     noise = m.get_data_var_samples()
     assert_(isinstance(noise, jnp.ndarray))
 
 
 def test_get_noise_samples_with_mean_fn():
-    rng_key = get_keys()[0]
     X, y = get_dummy_data()
     m = VarNoiseGP(1, 'RBF', noise_mean_fn=noise_fn, noise_mean_fn_prior=noise_fn_prior)
-    m.fit(rng_key, X, y, num_warmup=10, num_samples=10)
+    m.fit(X, y, num_warmup=10, num_samples=10)
     noise = m.get_data_var_samples()
     assert_(isinstance(noise, jnp.ndarray))
