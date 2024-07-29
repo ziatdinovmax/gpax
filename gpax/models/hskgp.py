@@ -216,6 +216,6 @@ class VarNoiseGP(ExactGP):
             log_var += jnp.log(mean_)
         return jnp.exp(log_var)
 
-    def _print_summary(self):
+    def print_summary(self):
         samples = self.get_samples(1)
         numpyro.diagnostics.print_summary({k: v for (k, v) in samples.items() if 'log_var' not in k})
