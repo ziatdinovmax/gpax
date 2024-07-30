@@ -11,6 +11,7 @@ from .models import (
     MultiTaskGP,
     viMultiTaskGP,
     VarNoiseGP,
+    viVarNoiseGP,
     iBNN,
     sPM,
     vExactGP,

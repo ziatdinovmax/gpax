@@ -2,6 +2,7 @@ from .gp import ExactGP
 from .vgp import vExactGP
 from .vigp import viGP
 from .hskgp import VarNoiseGP
+from .vi_hskgp import viVarNoiseGP
 from .spm import sPM
 from .ibnn import iBNN
 from .vi_ibnn import vi_iBNN
