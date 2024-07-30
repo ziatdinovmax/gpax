@@ -16,7 +16,7 @@ import numpyro.distributions as dist
 
 from . import ExactGP
 from ..kernels import get_kernel
-from ..utils import _set_noise_kernel_fn
+from ..utils import _set_noise_kernel_fn, put_on_device
 
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray], jnp.ndarray]
 
@@ -213,6 +213,19 @@ class VarNoiseGP(ExactGP):
         predicted_noise_variance = jnp.exp(predicted_log_var)
 
         return predicted_noise_variance
+    
+    def predict_noise(self, X_new: jnp.ndarray, device: str = None) -> jnp.ndarray:
+        """Returns samples with predicted data variance - aka noise"""
+        X_new = self.set_data(X_new)
+        samples = self.get_samples(chain_dim=False)
+        self.X_train, X_new, samples = put_on_device(
+            device, self.X_train, X_new, samples)
+
+        predictive = lambda p: self.compute_noise_gp_posterior(
+            X_new, self.X_train, self.y_train, p)
+        # Compute predictive mean and covariance for all HMC samples
+        noise_cov = jax.vmap(predictive)(samples)
+        return jnp.diagonal(noise_cov, axis1=1, axis2=2)
 
     def get_data_var_samples(self):
         """Returns samples with inferred (training) data variance - aka noise"""
