@@ -168,15 +168,15 @@ class VarNoiseGP(ExactGP):
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of heteroskedastic GP parameters
         """
-        # Main GP part
+        # Main GP
         y_residual = y_train.copy()
         if self.mean_fn is not None:
             args = [X_train, params] if self.mean_fn_prior else [X_train]
             y_residual -= self.mean_fn(*args).squeeze()
         # Compute main kernel matrices for train and test data
-        k_pp = self.kernel(X_new, X_new, params, 0, **kwargs)
-        k_pX = self.kernel(X_new, X_train, params, jitter=0.0)
-        k_XX = self.kernel(X_train, X_train, params, 0, **kwargs)
+        k_pp = self.kernel(X_new, X_new, params, 0, self.jitter)
+        k_pX = self.kernel(X_new, X_train, params)
+        k_XX = self.kernel(X_train, X_train, params, 0, self.jitter)
         # Compute the predictive covariance and mean
         K_xx_inv = jnp.linalg.inv(k_XX)
         cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
@@ -185,10 +185,21 @@ class VarNoiseGP(ExactGP):
             args = [X_new, params] if self.mean_fn_prior else [X_new]
             mean += self.mean_fn(*args).squeeze()
 
-        # Noise GP part
+        # Noise GP
+        predicted_noise_variance = self.compute_noise_gp_posterior(X_new, X_train, params)
+        # Return the main GP's predictive mean and combined (main + noise) covariance matrix
+        return mean, cov + jnp.diag(predicted_noise_variance)
+
+    def compute_noise_gp_posterior(
+        self, X_new: jnp.ndarray,
+        X_train: jnp.ndarray, params: Dict[str, jnp.ndarray]
+        ) -> jnp.ndarray:
+        """
+        Returns predicted noise variance of the noise GP
+        """
         # Compute noise kernel matrices
-        k_pX_noise = self.noise_kernel(X_new, X_train, params, jitter=0.0)
-        k_XX_noise = self.noise_kernel(X_train, X_train, params, 0, **kwargs)
+        k_pX_noise = self.noise_kernel(X_new, X_train, params)
+        k_XX_noise = self.noise_kernel(X_train, X_train, params, 0, self.jitter)
         # Compute noise predictive mean
         log_var_residual = params["log_var"].copy()
         if self.noise_mean_fn is not None:
@@ -201,8 +212,7 @@ class VarNoiseGP(ExactGP):
             predicted_log_var += jnp.log(self.noise_mean_fn(*args)).squeeze()
         predicted_noise_variance = jnp.exp(predicted_log_var)
 
-        # Return the main GP's predictive mean and combined (main + noise) covariance matrix
-        return mean, cov + jnp.diag(predicted_noise_variance)
+        return predicted_noise_variance
 
     def get_data_var_samples(self):
         """Returns samples with inferred (training) data variance - aka noise"""
