@@ -17,6 +17,7 @@ from .models import (
     vi_iBNN,
     viDKL,
     viGP,
+    MultiTaskDKL,
     viMTDKL,
     viSparseGP,
 )

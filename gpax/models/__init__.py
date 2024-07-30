@@ -7,6 +7,7 @@ from .ibnn import iBNN
 from .vi_ibnn import vi_iBNN
 from .dkl import DKL
 from .vidkl import viDKL
+from .mtdkl import MultiTaskDKL
 from .vi_mtdkl import viMTDKL
 from .mtgp import MultiTaskGP
 from .vi_mtgp import viMultiTaskGP
