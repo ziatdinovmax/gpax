@@ -9,6 +9,7 @@ from .models import (
     ExactGP,
     MeasuredNoiseGP,
     MultiTaskGP,
+    viMultiTaskGP,
     VarNoiseGP,
     iBNN,
     sPM,
