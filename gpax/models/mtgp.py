@@ -11,7 +11,7 @@ from ..kernels import LCMKernel
 
 class MultiTaskGP(ExactGP):
     """
-    Gaussian process for multi-task/fidelity learning
+    Fully Bayesian Gaussian process for multi-task/fidelity learning
 
     Args:
         input_dim:
@@ -127,7 +127,7 @@ class MultiTaskGP(ExactGP):
             noise = self.noise_prior()
         else:
             noise = self._sample_noise()
-        
+
         # Compute multitask_kernel
         k = self.kernel(X, X, kernel_params, noise, self.jitter)
 
@@ -195,10 +195,7 @@ class MultiTaskGP(ExactGP):
         with numpyro.plate("latent_plate_data", self.num_latents, dim=-2):
             with numpyro.plate("ard", self.kernel_dim, dim=-1):
                 length = numpyro.sample("k_length", length_dist)
-            if self.output_scale:
-                scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
-            else:
-                scale = numpyro.deterministic("k_scale", jnp.ones(self.num_latents))
+            scale = self._sample_scale()
             if self.data_kernel_name == 'Periodic':
                 period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
         kernel_params = {
@@ -206,3 +203,10 @@ class MultiTaskGP(ExactGP):
             "period": squeezer(period) if self.data_kernel_name == "Periodic" else None
         }
         return kernel_params
+
+    def _sample_scale(self):
+        if self.output_scale:
+            return numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
+        else:
+            return numpyro.deterministic("k_scale", jnp.ones(self.num_latents))
+

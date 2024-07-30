@@ -14,6 +14,50 @@ from ..utils import put_on_device
 
 
 class viMultiTaskGP(MultiTaskGP):
+    """
+    Variational Inference Gaussian process for multi-task/fidelity learning
+
+    Args:
+        input_dim:
+            Number of input dimensions
+        data_kernel:
+            Kernel function operating on data inputs ('RBF', 'Matern', 'Periodic', or a custom function)
+        num_latents:
+            Number of latent functions. Typically equal to or less than the number of tasks
+        shared_input_space:
+            If True, assumes that all tasks share the same input space and
+            uses a multivariate kernel (Kronecker product). If False (default), assumes that different tasks
+            have different number of observations and uses a multitask kernel (elementwise multiplication).
+            In that case, the task indices must be appended as the last column of the input vector.
+        num_tasks:
+            Number of tasks. This is only needed if `shared_input_space` is True.
+        rank:
+            Rank of the weight matrix in the task kernel. Cannot be larger than the number of tasks.
+            Higher rank implies higher correlation. Uses *(num_tasks - 1)* when not specified.
+        mean_fn:
+            Optional deterministic mean function (use 'mean_fn_priors' to make it probabilistic)
+        data_kernel_prior:
+            Optional custom priors over the data kernel hyperparameters
+        mean_fn_prior:
+            Optional priors over mean function parameters
+        noise_prior_dist:
+            Optional custom prior distribution over the observational noise variance.
+            Defaults to LogNormal(0,1).
+        lengthscale_prior_dist:
+            Optional custom prior distribution over kernel lengthscale. Defaults to LogNormal(0, 1)
+        W_prior_dist:
+            Optional custom prior distribution over W in the task kernel, :math:`WW^T + diag(v)`.
+            Defaults to Normal(0, 10).
+        v_prior_dist:
+            Optional custom prior distribution over v in the task kernel, :math:`WW^T + diag(v)`.
+            Must be non-negative. Defaults to LogNormal(0, 1)
+        task_kernel_prior:
+            Optional custom priors over task kernel parameters;
+            Defaults to Normal(0, 10) for weights W and LogNormal(0, 1) for variances v.
+        output_scale:
+            Option to sample data kernel's output scale.
+            Defaults to False to avoid over-parameterization (the scale is already absorbed into task kernel)
+    """
     def __init__(self, input_dim: int, data_kernel: str,
                  num_latents: int = None, shared_input_space: bool = False,
                  num_tasks: int = None, rank: Optional[int] = None,
@@ -29,10 +73,10 @@ class viMultiTaskGP(MultiTaskGP):
                  **kwargs) -> None:
 
         super(viMultiTaskGP, self).__init__(input_dim, data_kernel, num_latents, shared_input_space,
-                                          num_tasks, rank, mean_fn, data_kernel_prior,
-                                          mean_fn_prior, noise_prior, noise_prior_dist,
-                                          lengthscale_prior_dist, W_prior_dist, v_prior_dist,
-                                          output_scale, jitter, **kwargs)
+                                            num_tasks, rank, mean_fn, data_kernel_prior,
+                                            mean_fn_prior, noise_prior, noise_prior_dist,
+                                            lengthscale_prior_dist, W_prior_dist, v_prior_dist,
+                                            output_scale, jitter, **kwargs)
 
     def fit(self,
             X: jnp.ndarray, y: jnp.ndarray,
@@ -77,31 +121,11 @@ class viMultiTaskGP(MultiTaskGP):
 
         self.params = self.svi.guide.median(params)
 
-    def _sample_kernel_params(self):
-        """
-        Sample data ("base") kernel parameters with default weakly-informative
-        priors for all the latent functions. Optionally allows to specify a custom
-        prior over the kernel lengthscale.
-        """
-        squeezer = lambda x: x.squeeze() if self.num_latents > 1 else x
-        if self.lengthscale_prior_dist is not None:
-            length_dist = self.lengthscale_prior_dist
+    def _sample_scale(self):
+        if self.output_scale:
+            return numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
         else:
-            length_dist = dist.LogNormal(0.0, 1.0)
-        with numpyro.plate("latent_plate_data", self.num_latents, dim=-2):
-            with numpyro.plate("ard", self.kernel_dim, dim=-1):
-                length = numpyro.sample("k_length", length_dist)
-            if self.output_scale:
-                scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
-            else:
-                scale = numpyro.sample("k_scale", dist.Normal(1.0, 1e-4))
-            if self.data_kernel_name == 'Periodic':
-                period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
-        kernel_params = {
-            "k_length": squeezer(length), "k_scale": squeezer(scale),
-            "period": squeezer(period) if self.data_kernel_name == "Periodic" else None
-        }
-        return kernel_params
+            return numpyro.sample("k_scale", dist.Normal(1.0, 1e-4))
 
     def get_samples(self, **kwargs):
         return {k: v[None] for (k, v) in self.params.items()}
