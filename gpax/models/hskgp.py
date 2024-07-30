@@ -186,11 +186,11 @@ class VarNoiseGP(ExactGP):
             mean += self.mean_fn(*args).squeeze()
 
         # Noise GP
-        predicted_noise_variance = self.compute_noise_gp_posterior(X_new, X_train, params)
+        predicted_noise_variance = self.compute_noise_posterior(X_new, X_train, params)
         # Return the main GP's predictive mean and combined (main + noise) covariance matrix
         return mean, cov + jnp.diag(predicted_noise_variance)
 
-    def compute_noise_gp_posterior(
+    def compute_noise_posterior(
         self, X_new: jnp.ndarray,
         X_train: jnp.ndarray, params: Dict[str, jnp.ndarray]
         ) -> jnp.ndarray:
@@ -221,7 +221,7 @@ class VarNoiseGP(ExactGP):
         self.X_train, X_new, samples = put_on_device(
             device, self.X_train, X_new, samples)
 
-        predictive = lambda p: self.compute_noise_gp_posterior(
+        predictive = lambda p: self.compute_noise_posterior(
             X_new, self.X_train, self.y_train, p)
         # Compute predictive mean and covariance for all HMC samples
         noise_cov = jax.vmap(predictive)(samples)
