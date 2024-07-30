@@ -28,7 +28,7 @@ class viMultiTaskGP(MultiTaskGP):
                  output_scale: bool = False, jitter: float = 1e-6,
                  **kwargs) -> None:
 
-        super(MultiTaskGP, self).__init__(input_dim, data_kernel, num_latents, shared_input_space,
+        super(viMultiTaskGP, self).__init__(input_dim, data_kernel, num_latents, shared_input_space,
                                           num_tasks, rank, mean_fn, data_kernel_prior,
                                           mean_fn_prior, noise_prior, noise_prior_dist,
                                           lengthscale_prior_dist, W_prior_dist, v_prior_dist,
@@ -76,6 +76,32 @@ class viMultiTaskGP(MultiTaskGP):
             key, num_steps, progress_bar=progress_bar)[0]
 
         self.params = self.svi.guide.median(params)
+
+    def _sample_kernel_params(self):
+        """
+        Sample data ("base") kernel parameters with default weakly-informative
+        priors for all the latent functions. Optionally allows to specify a custom
+        prior over the kernel lengthscale.
+        """
+        squeezer = lambda x: x.squeeze() if self.num_latents > 1 else x
+        if self.lengthscale_prior_dist is not None:
+            length_dist = self.lengthscale_prior_dist
+        else:
+            length_dist = dist.LogNormal(0.0, 1.0)
+        with numpyro.plate("latent_plate_data", self.num_latents, dim=-2):
+            with numpyro.plate("ard", self.kernel_dim, dim=-1):
+                length = numpyro.sample("k_length", length_dist)
+            if self.output_scale:
+                scale = numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
+            else:
+                scale = numpyro.sample("k_scale", dist.Normal(1.0, 1e-4))
+            if self.data_kernel_name == 'Periodic':
+                period = numpyro.sample("period", dist.LogNormal(0.0, 1.0))
+        kernel_params = {
+            "k_length": squeezer(length), "k_scale": squeezer(scale),
+            "period": squeezer(period) if self.data_kernel_name == "Periodic" else None
+        }
+        return kernel_params
 
     def get_samples(self, **kwargs):
         return {k: v[None] for (k, v) in self.params.items()}
