@@ -11,7 +11,6 @@ from .models import (
     MultiTaskGP,
     viMultiTaskGP,
     VarNoiseGP,
-    viVarNoiseGP,
     iBNN,
     sPM,
     vExactGP,
@@ -45,6 +44,8 @@ __all__ = [
     "viSparseGP",
     "CoregGP",
     "BNN",
+    "viMultiTaskGP",
+    "MultiTaskDKL"
     "sample_next",
     "__version__",
 ]
