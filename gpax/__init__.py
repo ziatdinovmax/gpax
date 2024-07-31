@@ -18,7 +18,7 @@ from .models import (
     viDKL,
     viGP,
     MultiTaskDKL,
-    viMTDKL,
+    viMultiTaskDKL,
     viSparseGP,
 )
 
@@ -46,6 +46,7 @@ __all__ = [
     "BNN",
     "viMultiTaskGP",
     "MultiTaskDKL"
+    "viMultiTaskDKL",
     "sample_next",
     "__version__",
 ]

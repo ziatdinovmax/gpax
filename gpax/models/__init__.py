@@ -8,7 +8,7 @@ from .vi_ibnn import vi_iBNN
 from .dkl import DKL
 from .vidkl import viDKL
 from .mtdkl import MultiTaskDKL
-from .vi_mtdkl import viMTDKL
+from .vi_mtdkl import viMultiTaskDKL
 from .mtgp import MultiTaskGP
 from .vi_mtgp import viMultiTaskGP
 from .corgp import CoregGP
@@ -29,7 +29,6 @@ __all__ = [
     "vi_iBNN",
     "DKL",
     "viDKL",
-    "viMTDKL",
     "MultiTaskGP",
     "CoregGP",
     "UIGP",
@@ -39,5 +38,6 @@ __all__ = [
     "BNN",
     "viMultiTaskGP",
     "MultiTaskDKL",
+    "viMultiTaskDKL",
     "HaikuMLP"
 ]

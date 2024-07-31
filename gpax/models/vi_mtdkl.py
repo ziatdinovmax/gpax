@@ -25,10 +25,9 @@ from .vidkl import viDKL
 remap = lambda data: {k: v for k, v in data.items() if not k.startswith('haiku_mlp')}
 
 
-class viMTDKL(viDKL):
+class viMultiTaskDKL(viDKL):
     """
-    Implementation of the variational inference-based deep kernel learning
-    for multi-task/fidelity problems
+    Variational inference-based deep kernel learning for multi-task/fidelity problems
 
     Args:
         input_dim:
@@ -87,7 +86,7 @@ class viMTDKL(viDKL):
                  jitter: float = 1e-6,
                  **kwargs) -> None:
         args = (input_dim, z_dim, None, hidden_dim, activation, nn)
-        super(viMTDKL, self).__init__(*args, jitter=jitter, **kwargs)
+        super(viMultiTaskDKL, self).__init__(*args, jitter=jitter, **kwargs)
         if shared_input_space:
             if num_tasks is None:
                 raise ValueError("Please specify num_tasks")
