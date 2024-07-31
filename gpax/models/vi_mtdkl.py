@@ -47,15 +47,15 @@ class viMultiTaskDKL(MultiTaskDKL):
             Higher rank implies higher correlation. Uses *(num_tasks - 1)* when not specified.
         data_kernel_prior:
             Optional priors over kernel hyperparameters; uses LogNormal(0,1) by default
+        hidden_dim:
+            Optional custom MLP architecture. For example [16, 8, 4] corresponds to a 3-layer
+            neural network backbone containing 16, 8, and 4 neurons activated by tanh(). The latent
+            layer is added autoamtically and doesn't have to be specified here. Defaults to [32, 16, 8].
+        activation:
+            Nonlinear activation function for NN. Defaults to 'relu'.
         nn:
             Custom neural network ('feature extractor'); uses a 3-layer MLP
             with ReLU activations by default
-        nn_prior:
-            Places probabilistic priors over NN weights and biases (Default: True)
-        latent_prior:
-            Optional prior over the latent space (NN embedding); uses none by default
-        guide:
-            Auto-guide option, use 'delta' (default) or 'normal'
         W_prior_dist:
             Optional custom prior distribution over W in the task kernel, :math:`WW^T + diag(v)`.
             Defaults to Normal(0, 10).
@@ -85,7 +85,7 @@ class viMultiTaskDKL(MultiTaskDKL):
         super(viMultiTaskDKL, self).__init__(input_dim, z_dim, data_kernel, num_latents,
                                              shared_input_space, num_tasks, rank, data_kernel_prior,
                                              hidden_dim, activation, nn, W_prior_dist, v_prior_dist, task_kernel_prior, jitter)
-    
+
     def fit(self, X: jnp.ndarray, y: jnp.ndarray,
             num_steps: int = 1000, step_size: float = 5e-3,
             progress_bar: bool = True,
