@@ -49,15 +49,15 @@ class MultiTaskDKL(DKL):
             Higher rank implies higher correlation. Uses *(num_tasks - 1)* when not specified.
         data_kernel_prior:
             Optional priors over kernel hyperparameters; uses LogNormal(0,1) by default
+        hidden_dim:
+            Optional custom MLP architecture. For example [16, 8, 4] corresponds to a 3-layer
+            neural network backbone containing 16, 8, and 4 neurons activated by tanh(). The latent
+            layer is added autoamtically and doesn't have to be specified here. Defaults to [32, 16, 8].
+        activation:
+            Nonlinear activation function for NN. Defaults to 'tanh'.
         nn:
             Custom neural network ('feature extractor'); uses a 3-layer MLP
             with ReLU activations by default
-        nn_prior:
-            Places probabilistic priors over NN weights and biases (Default: True)
-        latent_prior:
-            Optional prior over the latent space (NN embedding); uses none by default
-        guide:
-            Auto-guide option, use 'delta' (default) or 'normal'
         W_prior_dist:
             Optional custom prior distribution over W in the task kernel, :math:`WW^T + diag(v)`.
             Defaults to Normal(0, 10).
@@ -67,6 +67,8 @@ class MultiTaskDKL(DKL):
         task_kernel_prior:
             Optional custom priors over task kernel parameters;
             Defaults to Normal(0, 10) for weights W and LogNormal(0, 1) for variances v.
+        jitter:
+            Small jitter for numerical stability. Defaults to 1e-6.
 
         **kwargs:
             Optional custom prior distributions over observational noise (noise_dist_prior)
@@ -77,7 +79,7 @@ class MultiTaskDKL(DKL):
                  num_latents: int = None, shared_input_space: bool = False,
                  num_tasks: int = None, rank: Optional[int] = None,
                  data_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 hidden_dim: Optional[List[int]] = None, activation: str = 'relu',
+                 hidden_dim: Optional[List[int]] = None, activation: str = 'tanh',
                  nn: Type[hk.Module] = None,
                  W_prior_dist: Optional[dist.Distribution] = None,
                  v_prior_dist: Optional[dist.Distribution] = None,
