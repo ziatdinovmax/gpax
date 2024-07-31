@@ -6,7 +6,7 @@ from numpy.testing import assert_, assert_equal
 
 sys.path.insert(0, "../gpax/")
 
-from gpax.models.vi_mtdkl import viMTDKL
+from gpax.models.vi_mtdkl import viMultiTaskDKL
 from gpax.utils import get_keys
 
 
@@ -27,7 +27,7 @@ def attach_indices(X, num_tasks):
 def test_fit_multitask(data_kernel, num_tasks, num_latents):
     X, y = get_dummy_data()
     X = attach_indices(X, num_tasks)
-    m = viMTDKL(X.shape[-1] - 1, 2, data_kernel, num_latents=num_latents, shared_input_space=False)
+    m = viMultiTaskDKL(X.shape[-1] - 1, 2, data_kernel, num_latents=num_latents, shared_input_space=False)
     m.fit(X, y, num_steps=10)
     assert_(isinstance(m.params, dict))
 
@@ -38,7 +38,7 @@ def test_fit_multitask(data_kernel, num_tasks, num_latents):
 def test_fit_multitask_shared_input(data_kernel, num_tasks, num_latents):
     X, y = get_dummy_data()
     y = jnp.repeat(y[:, None], num_tasks, axis=1).reshape(-1)
-    m = viMTDKL(X.shape[-1], 2, data_kernel, num_latents=num_latents,
+    m = viMultiTaskDKL(X.shape[-1], 2, data_kernel, num_latents=num_latents,
                 shared_input_space=True, num_tasks=num_tasks)
     m.fit(X, y, num_steps=10)
     assert_(isinstance(m.params, dict))
@@ -50,7 +50,7 @@ def test_fit_multitask_shared_input(data_kernel, num_tasks, num_latents):
 def test_fit_predict_multitask(data_kernel, num_tasks, num_latents):
     X, y = get_dummy_data()
     X = attach_indices(X, num_tasks)
-    m = viMTDKL(X.shape[-1] - 1, 2, data_kernel, num_latents=num_latents, shared_input_space=False)
+    m = viMultiTaskDKL(X.shape[-1] - 1, 2, data_kernel, num_latents=num_latents, shared_input_space=False)
     m.fit(X, y, num_steps=10)
     X_test, _ = get_dummy_data()
     X_test = jnp.column_stack([X_test, jnp.ones(len(X_test))])
