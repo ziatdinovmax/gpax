@@ -10,22 +10,19 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
 from functools import partial
 from typing import Callable, Dict, Optional, Tuple, Type, List
 
-import jax
-from jax import jit
+import jax.random as jra
 import jax.numpy as jnp
-import numpy as onp
 import numpyro
 import numpyro.distributions as dist
-from numpyro.contrib.module import random_haiku_module, haiku_module
+from numpyro.infer import SVI, Trace_ELBO
+from numpyro.infer.autoguide import AutoDelta
 import haiku as hk
 
-from ..kernels import LCMKernel
-from .vidkl import viDKL
-
-remap = lambda data: {k: v for k, v in data.items() if not k.startswith('haiku_mlp')}
+from .mtdkl import MultiTaskDKL
+from ..utils import put_on_device, get_haiku_compatible_dict
 
 
-class viMultiTaskDKL(viDKL):
+class viMultiTaskDKL(MultiTaskDKL):
     """
     Variational inference-based deep kernel learning for multi-task/fidelity problems
 
@@ -85,159 +82,69 @@ class viMultiTaskDKL(viDKL):
                  task_kernel_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  jitter: float = 1e-6,
                  **kwargs) -> None:
-        args = (input_dim, z_dim, None, hidden_dim, activation, nn)
-        super(viMultiTaskDKL, self).__init__(*args, jitter=jitter, **kwargs)
-        if shared_input_space:
-            if num_tasks is None:
-                raise ValueError("Please specify num_tasks")
-        else:
-            if num_latents is None:
-                raise ValueError("Please specify num_latents")
-        self.num_tasks = num_tasks
-        self.num_latents = num_tasks if num_latents is None else num_latents
-        self.rank = rank
-        self.kernel = LCMKernel(
-            data_kernel, shared_input_space, num_tasks, **kwargs)
-        self.data_kernel_prior = data_kernel_prior
-        self.task_kernel_prior = task_kernel_prior
-        self.shared_input = shared_input_space
-        self.W_prior_dist = W_prior_dist
-        self.v_prior_dist = v_prior_dist
+        super(viMultiTaskDKL, self).__init__(input_dim, z_dim, data_kernel, num_latents,
+                                             shared_input_space, num_tasks, rank, data_kernel_prior,
+                                             hidden_dim, activation, nn, W_prior_dist, v_prior_dist, task_kernel_prior, jitter)
+    
+    def fit(self, X: jnp.ndarray, y: jnp.ndarray,
+            num_steps: int = 1000, step_size: float = 5e-3,
+            progress_bar: bool = True,
+            print_summary: bool = True,
+            device: str = None,
+            rng_key: jnp.array = None,
+            **kwargs: float
+            ) -> None:
+        """
+        Run variational inference to learn DKL (hyper)parameters
 
-    def model(self, X: jnp.ndarray, y: jnp.ndarray = None, **kwargs) -> None:
-        """Multitask DKL probabilistic model"""
+        Args:
+            rng_key: random number generator key
+            X: 2D feature vector with *(number of points, number of features)* dimensions
+            y: 1D target vector with *(n,)* dimensions
+            num_steps: number of SVI steps
+            step_size: step size schedule for Adam optimizer
+            progress_bar: show progress bar
+            device:
+                The device (e.g. "cpu" or "gpu") perform computation on ('cpu', 'gpu'). If None, computation
+                is performed on the JAX default device.
+            print_summary: print summary at the end of training
+            rng_key: random number generator key
+        """
+        key = rng_key if rng_key is not None else jra.PRNGKey(0)
+        X, y = self.set_data(X, y)
+        X, y = put_on_device(device, X, y)
+        self.X_train = X
+        self.y_train = y
 
-        # Check that we have necessary info for sampling kernel params
-        if not self.shared_input and self.num_tasks is None:
-            self.num_tasks = len(onp.unique(self.X_train[:, -1]))
-
-        if self.rank is None:
-            self.rank = self.num_tasks - 1
-
-        # NN part
-        feature_extractor = random_haiku_module(
-            "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim),
-            prior=(lambda name, shape: dist.Cauchy() if name.startswith("b") else dist.Normal()))
-        
-        z = feature_extractor(X if self.shared_input else X[:, :-1])
-        if not self.shared_input:
-            z = jnp.column_stack((z, X[:, -1]))
-
-        # Initialize GP kernel mean function at zeros
-        if self.shared_input:
-            f_loc = jnp.zeros(self.num_tasks * X.shape[0])
-        else:
-            f_loc = jnp.zeros(X.shape[0])
-
-        # Sample data kernel parameters
-        if self.data_kernel_prior:
-            data_kernel_params = self.data_kernel_prior()
-        else:
-            data_kernel_params = self._sample_kernel_params()
-
-        # Sample task kernel parameters
-        if self.task_kernel_prior:
-            task_kernel_params = self.task_kernel_prior()
-        else:
-            task_kernel_params = self._sample_task_kernel_params()
-
-        # Combine two dictionaries with parameters
-        kernel_params = {**data_kernel_params, **task_kernel_params}
-
-        # Sample noise
-        if self.noise_prior:  # this will be removed in the future releases
-            noise = self.noise_prior()
-        else:
-            noise = self._sample_noise()
-
-        # Compute multitask_kernel
-        k = self.kernel(z, z, kernel_params, noise, **kwargs)
-
-        # Sample y according to the standard Gaussian process formula
-        numpyro.sample(
-            "y",
-            dist.MultivariateNormal(loc=f_loc, covariance_matrix=k),
-            obs=y,
+        optim = numpyro.optim.Adam(step_size=step_size, b1=0.5)
+        self.svi = SVI(
+            self.model,
+            guide=AutoDelta(self.model),
+            optim=optim,
+            loss=Trace_ELBO(),
+            X=X,
+            y=y,
+            **kwargs
         )
 
-    def _sample_noise(self):
-        """Sample observational noise"""
-        if self.noise_prior_dist is not None:
-            noise_dist = self.noise_prior_dist
-        else:
-            noise_dist = dist.LogNormal(
-                    jnp.zeros(self.num_tasks),
-                    jnp.ones(self.num_tasks))
+        params = self.svi.run(
+            key, num_steps, progress_bar=progress_bar)[0]
 
-        noise = numpyro.sample("noise", noise_dist.to_event(1))
-        return noise
+        self.params = self.svi.guide.median(params)
 
-    def _sample_task_kernel_params(self):
-        """
-        Sample task kernel parameters with default weakly-informative priors
-        or custom priors for all the latent functions
-        """
-        if self.W_prior_dist is not None:
-            W_dist = self.W_prior_dist
-        else:
-            W_dist = dist.Normal(
-                    jnp.zeros(shape=(self.num_latents, self.num_tasks, self.rank)),  # loc
-                    10*jnp.ones(shape=(self.num_latents, self.num_tasks, self.rank)) # var
-            )
-        if self.v_prior_dist is not None:
-            v_dist = self.v_prior_dist
-        else:
-            v_dist = dist.LogNormal(
-                    jnp.zeros(shape=(self.num_latents, self.num_tasks)),  # loc
-                    jnp.ones(shape=(self.num_latents, self.num_tasks)) # var
-            )
-        with numpyro.plate("latent_plate_task", self.num_latents):
-            W = numpyro.sample("W", W_dist.to_event(2))
-            v = numpyro.sample("v", v_dist.to_event(1))
-        return {"W": W, "v": v}
+        if print_summary:
+            self.print_summary()
 
-    def _sample_kernel_params(self):
-        """
-        Sample data ("base") kernel parameters with default weakly-informative
-        priors for all the latent functions
-        """
-        squeezer = lambda x: x.squeeze() if self.num_latents > 1 else x
-        with numpyro.plate("latent_plate_data", self.num_latents, dim=-2):
-            with numpyro.plate("ard", self.kernel_dim, dim=-1):
-                length = numpyro.sample("k_length", dist.LogNormal(0.0, 1.0))
-            scale = numpyro.sample("k_scale", dist.Normal(1.0, 1e-4))
-        return {"k_length": squeezer(length), "k_scale": squeezer(scale)}
+    def get_samples(self, **kwargs):
+        return get_haiku_compatible_dict(self.params, map=True)  # map=True adds an extra batch dimension to make it work with vmap
 
-    def compute_gp_posterior(self,
-                             X_new: jnp.ndarray,
-                             X_train: jnp.ndarray,
-                             y_train: jnp.ndarray,
-                             params: Dict[str, jnp.ndarray],
-                             noiseless: bool = False,
-                             ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """
-        Returns predictive mean and covariance at new points
-        (mean and cov, where cov.diagonal() is 'uncertainty')
-        given a single set of DKL parameters
-        """
-        noise = params["noise"]
-        noise_p = noise * (1 - jnp.array(noiseless, int))
-        # embed data into the latent space
-        z_train = self.nn_module.apply(
-            params, jax.random.PRNGKey(0),
-            X_train if self.shared_input else X_train[:, :-1])
-        z_test = self.nn_module.apply(
-            params, jax.random.PRNGKey(0),
-            X_new if self.shared_input else X_new[:, :-1])
-        if not self.shared_input:
-            z_train = jnp.column_stack((z_train, self.X_train[:, -1]))
-            z_test = jnp.column_stack((z_test, X_new[:, -1]))
-        # compute kernel matrices for train and test data
-        k_pp = self.kernel(z_test, z_test, remap(params), noise_p, self.jitter)
-        k_pX = self.kernel(z_test, z_train, remap(params))
-        k_XX = self.kernel(z_train, z_train, remap(params), noise, self.jitter)
-        # compute the predictive covariance and mean
-        K_xx_inv = jnp.linalg.inv(k_XX)
-        cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
-        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_train))
-        return mean, cov
+    def print_summary(self, print_nn_weights: bool = False) -> None:
+        list_of_keys = ["k_scale", "k_length", "noise"]
+        print('\nInferred GP kernel parameters')
+        for (k, vals) in self.params.items():
+            if k in list_of_keys:
+                spaces = " " * (15 - len(k))
+                print(k, spaces, jnp.around(vals, 4))
+
+    def _sample_scale(self):
+        return numpyro.sample("k_scale", dist.Normal(1.0, 1e-4))
