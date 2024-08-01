@@ -61,6 +61,19 @@ def test_fit_with_noise_and_regular_mean_fn():
     assert m.mcmc is not None
 
 
+def test_get_noise_posterior():
+    X, y = get_dummy_data(unsqueeze=True)
+    X_test, _ = get_dummy_data(unsqueeze=True)
+    params = {
+              "k_noise_length": jnp.array(0.5),
+              "k_noise_scale": jnp.array(1.0),
+              "log_var": jnp.ones(len(X))}
+    m = VarNoiseGP(1, 'RBF', noise_kernel='RBF')
+    predicted_noise = m.compute_noise_posterior(X_test, X, params)
+    assert isinstance(predicted_noise, jnp.ndarray)
+    assert_equal(predicted_noise.shape, (X_test.shape[0],))
+
+
 def test_get_mvn_posterior():
     X, y = get_dummy_data(unsqueeze=True)
     X_test, _ = get_dummy_data(unsqueeze=True)
