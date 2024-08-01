@@ -37,7 +37,7 @@ class viGP(ExactGP):
         guide:
             Auto-guide option, use 'delta' (default) or 'normal'
         jitter:
-            small jitter for the numerical stability
+            Small jitter for the numerical stability. Default: 1e-6
 
     Examples:
 

@@ -47,6 +47,9 @@ class ExactGP:
         lengthscale_prior_dist:
             Optional custom prior distribution over kernel lengthscale.
             Defaults to LogNormal(0, 1).
+        jitter:
+            Small jitter for the numerical stability. Default: 1e-6
+
 
     Examples:
 

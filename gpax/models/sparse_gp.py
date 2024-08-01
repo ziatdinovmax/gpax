@@ -46,7 +46,7 @@ class viSparseGP(viGP):
             Optional custom prior distribution over kernel lengthscale.
             Defaults to LogNormal(0, 1).
         jitter:
-            Small jitter for the numerical stability
+            Small jitter for the numerical stability. Default: 1e-6
     """
     def __init__(self, input_dim: int, kernel: str,
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,

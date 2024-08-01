@@ -56,7 +56,9 @@ class viMultiTaskGP(MultiTaskGP):
             Defaults to Normal(0, 10) for weights W and LogNormal(0, 1) for variances v.
         output_scale:
             Option to sample data kernel's output scale.
-            Defaults to False to avoid over-parameterization (the scale is already absorbed into task kernel)
+            Defaults to False to avoid over-parameterization (the scale is already absorbed into task kernel).
+        jitter:
+            Small jitter for the numerical stability. Default: 1e-6
     """
     def __init__(self, input_dim: int, data_kernel: str,
                  num_latents: int = None, shared_input_space: bool = False,
