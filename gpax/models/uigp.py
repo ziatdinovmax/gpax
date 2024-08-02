@@ -11,6 +11,7 @@ import warnings
 from typing import Callable, Dict, Optional, Tuple, Union
 
 import jax.numpy as jnp
+import jax.random as jra
 import numpyro
 import numpyro.distributions as dist
 
@@ -69,9 +70,11 @@ class UIGP(ExactGP):
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior_dist: Optional[dist.Distribution] = None,
                  lengthscale_prior_dist: Optional[dist.Distribution] = None,
-                 sigma_x_prior_dist: Optional[dist.Distribution] = None
+                 sigma_x_prior_dist: Optional[dist.Distribution] = None,
+                 jitter: float = 1e-6
                  ) -> None:
-        args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior, noise_prior, noise_prior_dist, lengthscale_prior_dist)
+        args = (input_dim, kernel, mean_fn, kernel_prior, mean_fn_prior,
+                noise_prior, noise_prior_dist, lengthscale_prior_dist, jitter)
         super(UIGP, self).__init__(*args)
         self.sigma_x_prior_dist = sigma_x_prior_dist
 
@@ -128,51 +131,18 @@ class UIGP(ExactGP):
                 X_prime = numpyro.sample("X_prime", dist.Normal(X, sigma_x))
         return X_prime
 
-    def get_mvn_posterior(
-        self, X_new: jnp.ndarray, params: Dict[str, jnp.ndarray], noiseless: bool = False, **kwargs: float
-    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def compute_gp_posterior(self, X_new: jnp.ndarray,
+                             X_train: jnp.ndarray, y_train: jnp.ndarray,
+                             params: Dict[str, jnp.ndarray],
+                             noiseless: bool = True,
+                             ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
         for a single sample of UIGP parameters
         """
         X_train_prime = params["X_prime"]
-        noise = params["noise"]
-        noise_p = noise * (1 - jnp.array(noiseless, int))
-        y_residual = self.y_train.copy()
-        if self.mean_fn is not None:
-            args = [X_train_prime, params] if self.mean_fn_prior else [X_train_prime]
-            y_residual -= self.mean_fn(*args).squeeze()
-        # compute kernel matrices for train and test data
-        k_pp = self.kernel(X_new, X_new, params, noise_p, **kwargs)
-        k_pX = self.kernel(X_new, X_train_prime, params, jitter=0.0)
-        k_XX = self.kernel(X_train_prime, X_train_prime, params, noise, **kwargs)
-        # compute the predictive covariance and mean
-        K_xx_inv = jnp.linalg.inv(k_XX)
-        cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
-        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
-        if self.mean_fn is not None:
-            args = [X_new, params] if self.mean_fn_prior else [X_new]
-            mean += self.mean_fn(*args).squeeze()
-        return mean, cov
-
-    def _predict(
-        self,
-        rng_key: jnp.ndarray,
-        X_new: jnp.ndarray,
-        params: Dict[str, jnp.ndarray],
-        n: int,
-        noiseless: bool = False,
-        **kwargs: float
-    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """Prediction with a single sample of UIGP parameters"""
-        # Sample X_new using the learned standard deviation
-        X_new_prime = dist.Normal(X_new, params["sigma_x"]).sample(rng_key, sample_shape=(n,))
-        X_new_prime = X_new_prime.mean(0)
-        # Get the predictive mean and covariance
-        y_mean, K = self.get_mvn_posterior(X_new_prime, params, noiseless, **kwargs)
-        # draw samples from the posterior predictive for a given set of parameters
-        y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
-        return y_mean, y_sampled
+        X_new_prime = dist.Normal(X_new, params["sigma_x"]).sample(jra.PRNGKey(0))
+        return super().compute_gp_posterior(X_new_prime, X_train_prime, y_train, params, noiseless)
 
     def _set_data(self, X: jnp.ndarray, y: Optional[jnp.ndarray] = None) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
         X = X if X.ndim > 1 else X[:, None]
