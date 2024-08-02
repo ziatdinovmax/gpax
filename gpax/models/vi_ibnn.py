@@ -38,16 +38,19 @@ class vi_iBNN(viGP):
         noise_prior:
             Optional custom prior for the observation noise variance;
             uses LogNormal(0,1) by default.
+        jitter:
+            Small jitter noise for numerical stability. Defaults to 1e-6.
     """
 
     def __init__(self, input_dim: int, depth: int = 3, activation: str = 'erf',
                  mean_fn: Optional[Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]] = None,
                  nngp_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None
+                 noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
+                 jitter: float = 1e-6
                  ) -> None:
         args = (input_dim, None, mean_fn, nngp_prior, mean_fn_prior, noise_prior)
-        super(vi_iBNN, self).__init__(*args)
+        super(vi_iBNN, self).__init__(*args, jitter=jitter)
         self.kernel = get_kernel("NNGP", activation=activation, depth=depth)
 
     def _sample_kernel_params(self) -> Dict[str, jnp.ndarray]:

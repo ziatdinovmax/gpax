@@ -4,7 +4,7 @@ ibnn.py
 
 Infinite width Bayesian neural net
 
-Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
+Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
 """
 
 from typing import Optional, Dict, Callable
@@ -37,6 +37,8 @@ class iBNN(ExactGP):
         noise_prior_dist:
             Optional custom prior distribution over the observational noise variance.
             Defaults to LogNormal(0,1).
+        jitter:
+            Small jitter noise for numerical stability. Defaults to 1e-6.
     """
 
     def __init__(self, input_dim: int, depth: int = 3, activation: str = 'erf',
@@ -44,11 +46,11 @@ class iBNN(ExactGP):
                  nngp_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  mean_fn_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
                  noise_prior: Optional[Callable[[], Dict[str, jnp.ndarray]]] = None,
-                 noise_prior_dist: Optional[dist.Distribution] = None
+                 noise_prior_dist: Optional[dist.Distribution] = None , jitter: float = 1e-6
                  ) -> None:
         args = (input_dim, None, mean_fn, nngp_prior, mean_fn_prior,
                 noise_prior, noise_prior_dist)
-        super(iBNN, self).__init__(*args)
+        super(iBNN, self).__init__(*args, jitter=jitter)
         self.kernel = get_kernel("NNGP", activation=activation, depth=depth)
 
     def _sample_kernel_params(self) -> Dict[str, jnp.ndarray]:
