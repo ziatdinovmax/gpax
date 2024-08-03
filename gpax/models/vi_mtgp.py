@@ -58,7 +58,7 @@ class viMultiTaskGP(MultiTaskGP):
             Option to sample data kernel's output scale.
             Defaults to False to avoid over-parameterization (the scale is already absorbed into task kernel).
         jitter:
-            Small jitter for the numerical stability. Default: 1e-6
+            Small jitter for the numerical stability. Default: 1e-6.
     """
     def __init__(self, input_dim: int, data_kernel: str,
                  num_latents: int = None, shared_input_space: bool = False,
@@ -84,6 +84,7 @@ class viMultiTaskGP(MultiTaskGP):
             X: jnp.ndarray, y: jnp.ndarray,
             num_steps: int = 1000, step_size: float = 5e-3,
             progress_bar: bool = True,
+            print_summary: bool = True,
             device: str = None,
             rng_key: jnp.array = None,
             **kwargs: float
@@ -123,6 +124,9 @@ class viMultiTaskGP(MultiTaskGP):
 
         self.params = self.svi.guide.median(params)
 
+        if print_summary:
+            self.print_summary()
+
     def _sample_scale(self):
         if self.output_scale:
             return numpyro.sample("k_scale", dist.LogNormal(0.0, 1.0))
@@ -132,7 +136,7 @@ class viMultiTaskGP(MultiTaskGP):
     def get_samples(self, **kwargs):
         return {k: v[None] for (k, v) in self.params.items()}
 
-    def _print_summary(self) -> None:
+    def print_summary(self) -> None:
         for (k, vals) in self.params.items():
             spaces = " " * (15 - len(k))
             print(k, spaces, jnp.around(vals, 4))
