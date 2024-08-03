@@ -100,6 +100,9 @@ class viMultiTaskGP(MultiTaskGP):
             step_size: step size schedule for Adam optimizer
             progress_bar: show progress bar
             print_summary: print summary at the end of training
+            device:
+                The device (e.g. "cpu" or "gpu") perform computation on ('cpu', 'gpu'). If None, computation
+                is performed on the JAX default device.
             rng_key: random number generator key
         """
         key = rng_key if rng_key is not None else jra.PRNGKey(0)
