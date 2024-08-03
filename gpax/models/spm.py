@@ -22,6 +22,8 @@ import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS, Predictive, init_to_median
 
+from ..utils import put_on_device
+
 model_type = Callable[[jnp.ndarray, Dict[str, jnp.ndarray]], jnp.ndarray]
 prior_type = Callable[[], Dict[str, jnp.ndarray]]
 
@@ -83,11 +85,12 @@ class sPM:
             noise_dist = dist.LogNormal(0, 1)
         return numpyro.sample("noise", noise_dist)
 
-    def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
+    def fit(self, X: jnp.ndarray, y: jnp.ndarray,
             num_warmup: int = 2000, num_samples: int = 2000,
             num_chains: int = 1, chain_method: str = 'sequential',
             progress_bar: bool = True, print_summary: bool = True,
-            device: Type[jaxlib.xla_extension.Device] = None) -> None:
+            device: Type[jaxlib.xla_extension.Device] = None,
+            rng_key: jnp.array = None) -> None:
         """
         Run HMC to infer parameters of the structured probabilistic model
 
@@ -104,11 +107,11 @@ class sPM:
             device:
                 optionally specify a cpu or gpu device on which to run the inference;
                 e.g., ``device=jax.devices("cpu")[0]`` 
+            rng_key: random number generator key
         """
-        X, y = self._set_data(X, y)
-        if device:
-            X = jax.device_put(X, device)
-            y = jax.device_put(y, device)
+        key = rng_key if rng_key is not None else jra.PRNGKey(0)
+        X, y = self.set_data(X, y)
+        X, y = put_on_device(device, X, y)
         init_strategy = init_to_median(num_samples=10)
         kernel = NUTS(self.model, init_strategy=init_strategy)
         self.mcmc = MCMC(
@@ -120,9 +123,9 @@ class sPM:
             progress_bar=progress_bar,
             jit_model_args=False
         )
-        self.mcmc.run(rng_key, X, y)
+        self.mcmc.run(key, X, y)
         if print_summary:
-            self._print_summary()
+            self.print_summary()
 
     def get_samples(self, chain_dim: bool = False) -> Dict[str, jnp.ndarray]:
         """Get posterior samples (after running the MCMC chains)"""
@@ -170,11 +173,12 @@ class sPM:
 
         return loc, f_samples
 
-    def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
+    def predict(self, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
                 n: int = 1,
                 filter_nans: bool = False, take_point_predictions_mean: bool = True,
-                device: Type[jaxlib.xla_extension.Device] = None
+                device: Type[jaxlib.xla_extension.Device] = None,
+                rng_key: Optional[jnp.ndarray] = None
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using posterior model parameters
@@ -189,17 +193,17 @@ class sPM:
             device:
                 optionally specify a cpu or gpu device on which to make a prediction;
                 e.g., ```device=jax.devices("gpu")[0]```
+            rng_key: random number generator key
 
         Returns:
             Point predictions (or their mean) and posterior predictive distribution
         """
-        X_new = self._set_data(X_new)
+        key = rng_key if rng_key is not None else jra.PRNGKey(0)
+        X_new = self.set_data(X_new)
         if samples is None:
             samples = self.get_samples(chain_dim=False)
-        if device:
-            X_new = jax.device_put(X_new, device)
-            samples = jax.device_put(samples, device)
-        y_pred, y_sampled = self._vmap_predict(rng_key, X_new, samples, n)
+        X_new, samples = put_on_device(device, X_new, samples)
+        y_pred, y_sampled = self._vmap_predict(key, X_new, samples, n)
         if filter_nans:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
             y_sampled = jnp.array(y_sampled_)
@@ -207,12 +211,12 @@ class sPM:
             y_pred = y_pred.mean(0)
         return y_pred, y_sampled
 
-    def _print_summary(self):
+    def print_summary(self):
         self.mcmc.print_summary()
 
-    def _set_data(self,
-                  X: jnp.ndarray, y: Optional[jnp.ndarray] = None,
-                  ) -> Tuple[jnp.ndarray]:
+    def set_data(self,
+                 X: jnp.ndarray, y: Optional[jnp.ndarray] = None,
+                 ) -> Tuple[jnp.ndarray]:
         if y is not None:
             return X, y
         return X
