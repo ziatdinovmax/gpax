@@ -203,7 +203,7 @@ class MeasuredNoiseGP(ExactGP):
         # Calculate the average of the means
         mean_predictions = mu_all.mean(axis=0)
         # Calculate the average within-model variance and variance of the means
-        average_within_model_variance = cov_all.mean(axis=0).diagonal() + self.noise_predicted
+        average_within_model_variance = cov_all.mean(axis=0).diagonal() + jnp.clip(self.noise_predicted, 0)
         variance_of_means = jnp.var(mu_all, axis=0)
         # Total predictive variance
         total_predictive_variance = average_within_model_variance + variance_of_means
