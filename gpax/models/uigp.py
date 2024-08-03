@@ -12,10 +12,12 @@ from typing import Callable, Dict, Optional, Tuple, Union
 
 import jax.numpy as jnp
 import jax.random as jra
+from jax import vmap
 import numpyro
 import numpyro.distributions as dist
 
 from . import ExactGP
+from ..utils import put_on_device
 
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray], jnp.ndarray]
 
@@ -141,8 +143,53 @@ class UIGP(ExactGP):
         for a single sample of UIGP parameters
         """
         X_train_prime = params["X_prime"]
-        X_new_prime = dist.Normal(X_new, params["sigma_x"]).sample(jra.PRNGKey(0))
-        return super().compute_gp_posterior(X_new_prime, X_train_prime, y_train, params, noiseless)
+        return super().compute_gp_posterior(X_new, X_train_prime, y_train, params, noiseless)
+
+    def predict(self,
+                X_new: jnp.ndarray,
+                noiseless: bool = True,
+                device: str = None
+                ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Make prediction at X_new points a trained GP model
+
+        Args:
+            X_new:
+                New inputs with *(number of points, number of features)* dimensions
+            noiseless:
+                Noise-free prediction. It is set to False by default as new/unseen data is assumed
+                to follow the same distribution as the training data. Hence, since we introduce a model noise
+                by default for the training data, we also want to include that noise in our prediction.
+            device:
+                The device (e.g. "cpu" or "gpu") perform computation on ('cpu', 'gpu'). If None, computation
+                is performed on the JAX default device.
+
+        Returns:
+            Posterior mean and variance
+        """
+
+        def predictive(key, params):
+            X_new_prime = dist.Normal(X_new, params["sigma_x"]).sample(key)
+            return self.compute_gp_posterior(X_new_prime, self.X_train, self.y_train, params, noiseless)
+
+        X_new = self.set_data(X_new)
+        samples = self.get_samples(chain_dim=False)
+        self.X_train, self.y_train, X_new, samples = put_on_device(
+            device, self.X_train, self.y_train, X_new, samples)
+        num_samples = len(next(iter(samples.values())))
+        keys = jra.split(jra.PRNGKey(0), num_samples)
+
+        # Compute predictive mean and covariance for all HMC samples
+        mu_all, cov_all = vmap(predictive)(keys, samples)
+        # Calculate the average of the means
+        mean_predictions = mu_all.mean(axis=0)
+        # Calculate the average within-model variance and variance of the means
+        average_within_model_variance = cov_all.mean(axis=0).diagonal()
+        variance_of_means = jnp.var(mu_all, axis=0)
+        # Total predictive variance
+        total_predictive_variance = average_within_model_variance + variance_of_means
+
+        return mean_predictions, total_predictive_variance
 
     def _set_data(self, X: jnp.ndarray, y: Optional[jnp.ndarray] = None) -> Union[Tuple[jnp.ndarray], jnp.ndarray]:
         X = X if X.ndim > 1 else X[:, None]
@@ -159,6 +206,6 @@ class UIGP(ExactGP):
             return X, y.squeeze()
         return X
 
-    def _print_summary(self):
+    def print_summary(self):
         samples = self.get_samples(1)
         numpyro.diagnostics.print_summary({k: v for (k, v) in samples.items() if 'X_prime' not in k})
