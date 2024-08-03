@@ -32,18 +32,16 @@ def model_priors():
 
 @pytest.mark.parametrize("jax_ndarray", [True, False])
 def test_fit(jax_ndarray):
-    rng_key = get_keys()[0]
     X, y = get_dummy_data(jax_ndarray)
     m = sPM(model, model_priors)
-    m.fit(rng_key, X, y, num_warmup=100, num_samples=100)
+    m.fit(X, y, num_warmup=100, num_samples=100)
     assert m.mcmc is not None
 
 
 def test_get_samples():
-    rng_key = get_keys()[0]
     X, y = get_dummy_data()
     m = sPM(model, model_priors)
-    m.fit(rng_key, X, y, num_warmup=100, num_samples=100)
+    m.fit(X, y, num_warmup=100, num_samples=100)
     samples = m.get_samples()
     assert isinstance(samples, dict)
     for k, v in samples.items():
@@ -60,7 +58,7 @@ def test_prediction():
                "b": jax.random.normal(rng_keys[0], shape=(100,)),
                "noise": jax.random.normal(rng_keys[0], shape=(100,))}
     m =sPM(model, model_priors)
-    y_mean, y_sampled = m.predict(rng_keys[1], X_test, samples)
+    y_mean, y_sampled = m.predict(X_test, samples)
     assert isinstance(y_mean, jnp.ndarray)
     assert isinstance(y_sampled, jnp.ndarray)
     assert_equal(y_mean.shape, X_test.squeeze().shape)
@@ -68,11 +66,10 @@ def test_prediction():
 
 
 def test_fit_predict():
-    key1, key2 = get_keys()
     X, y = get_dummy_data()
     X_test = onp.linspace(X.min(), X.max(), 200)
     m = sPM(model, model_priors)
-    m.fit(key1, X, y, num_warmup=100, num_samples=100)
-    y_mean, y_sampled = m.predict(key2, X_test)
+    m.fit(X, y, num_warmup=100, num_samples=100)
+    y_mean, y_sampled = m.predict(X_test)
     assert_equal(y_mean.shape, X_test.squeeze().shape)
     assert_equal(y_sampled.shape, (100, X_test.shape[0]))
