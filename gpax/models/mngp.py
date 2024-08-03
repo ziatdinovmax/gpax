@@ -7,10 +7,9 @@ Fully Bayesian Gaussian Process model that incorporates measured noise.
 Created by Maxim Ziatdinov (email: maxim.ziatdinov@gmail.com)
 """
 
-from typing import Callable, Dict, Optional, Tuple, Type, Union
+from typing import Callable, Dict, Optional, Tuple, Union
 
-import jax
-import jaxlib
+
 import jax.numpy as jnp
 import jax.random as jra
 from jax import vmap
@@ -22,7 +21,7 @@ from numpyro.infer import MCMC, NUTS, init_to_median
 from .gp import ExactGP
 from .vigp import viGP
 from .linreg import LinReg
-from ..utils import get_keys, put_on_device
+from ..utils import put_on_device
 
 kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp.ndarray], jnp.ndarray]
 
@@ -30,8 +29,8 @@ kernel_fn_type = Callable[[jnp.ndarray, jnp.ndarray, Dict[str, jnp.ndarray], jnp
 class MeasuredNoiseGP(ExactGP):
     """
     Gaussian Process model that incorporates measured noise.
-    This class extends the ExactGP model by allowing the inclusion of measured noise variances 
-    in the GP framework. Unlike standard GP models where noise is typically inferred, this model 
+    This class extends the ExactGP model by allowing the inclusion of measured noise variances
+    in the GP framework. Unlike standard GP models where noise is typically inferred, this model
     uses noise values obtained from repeated measurements at the same input points.
 
     Args:
@@ -47,7 +46,7 @@ class MeasuredNoiseGP(ExactGP):
             Optional priors over mean function parameters
         lengthscale_prior_dist:
             Optional custom prior distribution over kernel lengthscale. Defaults to LogNormal(0, 1).
-    
+
     Examples:
 
         >>> # Initialize model
@@ -188,7 +187,7 @@ class MeasuredNoiseGP(ExactGP):
         samples = self.get_samples(chain_dim=False)
         self.X_train, self.y_train, X_new, samples = put_on_device(
             device, self.X_train, self.y_train, X_new, samples)
-        
+
         # Predict noise for X_new
         if self.noise_predicted is not None:
             noise_predicted = self.noise_predicted
@@ -209,12 +208,12 @@ class MeasuredNoiseGP(ExactGP):
         total_predictive_variance = average_within_model_variance + variance_of_means
 
         return mean_predictions, total_predictive_variance
-    
+
     def linreg(self, x, y, x_new, **kwargs):
         lreg = LinReg()
         lreg.train(x, y, **kwargs)
         return lreg.predict(x_new)
-    
+
     def gpreg(self, x, y, x_new, **kwargs):
         vigp = viGP(self.kernel_dim, 'RBF', **kwargs)
         vigp.fit(x, y, progress_bar=False, print_summary=False, **kwargs)
