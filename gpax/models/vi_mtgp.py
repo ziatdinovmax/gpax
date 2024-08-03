@@ -93,7 +93,6 @@ class viMultiTaskGP(MultiTaskGP):
         Run variational inference to learn GP (hyper)parameters
 
         Args:
-            rng_key: random number generator key
             X: 2D feature vector with *(number of points, number of features)* dimensions
             y: 1D target vector with *(n,)* dimensions
             num_steps: number of SVI steps
