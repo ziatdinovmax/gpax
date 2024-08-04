@@ -18,6 +18,7 @@ from .models import (
     MultiTaskDKL,
     viMultiTaskDKL,
     viSparseGP,
+    viMeasuredNoiseGP
 )
 
 __all__ = [
