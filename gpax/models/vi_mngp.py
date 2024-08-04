@@ -115,7 +115,9 @@ class viMeasuredNoiseGP(MeasuredNoiseGP):
             self.print_summary()
 
     def get_samples(self, **kwargs):
-        return {k: v[None] for (k, v) in self.params.items()}
+        samples = {k: v[None] for (k, v) in self.params.items()}
+        samples["noise"] = jnp.array([0.0])
+        return samples
 
     def print_summary(self) -> None:
         for (k, vals) in self.params.items():
