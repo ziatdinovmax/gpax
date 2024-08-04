@@ -1,5 +1,4 @@
 from .gp import ExactGP
-from .vgp import vExactGP
 from .vigp import viGP
 from .hskgp import VarNoiseGP
 from .spm import sPM
@@ -11,9 +10,9 @@ from .mtdkl import MultiTaskDKL
 from .vi_mtdkl import viMultiTaskDKL
 from .mtgp import MultiTaskGP
 from .vi_mtgp import viMultiTaskGP
-from .corgp import CoregGP
 from .uigp import UIGP
 from .mngp import MeasuredNoiseGP
+from .vi_mngp import viMeasuredNoiseGP
 from .linreg import LinReg
 from .sparse_gp import viSparseGP
 from .bnn import BNN
