@@ -16,7 +16,7 @@ class HaikuMLP(hk.Module):
         self.activation = activation
 
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-        activation_fn = jax.nn.tanh if self.activation == 'tanh' else jax.nn.silu
+        activation_fn = jax.nn.tanh if self.activation == 'tanh' else jax.nn.relu
 
         for i, hidden_dim in enumerate(self.hidden_dims):
             x = hk.Linear(hidden_dim, name=f"Dense{i}")(x)
