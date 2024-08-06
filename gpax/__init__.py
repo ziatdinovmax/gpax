@@ -10,6 +10,7 @@ from .models import (
     MultiTaskGP,
     viMultiTaskGP,
     VarNoiseGP,
+    DMFGP,
     iBNN,
     sPM,
     vi_iBNN,
