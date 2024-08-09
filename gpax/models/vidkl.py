@@ -31,13 +31,15 @@ class viDKL(DKL):
             Latent space dimensionality (defaults to 2)
         kernel:
             Kernel function ('RBF', 'Matern', 'Periodic', or custom function)
-        nn:
-            Optionally provide a custom neural network in haiku; if not provided,
-            the model uses a 3-layer MLP with hyperbolic tangent activations by default
         hidden_dim:
             Optional custom MLP architecture. For example [16, 8, 4] corresponds to a 3-layer
             neural network backbone containing 16, 8, and 4 neurons activated by tanh(). The latent
             layer is added autoamtically and doesn't have to be specified here. Defaults to [32, 16, 8].
+        activation:
+            Nonlinear activation function for NN. Defaults to 'relu'.
+        nn:
+            Optionally provide a custom neural network in haiku; if not provided,
+            the model uses a 3-layer MLP with hyperbolic tangent activations by default
 
         **kwargs:
             Optional custom prior distributions over observational noise (noise_dist_prior)
