@@ -84,7 +84,6 @@ class DKL(ExactGP):
               **kwargs: float
               ) -> None:
         """DKL probabilistic model"""
-        jitter = kwargs.get("jitter", 1e-6)
         # BNN part
         feature_extractor = random_haiku_module(
                 "feature_extractor", self.nn_module, input_shape=(1, *self.data_dim),
@@ -100,7 +99,7 @@ class DKL(ExactGP):
         # GP's mean function
         f_loc = jnp.zeros(z.shape[0])
         # Compute kernel
-        k = self.kernel(z, z, kernel_params, noise, jitter=jitter)
+        k = self.kernel(z, z, kernel_params, noise, self.jitter)
         # Sample y according to the standard Gaussian process formula
         numpyro.sample(
             "y",
