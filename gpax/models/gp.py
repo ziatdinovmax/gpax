@@ -251,7 +251,7 @@ class ExactGP:
         return self.mcmc.get_samples(group_by_chain=chain_dim)
 
     def get_mvn_posterior(
-        self, X_new: jnp.ndarray, params: Dict[str, jnp.ndarray], noiseless: bool = False, **kwargs: float
+        self, X_new: jnp.ndarray, params: Dict[str, jnp.ndarray], noiseless: bool = False, use_cholesky: bool = False, **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Returns parameters (mean and cov) of multivariate normal posterior
@@ -267,13 +267,24 @@ class ExactGP:
         k_pp = self.kernel(X_new, X_new, params, noise_p, **kwargs)
         k_pX = self.kernel(X_new, self.X_train, params, jitter=0.0)
         k_XX = self.kernel(self.X_train, self.X_train, params, noise, **kwargs)
-        # compute the predictive covariance and mean
-        K_xx_inv = jnp.linalg.inv(k_XX)
-        cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
-        mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
+                
+        # Compute the predictive covariance and mean
+        # since K_xx is symmetric positive-definite, we can use the more efficient and
+        # stable Cholesky decomposition instead of matrix inversion
+        
+        if use_cholesky:
+            K_xx_cho = jax.scipy.linalg.cho_factor(k_XX)
+            cov = k_pp - jnp.matmul(k_pX, jax.scipy.linalg.cho_solve(K_xx_cho, k_pX.T))
+            mean = jnp.matmul(k_pX, jax.scipy.linalg.cho_solve(K_xx_cho, y_residual))
+        else:
+            K_xx_inv = jnp.linalg.inv(k_XX)
+            cov = k_pp - jnp.matmul(k_pX, jnp.matmul(K_xx_inv, jnp.transpose(k_pX)))
+            mean = jnp.matmul(k_pX, jnp.matmul(K_xx_inv, y_residual))
+        
         if self.mean_fn is not None:
             args = [X_new, params] if self.mean_fn_prior else [X_new]
             mean += self.mean_fn(*args).squeeze()
+        
         return mean, cov
 
     def _predict(
@@ -283,11 +294,12 @@ class ExactGP:
         params: Dict[str, jnp.ndarray],
         n: int,
         noiseless: bool = False,
+        use_cholesky: bool = False,
         **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Prediction with a single sample of GP parameters"""
         # Get the predictive mean and covariance
-        y_mean, K = self.get_mvn_posterior(X_new, params, noiseless, **kwargs)
+        y_mean, K = self.get_mvn_posterior(X_new, params, noiseless, use_cholesky, **kwargs)
         # draw samples from the posterior predictive for a given set of parameters
         y_sampled = dist.MultivariateNormal(y_mean, K).sample(rng_key, sample_shape=(n,))
         return y_mean, y_sampled
@@ -304,10 +316,11 @@ class ExactGP:
         predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
         noiseless: bool = False,
         device: Type[jaxlib.xla_extension.Device] = None,
+        use_cholesky: bool = False,
         **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         if predict_fn is None:
-            predict_fn = lambda xi: self.predict(rng_key, xi, samples, n, filter_nans, noiseless, device, **kwargs)
+            predict_fn = lambda xi: self.predict(rng_key, xi, samples, n, filter_nans, noiseless, device, use_cholesky, **kwargs)
 
         def predict_batch(Xi):
             out1, out2 = predict_fn(Xi)
@@ -333,6 +346,7 @@ class ExactGP:
         predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
         noiseless: bool = False,
         device: Type[jaxlib.xla_extension.Device] = None,
+        use_cholesky: bool = False,
         **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
@@ -342,7 +356,7 @@ class ExactGP:
         to avoid a memory overflow
         """
         y_pred, y_sampled = self._predict_in_batches(
-            rng_key, X_new, batch_size, 0, samples, n, filter_nans, predict_fn, noiseless, device, **kwargs
+            rng_key, X_new, batch_size, 0, samples, n, filter_nans, predict_fn, noiseless, device, use_cholesky, **kwargs
         )
         y_pred = jnp.concatenate(y_pred, 0)
         y_sampled = jnp.concatenate(y_sampled, -1)
@@ -357,6 +371,7 @@ class ExactGP:
         filter_nans: bool = False,
         noiseless: bool = False,
         device: Type[jaxlib.xla_extension.Device] = None,
+        use_cholesky: bool = False,
         **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
@@ -391,7 +406,7 @@ class ExactGP:
             samples = jax.device_put(samples, device)
         num_samples = len(next(iter(samples.values())))
         vmap_args = (jra.split(rng_key, num_samples), samples)
-        predictive = jax.vmap(lambda prms: self._predict(prms[0], X_new, prms[1], n, noiseless, **kwargs))
+        predictive = jax.vmap(lambda prms: self._predict(prms[0], X_new, prms[1], n, noiseless, use_cholesky, **kwargs))
         y_means, y_sampled = predictive(vmap_args)
         if filter_nans:
             y_sampled_ = [y_i for y_i in y_sampled if not jnp.isnan(y_i).any()]
