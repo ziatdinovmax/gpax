@@ -169,6 +169,21 @@ def test_get_mvn_posterior_noiseless():
     assert_array_equal(mean1, mean2)
     assert onp.count_nonzero(cov1 - cov2) > 0
 
+def test_get_mvn_posterior_cholesky():
+    X, y = get_dummy_data(unsqueeze=True)
+    X_test, _ = get_dummy_data(unsqueeze=True)
+    params = {"k_length": jnp.array([1.0]),
+              "k_scale": jnp.array(1.0),
+              "noise": jnp.array(0.1)}
+    m = ExactGP(1, 'RBF')
+    m.X_train = X
+    m.y_train = y
+    mean, cov = m.get_mvn_posterior(X_test, params, use_cholesky=True)
+    assert isinstance(mean, jnp.ndarray)
+    assert isinstance(cov, jnp.ndarray)
+    assert_equal(mean.shape, (X_test.shape[0],))
+    assert_equal(cov.shape, (X_test.shape[0], X_test.shape[0]))
+
 
 def test_single_sample_prediction():
     rng_key = get_keys()[0]
