@@ -351,6 +351,7 @@ class ExactGP:
     def sample_from_posterior(self,
                               X_new: jnp.ndarray,
                               noiseless: bool = True,
+                              samples: Dict[str, jnp.ndarray] = None,
                               n_draws: int = 100,
                               device: str = None,
                               rng_key: jnp.ndarray = None
@@ -365,6 +366,8 @@ class ExactGP:
                 Noise-free prediction. It is set to False by default as new/unseen data is assumed
                 to follow the same distribution as the training data. Hence, since we introduce a model noise
                 by default for the training data, we also want to include that noise in our prediction.
+            samples:
+                Optional samples with model parameters. Uses samples from the last MCMC run by default.
             n_draws:
                 Number of MVN distribution samples to draw for each sample with GP parameters
             device:
@@ -379,7 +382,8 @@ class ExactGP:
         """
         key = rng_key if rng_key is not None else jra.PRNGKey(0)
         X_new = self.set_data(X_new)
-        samples = self.get_samples(chain_dim=False)
+        if not samples:
+            samples = self.get_samples(chain_dim=False)
         self.X_train, self.y_train, X_new, samples = put_on_device(
             device, self.X_train, self.y_train, X_new, samples)
 

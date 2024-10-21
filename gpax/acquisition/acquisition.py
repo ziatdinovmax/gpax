@@ -20,18 +20,12 @@ from .penalties import compute_penalty
 
 
 def _compute_mean_and_var(
-        rng_key: jnp.ndarray, model: Type[ExactGP], X: jnp.ndarray,
-        n: int, noiseless: bool, **kwargs) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        model: Type[ExactGP], X: jnp.ndarray, noiseless: bool, **kwargs
+        ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """
     Computes predictive mean and variance
     """
-    if model.mcmc is not None:
-        _, y_sampled = model.predict(
-            rng_key, X, n=n, noiseless=noiseless, **kwargs)
-        y_sampled = y_sampled.reshape(n * y_sampled.shape[0], -1)
-        mean, var = y_sampled.mean(0), y_sampled.var(0)
-    else:
-        mean, var = model.predict(rng_key, X, noiseless=noiseless, **kwargs)
+    mean, var = model.predict(X, noiseless=noiseless, **kwargs)
     return mean, var
 
 
@@ -46,9 +40,9 @@ def _compute_penalties(
     return compute_penalty(X_, recent_points, penalty, penalty_factor)
 
 
-def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
+def EI(model: Type[ExactGP],
        X: jnp.ndarray, best_f: float = None,
-       maximize: bool = False, n: int = 1,
+       maximize: bool = False,
        noiseless: bool = False,
        penalty: Optional[str] = None,
        recent_points: jnp.ndarray = None,
@@ -83,15 +77,12 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
     mean function (if any) also contributes to the acquisition function values.
 
     Args:
-        rng_key: JAX random number generator key
         model: trained model
         X: new inputs
         best_f:
             Best function value observed so far. Derived from the predictive mean
             when not provided by a user.
         maximize: If True, assumes that BO is solving maximization problem
-        n: number of samples drawn from each MVN distribution
-           (number of distributions is equal to the number of HMC samples)
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
@@ -130,7 +121,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
 
     X = X[:, None] if X.ndim < 2 else X
 
-    moments = _compute_mean_and_var(rng_key, model, X, n, noiseless, **kwargs)
+    moments = _compute_mean_and_var(model, X, noiseless, **kwargs)
 
     acq = ei(moments, best_f, maximize)
 
@@ -140,7 +131,7 @@ def EI(rng_key: jnp.ndarray, model: Type[ExactGP],
     return acq
 
 
-def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
+def UCB(model: Type[ExactGP],
         X: jnp.ndarray, beta: float = .25,
         maximize: bool = False, n: int = 1,
         noiseless: bool = False,
@@ -168,13 +159,10 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     mean function (if any) also contributes to the acquisition function values.
 
     Args:
-        rng_key: JAX random number generator key
         model: trained model
         X: new inputs
         beta: coefficient balancing exploration-exploitation trade-off
         maximize: If True, assumes that BO is solving maximization problem
-        n: number of samples drawn from each MVN distribution
-           (number of distributions is equal to the number of HMC samples)
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
@@ -214,7 +202,7 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
 
     X = X[:, None] if X.ndim < 2 else X
 
-    moments = _compute_mean_and_var(rng_key, model, X, n, noiseless, **kwargs)
+    moments = _compute_mean_and_var(model, X, noiseless, **kwargs)
 
     acq = ucb(moments, beta, maximize)
 
@@ -224,10 +212,10 @@ def UCB(rng_key: jnp.ndarray, model: Type[ExactGP],
     return acq
 
 
-def POI(rng_key: jnp.ndarray, model: Type[ExactGP],
+def POI(model: Type[ExactGP],
         X: jnp.ndarray, best_f: float = None,
         xi: float = 0.01, maximize: bool = False,
-        n: int = 1, noiseless: bool = False,
+        noiseless: bool = False,
         penalty: Optional[str] = None,
         recent_points: jnp.ndarray = None,
         grid_indices: jnp.ndarray = None,
@@ -261,8 +249,6 @@ def POI(rng_key: jnp.ndarray, model: Type[ExactGP],
             when not provided by a user.
         xi: coefficient affecting exploration-exploitation trade-off
         maximize: If True, assumes that BO is solving maximization problem
-        n: number of samples drawn from each MVN distribution
-           (number of distributions is equal to the number of HMC samples)
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
@@ -301,7 +287,7 @@ def POI(rng_key: jnp.ndarray, model: Type[ExactGP],
 
     X = X[:, None] if X.ndim < 2 else X
 
-    moments = _compute_mean_and_var(rng_key, model, X, n, noiseless, **kwargs)
+    moments = _compute_mean_and_var(model, X, noiseless, **kwargs)
 
     acq = poi(moments, best_f, xi, maximize)
 
@@ -311,15 +297,14 @@ def POI(rng_key: jnp.ndarray, model: Type[ExactGP],
     return acq
 
 
-def UE(rng_key: jnp.ndarray, model: Type[ExactGP],
-        X: jnp.ndarray,
-        n: int = 1,
-        noiseless: bool = False,
-        penalty: Optional[str] = None,
-        recent_points: jnp.ndarray = None,
-        grid_indices: jnp.ndarray = None,
-        penalty_factor: float = 1.0,
-        **kwargs) -> jnp.ndarray:
+def UE(model: Type[ExactGP],
+       X: jnp.ndarray,
+       noiseless: bool = False,
+       penalty: Optional[str] = None,
+       recent_points: jnp.ndarray = None,
+       grid_indices: jnp.ndarray = None,
+       penalty_factor: float = 1.0,
+       **kwargs) -> jnp.ndarray:
 
     r"""
     Uncertainty-based exploration
@@ -340,11 +325,8 @@ def UE(rng_key: jnp.ndarray, model: Type[ExactGP],
     mean function (if any) also contributes to the acquisition function values.
 
     Args:
-        rng_key: JAX random number generator key
         model: trained model
         X: new inputs
-        n: number of samples drawn from each MVN distribution
-           (number of distributions is equal to the number of HMC samples)
         noiseless:
             Noise-free prediction. It is set to False by default as new/unseen data is assumed
             to follow the same distribution as the training data. Hence, since we introduce a model noise
@@ -382,7 +364,7 @@ def UE(rng_key: jnp.ndarray, model: Type[ExactGP],
         raise ValueError("Please provide an array of recently visited points")
     X = X[:, None] if X.ndim < 2 else X
 
-    moments = _compute_mean_and_var(rng_key, model, X, n, noiseless, **kwargs)
+    moments = _compute_mean_and_var(model, X, noiseless, **kwargs)
 
     acq = ue(moments)
 
@@ -394,8 +376,7 @@ def UE(rng_key: jnp.ndarray, model: Type[ExactGP],
     return acq
 
 
-def KG(rng_key: jnp.ndarray,
-       model: Type[ExactGP],
+def KG(model: Type[ExactGP],
        X: jnp.ndarray,
        n: int = 1,
        maximize: bool = False,
@@ -422,8 +403,6 @@ def KG(rng_key: jnp.ndarray,
     :math:`V_n^*` is the optimal expected value of the objective function based on the current \(n\) observations.
 
     Args:
-        rng_key:
-            JAX random number generator key for sampling simulated observations
         model:
             Trained model
         X:
@@ -468,6 +447,7 @@ def KG(rng_key: jnp.ndarray,
     if penalty and not isinstance(recent_points, (onp.ndarray, jnp.ndarray)):
         raise ValueError("Please provide an array of recently visited points")
 
+    rng_key = jra.PRNGKey(0)
     X = X[:, None] if X.ndim < 2 else X
     samples = model.get_samples()
 
@@ -510,15 +490,16 @@ def Thompson(rng_key: jnp.ndarray,
             Small positive term added to the diagonal part of a covariance
             matrix for numerical stability (Default: 1e-6)
     """
+    
+    posterior_samples = model.get_samples()
     if model.mcmc is not None:
-        posterior_samples = model.get_samples()
         idx = jra.randint(rng_key, (1,), 0, len(posterior_samples["k_length"]))
         samples = {k: v[idx] for (k, v) in posterior_samples.items()}
-        _, tsample = model.predict(
-            rng_key, X, samples, n, noiseless=noiseless, **kwargs)
+        tsample = model.sample_from_posterior(
+            X, noiseless, samples, n, rng_key=rng_key, **kwargs)
         if n > 1:
             tsample = tsample.mean(1).squeeze()
     else:
-        _, tsample = model.sample_from_posterior(
-            rng_key, X, n=1, noiseless=noiseless, **kwargs)
+        tsample = model.sample_from_posterior(
+            X, noiseless, posterior_samples, n_draws=1, rng_key=rng_key, **kwargs)
     return tsample

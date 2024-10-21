@@ -204,10 +204,9 @@ def kg(model: Type[ExactGP],
     y_train_o = model.y_train.copy()
 
     def kg_for_one_point(x_aug, y_aug, mean_o):
-        # Update GP model with augmented data (as if y_sim was an actual observation at x)
-        model._set_training_data(x_aug, y_aug)
         # Re-evaluate posterior predictive distribution on all the candidate ("test") points
-        mean_aug, _ = model.get_mvn_posterior(X_new, *sample, noiseless=noiseless, **kwargs)
+        mean_aug, _ = model.compute_gp_posterior(
+            X_new, x_aug, y_aug, *sample, noiseless=noiseless)
         # Find the maximum mean value
         y_fant = mean_aug.max() if maximize else mean_aug.min()
         # Compute adn return the improvement compared to the original maximum mean value
@@ -218,7 +217,8 @@ def kg(model: Type[ExactGP],
         return u
 
     # Get posterior distribution for candidate points
-    mean, cov = model.get_mvn_posterior(X_new, *sample, noiseless=noiseless, **kwargs)
+    mean, cov = model.compute_gp_posterior(
+        X_new, X_train_o, y_train_o, *sample, noiseless=noiseless)
     # Simulate potential observations
     y_sim = dist.MultivariateNormal(mean, cov).sample(rng_key, sample_shape=(n,))
     # Augment training data with simulated observations
@@ -230,8 +230,5 @@ def kg(model: Type[ExactGP],
     # Compute KG
     vectorized_kg = jax.vmap(jax.vmap(kg_for_one_point, in_axes=(0, 0, None)), in_axes=(None, 0, None))
     kg_values = vectorized_kg(X_train_aug, y_train_aug, mean)
-
-    # Reset training data to the original
-    model._set_training_data(X_train_o, y_train_o)
 
     return kg_values.mean(0)
