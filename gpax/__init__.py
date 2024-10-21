@@ -10,7 +10,6 @@ from .models import (
     MultiTaskGP,
     viMultiTaskGP,
     VarNoiseGP,
-    DMFGP,
     iBNN,
     sPM,
     vi_iBNN,
@@ -47,6 +46,9 @@ __all__ = [
     "viMultiTaskGP",
     "MultiTaskDKL"
     "viMultiTaskDKL",
+    "MultiTaskDKL",
+    "viMultiTaskDKL",
+    "viMeasuredNoiseGP",
     "sample_next",
     "__version__",
 ]

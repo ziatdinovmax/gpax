@@ -16,8 +16,6 @@ from .vi_mngp import viMeasuredNoiseGP
 from .linreg import LinReg
 from .sparse_gp import viSparseGP
 from .bnn import BNN
-from .dmfgp import DMFGP
-from .nets import HaikuMLP, DeterministicNN
 
 __all__ = [
     "ExactGP",
@@ -34,10 +32,10 @@ __all__ = [
     "UIGP",
     "LinReg",
     "MeasuredNoiseGP",
+    "viMeasuredNoiseGP",
     "viSparseGP",
     "BNN",
     "viMultiTaskGP",
     "MultiTaskDKL",
     "viMultiTaskDKL",
-    "HaikuMLP"
 ]
