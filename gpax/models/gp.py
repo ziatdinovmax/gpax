@@ -8,9 +8,10 @@ Created by Maxim Ziatdinov (email: maxim.ziatdinov@ai4microscopy.com)
 """
 
 import warnings
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Tuple, Union, Type
 
 import jax
+import jaxlib
 import jax.numpy as jnp
 import jax.random as jra
 from jax import vmap
@@ -410,6 +411,20 @@ class ExactGP:
         if y is not None:
             return X, y.squeeze()
         return X
+    
+    def _set_training_data(
+        self,
+        X_train_new: jnp.ndarray = None,
+        y_train_new: jnp.ndarray = None,
+        device: Type[jaxlib.xla_extension.Device] = None,
+    ) -> None:
+        X_train = self.X_train if X_train_new is None else X_train_new
+        y_train = self.y_train if y_train_new is None else y_train_new
+        if device:
+            X_train = jax.device_put(X_train, device)
+            y_train = jax.device_put(y_train, device)
+        self.X_train = X_train
+        self.y_train = y_train
 
     def print_summary(self) -> None:
         samples = self.get_samples(1)
