@@ -178,7 +178,7 @@ class vExactGP(ExactGP):
                            n: int = 1, filter_nans: bool = False,
                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
                            noiseless: bool = False,
-                           device: Type[jaxlib.xla_extension.Device] = None,
+                           device: Type[jaxlib.xla_client.Device] = None,
                            **kwargs: float
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """

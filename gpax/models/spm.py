@@ -87,7 +87,7 @@ class sPM:
             num_warmup: int = 2000, num_samples: int = 2000,
             num_chains: int = 1, chain_method: str = 'sequential',
             progress_bar: bool = True, print_summary: bool = True,
-            device: Type[jaxlib.xla_extension.Device] = None) -> None:
+            device: Type[jaxlib.xla_client.Device] = None) -> None:
         """
         Run HMC to infer parameters of the structured probabilistic model
 
@@ -174,7 +174,7 @@ class sPM:
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
                 n: int = 1,
                 filter_nans: bool = False, take_point_predictions_mean: bool = True,
-                device: Type[jaxlib.xla_extension.Device] = None
+                device: Type[jaxlib.xla_client.Device] = None
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using posterior model parameters

@@ -174,7 +174,7 @@ class ExactGP:
         chain_method: str = "sequential",
         progress_bar: bool = True,
         print_summary: bool = True,
-        device: Type[jaxlib.xla_extension.Device] = None,
+        device: Type[jaxlib.xla_client.Device] = None,
         **kwargs: float
     ) -> None:
         """
@@ -303,7 +303,7 @@ class ExactGP:
         filter_nans: bool = False,
         predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
         noiseless: bool = False,
-        device: Type[jaxlib.xla_extension.Device] = None,
+        device: Type[jaxlib.xla_client.Device] = None,
         **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         if predict_fn is None:
@@ -332,7 +332,7 @@ class ExactGP:
         filter_nans: bool = False,
         predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
         noiseless: bool = False,
-        device: Type[jaxlib.xla_extension.Device] = None,
+        device: Type[jaxlib.xla_client.Device] = None,
         **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
@@ -356,7 +356,7 @@ class ExactGP:
         n: int = 1,
         filter_nans: bool = False,
         noiseless: bool = False,
-        device: Type[jaxlib.xla_extension.Device] = None,
+        device: Type[jaxlib.xla_client.Device] = None,
         **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
@@ -417,7 +417,7 @@ class ExactGP:
         self,
         X_train_new: jnp.ndarray = None,
         y_train_new: jnp.ndarray = None,
-        device: Type[jaxlib.xla_extension.Device] = None,
+        device: Type[jaxlib.xla_client.Device] = None,
     ) -> None:
         X_train = self.X_train if X_train_new is None else X_train_new
         y_train = self.y_train if y_train_new is None else y_train_new

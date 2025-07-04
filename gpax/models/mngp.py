@@ -109,7 +109,7 @@ class MeasuredNoiseGP(ExactGP):
         chain_method: str = "sequential",
         progress_bar: bool = True,
         print_summary: bool = True,
-        device: Type[jaxlib.xla_extension.Device] = None,
+        device: Type[jaxlib.xla_client.Device] = None,
         **kwargs: float
     ) -> None:
         """
@@ -189,7 +189,7 @@ class MeasuredNoiseGP(ExactGP):
         n: int = 1,
         filter_nans: bool = False,
         noiseless: bool = True,
-        device: Type[jaxlib.xla_extension.Device] = None,
+        device: Type[jaxlib.xla_client.Device] = None,
         noise_prediction_method: str = 'linreg',
         **kwargs: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:

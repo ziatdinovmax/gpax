@@ -77,7 +77,7 @@ class viGP(ExactGP):
     def fit(self, rng_key: jnp.array, X: jnp.ndarray, y: jnp.ndarray,
             num_steps: int = 1000, step_size: float = 5e-3,
             progress_bar: bool = True, print_summary: bool = True,
-            device: Type[jaxlib.xla_extension.Device] = None,
+            device: Type[jaxlib.xla_client.Device] = None,
             **kwargs: float
             ) -> None:
         """
@@ -131,7 +131,7 @@ class viGP(ExactGP):
                            samples: Optional[Dict[str, jnp.ndarray]] = None,
                            predict_fn: Callable[[jnp.ndarray, int], Tuple[jnp.ndarray]] = None,
                            noiseless: bool = False,
-                           device: Type[jaxlib.xla_extension.Device] = None,
+                           device: Type[jaxlib.xla_client.Device] = None,
                            **kwargs: float
                            ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
@@ -153,7 +153,7 @@ class viGP(ExactGP):
     def predict(self, rng_key: jnp.ndarray, X_new: jnp.ndarray,
                 samples: Optional[Dict[str, jnp.ndarray]] = None,
                 noiseless: bool = False,
-                device: Type[jaxlib.xla_extension.Device] = None, **kwargs: float
+                device: Type[jaxlib.xla_client.Device] = None, **kwargs: float
                 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
         Make prediction at X_new points using posterior samples for GP parameters

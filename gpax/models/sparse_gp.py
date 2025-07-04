@@ -118,7 +118,7 @@ class viSparseGP(viGP):
             inducing_points_ratio: float = 0.1, inducing_points_selection: str = 'random',
             num_steps: int = 1000, step_size: float = 5e-3,
             progress_bar: bool = True, print_summary: bool = True,
-            device: Type[jaxlib.xla_extension.Device] = None,
+            device: Type[jaxlib.xla_client.Device] = None,
             **kwargs: float
             ) -> None:
         """
