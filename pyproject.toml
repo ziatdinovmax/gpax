@@ -31,7 +31,7 @@ dependencies = [
     "flax>=0.10.7"
 ]
 
-version = "0.1.9"
+dynamic = ["version"]
 
 [project.optional-dependencies]
 test = [
