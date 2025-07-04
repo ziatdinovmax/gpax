@@ -1,7 +1,7 @@
 name: Unit
 
 env:
-  PYTHON_MAIN_VERSION: 3.9
+  PYTHON_MAIN_VERSION: 3.12
 
 on:
   workflow_call:
