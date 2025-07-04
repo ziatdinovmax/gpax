@@ -23,11 +23,12 @@ classifiers=[
 # Core dependencies
 dependencies = [
     "matplotlib>=3.1.1",
-    "jax>=0.4.8",
-    "numpyro>=0.11.0",
-    "dm-haiku>=0.0.5",
-    "jaxopt",
-    "flax"
+    "jax>=0.6.2",
+    "jaxlib>=0.6.2",
+    "numpyro>=0.18.0",
+    "dm-haiku>=0.0.14",
+    "jaxopt>-0.8.5",
+    "flax>=0.10.7"
 ]
 
 version = "0.1.9"
