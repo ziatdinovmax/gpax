@@ -27,10 +27,11 @@ dependencies = [
     "numpyro>=0.11.0",
     "dm-haiku>=0.0.5",
     "dunamai==1.19.2",
-    "jaxopt", # TODO: do we want to require this?
+    "jaxopt",
+    "flax"
 ]
 
-dynamic = ["version"]
+version = "0.1.9"
 
 [project.optional-dependencies]
 test = [
@@ -42,14 +43,15 @@ test = [
 
 [tool.black]
 line-length = 127
-include = '\.pyi?$'
+include = '.pyi?
+
 exclude = '''
 /(
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
+  | .git
+  | .hg
+  | .mypy_cache
+  | .tox
+  | .venv
   | _build
   | buck-out
   | build
@@ -57,3 +59,40 @@ exclude = '''
   | docs/source/conf.py
 )/
 '''
+
+[tool.flit.module]
+name = "gpax"
+
+[tool.flit.sdist]
+exclude = [
+    "docs/",
+    "examples/",
+    "tests/",
+    "images/",
+    "*.ipynb",
+    "*.png",
+    "*.gif",
+    "*.jpg",
+    "*.sh",
+    "*.yml",
+    "*.toml",
+    "*.md",
+    "*.txt",
+    "*.rst",
+    "*.bat",
+    "Makefile",
+    "LICENSE",
+    ".flake8",
+    ".DS_Store",
+    ".pytest_cache/",
+    ".vscode/",
+    "__pycache__/",
+    "*.pyc",
+    "*.code-workspace"
+]
+include = [
+    "gpax/",
+    "LICENSE",
+    "pyproject.toml",
+    "README.md"
+]
