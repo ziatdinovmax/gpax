@@ -26,7 +26,6 @@ dependencies = [
     "jax>=0.4.8",
     "numpyro>=0.11.0",
     "dm-haiku>=0.0.5",
-    "dunamai==1.19.2",
     "jaxopt",
     "flax"
 ]
@@ -44,6 +43,7 @@ test = [
 [tool.black]
 line-length = 127
 include = '.pyi?
+ 
 
 exclude = '''
 /(
