@@ -42,21 +42,19 @@ test = [
 
 [tool.black]
 line-length = 127
-include = '.pyi?
- 
-
+include = '\.pyi?$'
 exclude = '''
 /(
-  | .git
-  | .hg
-  | .mypy_cache
-  | .tox
-  | .venv
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
   | _build
   | buck-out
   | build
   | dist
-  | docs/source/conf.py
+  | docs/source/conf\.py
 )/
 '''
 
