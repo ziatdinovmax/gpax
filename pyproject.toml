@@ -27,7 +27,7 @@ dependencies = [
     "jaxlib>=0.6.2",
     "numpyro>=0.18.0",
     "dm-haiku>=0.0.14",
-    "jaxopt>-0.8.5",
+    "jaxopt>=0.8.5",
     "flax>=0.10.7"
 ]
 
